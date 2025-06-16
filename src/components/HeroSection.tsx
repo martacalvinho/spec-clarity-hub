@@ -1,7 +1,8 @@
 
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Play, ChevronDown, Check } from "lucide-react";
-import HeroDashboardPreview from "./HeroDashboardPreview";
+// import HeroDashboardPreview from "./HeroDashboardPreview";
+import HeroMaterialCollage from "./HeroMaterialCollage";
 import MobileMaterialView from "./MobileMaterialView";
 import { useNavigate } from "react-router-dom";
 
@@ -31,11 +32,11 @@ const HeroSection = () => {
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
                   <Check className="h-5 w-5 text-coral flex-shrink-0" />
-                  <span className="text-lg text-gray-600">Build a live, searchable library in minutes</span>
+                  <span className="text-lg text-gray-600">Build a live, and searchable library</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <Check className="h-5 w-5 text-coral flex-shrink-0" />
-                  <span className="text-lg text-gray-600">Just drag-and-drop your spec PDFs and search instantly</span>
+                  <span className="text-lg text-gray-600">Just drag-and-drop your spec PDFs, we take care of the rest</span>
                 </div>
               </div>
             </div>
@@ -60,30 +61,18 @@ const HeroSection = () => {
             </div>
           </div>
           
-          {/* Dashboard Preview - Made smaller and less prominent */}
+          {/* Material Collage Visual */}
           <div className="relative hidden lg:block">
-            <div className="transform scale-90 hover:scale-95 transition-transform duration-300">
-              <HeroDashboardPreview />
-            </div>
-            
-            {/* Caption for the interface preview */}
-            <div className="mt-4 text-center">
+            <HeroMaterialCollage />
+            {/* Caption under collage */}
+            <div className="mt-6 text-center">
               <p className="text-sm text-gray-600 font-medium">
-                Track usage, spot trends, and find materials instantly
+              Your complete material history at a glance
               </p>
               <p className="text-xs text-gray-500 mt-1">
-                Your complete material history at a glance
+                Organize years of materials, manufacturers and projects
               </p>
             </div>
-            
-            {/* Enhanced floating elements with subtle parallax effect */}
-            <div className="absolute -top-6 -right-6 w-12 h-12 bg-coral/10 rounded-full flex items-center justify-center animate-pulse">
-              <div className="w-6 h-6 bg-coral/20 rounded-full"></div>
-            </div>
-            <div className="absolute -bottom-6 -left-6 w-10 h-10 bg-blue-400/10 rounded-full flex items-center justify-center animate-pulse" style={{ animationDelay: '1s' }}>
-              <div className="w-4 h-4 bg-blue-400/20 rounded-full"></div>
-            </div>
-            <div className="absolute top-1/2 -right-3 w-6 h-6 bg-indigo-400/10 rounded-full animate-pulse" style={{ animationDelay: '2s' }}></div>
           </div>
 
           {/* Mobile Alternative */}

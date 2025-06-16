@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
 import { useState } from "react";
@@ -93,6 +92,13 @@ const Navigation = () => {
             >
               Book a Demo
             </Button>
+            <Button 
+              onClick={() => navigate('/login')}
+              variant="outline"
+              className="border-coral text-coral hover:bg-coral hover:text-white"
+            >
+              Login
+            </Button>
           </div>
 
           {/* Mobile Menu Button */}
@@ -143,6 +149,13 @@ const Navigation = () => {
                 className="bg-coral hover:bg-coral-600 text-white w-fit"
               >
                 Book a Demo
+              </Button>
+              <Button 
+                onClick={() => navigate('/login')}
+                variant="outline"
+                className="border-coral text-coral hover:bg-coral hover:text-white w-fit"
+              >
+                Login
               </Button>
             </div>
           </div>
