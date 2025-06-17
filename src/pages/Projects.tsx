@@ -18,8 +18,10 @@ const Projects = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState({
     projectType: '',
-    startDateFrom: '',
-    startDateTo: '',
+    clientId: '',
+    status: '',
+    filterDate: '',
+    dateType: 'either',
   });
 
   useEffect(() => {
@@ -52,17 +54,32 @@ const Projects = () => {
       project.type.toLowerCase().includes(searchTerm.toLowerCase());
 
     // Type filter
-    const matchesType = !filters.projectType || 
-      filters.projectType === 'all' || 
-      project.type === filters.projectType;
+    const matchesType = !filters.projectType || project.type === filters.projectType;
 
-    // Date filters
-    const matchesStartDate = (!filters.startDateFrom || !project.start_date || 
-      new Date(project.start_date) >= new Date(filters.startDateFrom)) &&
-      (!filters.startDateTo || !project.start_date || 
-      new Date(project.start_date) <= new Date(filters.startDateTo));
+    // Client filter
+    const matchesClient = !filters.clientId || project.client_id === filters.clientId;
 
-    return matchesSearch && matchesType && matchesStartDate;
+    // Status filter
+    const matchesStatus = !filters.status || project.status === filters.status;
+
+    // Date filter
+    let matchesDate = true;
+    if (filters.filterDate) {
+      const filterDate = new Date(filters.filterDate);
+      const startDate = project.start_date ? new Date(project.start_date) : null;
+      const endDate = project.end_date ? new Date(project.end_date) : null;
+
+      if (filters.dateType === 'start') {
+        matchesDate = startDate && startDate.toDateString() === filterDate.toDateString();
+      } else if (filters.dateType === 'end') {
+        matchesDate = endDate && endDate.toDateString() === filterDate.toDateString();
+      } else { // either
+        matchesDate = (startDate && startDate.toDateString() === filterDate.toDateString()) ||
+                     (endDate && endDate.toDateString() === filterDate.toDateString());
+      }
+    }
+
+    return matchesSearch && matchesType && matchesClient && matchesStatus && matchesDate;
   });
 
   const getStatusColor = (status: string) => {
@@ -125,6 +142,9 @@ const Projects = () => {
                     {project.start_date && (
                       <span className="text-sm text-gray-500">Start: {new Date(project.start_date).toLocaleDateString()}</span>
                     )}
+                    {project.end_date && (
+                      <span className="text-sm text-gray-500">End: {new Date(project.end_date).toLocaleDateString()}</span>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -134,7 +154,7 @@ const Projects = () => {
             ))}
             {filteredProjects.length === 0 && (
               <div className="text-center py-8 text-gray-500">
-                {searchTerm || filters.projectType || filters.startDateFrom || filters.startDateTo 
+                {searchTerm || filters.projectType || filters.clientId || filters.status || filters.filterDate
                   ? 'No projects found matching your filters.' 
                   : 'No projects yet. Create your first project!'}
               </div>
