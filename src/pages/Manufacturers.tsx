@@ -1,10 +1,12 @@
+
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, Edit, Building, Mail, Phone, Globe } from 'lucide-react';
+import { Search, Edit, Building, Mail, Phone, Globe, ArrowUpDown } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import AddManufacturerForm from '@/components/forms/AddManufacturerForm';
 import EditManufacturerForm from '@/components/forms/EditManufacturerForm';
@@ -14,6 +16,7 @@ const Manufacturers = () => {
   const [manufacturers, setManufacturers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState('name'); // 'name' or 'materials'
 
   useEffect(() => {
     if (studioId) {
@@ -30,8 +33,7 @@ const Manufacturers = () => {
           *,
           materials(id, name)
         `)
-        .eq('studio_id', studioId)
-        .order('created_at', { ascending: false });
+        .eq('studio_id', studioId);
 
       if (error) throw error;
       setManufacturers(data || []);
@@ -42,10 +44,20 @@ const Manufacturers = () => {
     }
   };
 
-  const filteredManufacturers = manufacturers.filter(manufacturer =>
-    manufacturer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    manufacturer.contact_name?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredAndSortedManufacturers = manufacturers
+    .filter(manufacturer =>
+      manufacturer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      manufacturer.contact_name?.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    .sort((a, b) => {
+      if (sortBy === 'materials') {
+        const aCount = a.materials?.length || 0;
+        const bCount = b.materials?.length || 0;
+        return bCount - aCount; // Descending order for materials count
+      } else {
+        return a.name.localeCompare(b.name); // Alphabetical order for names
+      }
+    });
 
   if (loading) {
     return <div className="p-6">Loading manufacturers...</div>;
@@ -65,20 +77,34 @@ const Manufacturers = () => {
               <CardTitle>All Manufacturers</CardTitle>
               <CardDescription>Manage your manufacturer contacts</CardDescription>
             </div>
-            <div className="relative w-64">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="Search manufacturers..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <ArrowUpDown className="h-4 w-4 text-gray-500" />
+                <Select value={sortBy} onValueChange={setSortBy}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="name">Sort alphabetically</SelectItem>
+                    <SelectItem value="materials">Sort by material count</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="relative w-64">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Search manufacturers..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
             </div>
           </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {filteredManufacturers.map((manufacturer) => {
+            {filteredAndSortedManufacturers.map((manufacturer) => {
               const materialCount = manufacturer.materials?.length || 0;
               return (
                 <div key={manufacturer.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
@@ -94,7 +120,9 @@ const Manufacturers = () => {
                         {manufacturer.contact_name && (
                           <span>Contact: {manufacturer.contact_name}</span>
                         )}
-                        <span>{materialCount} material{materialCount !== 1 ? 's' : ''}</span>
+                        <span className="font-medium text-coral-600">
+                          {materialCount} material{materialCount !== 1 ? 's' : ''}
+                        </span>
                       </div>
                       <div className="flex items-center gap-4 mt-2">
                         {manufacturer.email && (
@@ -129,7 +157,7 @@ const Manufacturers = () => {
                 </div>
               );
             })}
-            {filteredManufacturers.length === 0 && (
+            {filteredAndSortedManufacturers.length === 0 && (
               <div className="text-center py-8 text-gray-500">
                 {searchTerm ? 'No manufacturers found matching your search.' : 'No manufacturers yet. Add your first manufacturer!'}
               </div>
