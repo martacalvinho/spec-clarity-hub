@@ -27,15 +27,15 @@ const MaterialPhotoUpload = ({ materialId, currentPhotoUrl, onPhotoUpdated }: Ma
       const file = event.target.files[0];
       const fileExt = file.name.split('.').pop();
       const fileName = `${materialId}-${Math.random()}.${fileExt}`;
-      const filePath = `material-photos/${fileName}`;
+      const filePath = `${fileName}`;
 
       // Remove old photo if exists
       if (currentPhotoUrl) {
-        const oldPath = currentPhotoUrl.split('/').pop();
-        if (oldPath) {
+        const oldFileName = currentPhotoUrl.split('/').pop();
+        if (oldFileName) {
           await supabase.storage
             .from('material-photos')
-            .remove([`material-photos/${oldPath}`]);
+            .remove([oldFileName]);
         }
       }
 
@@ -83,11 +83,11 @@ const MaterialPhotoUpload = ({ materialId, currentPhotoUrl, onPhotoUpdated }: Ma
       setUploading(true);
 
       if (currentPhotoUrl) {
-        const path = currentPhotoUrl.split('/').pop();
-        if (path) {
+        const fileName = currentPhotoUrl.split('/').pop();
+        if (fileName) {
           await supabase.storage
             .from('material-photos')
-            .remove([`material-photos/${path}`]);
+            .remove([fileName]);
         }
       }
 
