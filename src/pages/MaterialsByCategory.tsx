@@ -79,7 +79,7 @@ const MaterialsByCategory = () => {
           <div className="space-y-4">
             {materials.map((material) => {
               const projects = material.proj_materials || [];
-              const uniqueClients = [...new Set(projects.map(p => p.projects?.clients?.name).filter(Boolean))];
+              const uniqueClients = [...new Set(projects.map((p: any) => p.projects?.clients?.name).filter(Boolean))];
               
               return (
                 <div key={material.id} className="p-4 border rounded-lg hover:bg-gray-50">
@@ -115,7 +115,7 @@ const MaterialsByCategory = () => {
                           <div className="flex flex-wrap gap-2">
                             <div>
                               <span className="text-sm text-gray-600 font-medium">Projects: </span>
-                              {projects.map((projMaterial, index) => (
+                              {projects.map((projMaterial: any, index: number) => (
                                 <span key={projMaterial.project_id} className="text-sm">
                                   <Link 
                                     to={`/projects/${projMaterial.projects.id}`}
@@ -131,8 +131,8 @@ const MaterialsByCategory = () => {
                           {uniqueClients.length > 0 && (
                             <div className="mt-1">
                               <span className="text-sm text-gray-600 font-medium">Clients: </span>
-                              {uniqueClients.map((clientName, index) => {
-                                const clientProject = projects.find(p => p.projects?.clients?.name === clientName);
+                              {uniqueClients.map((clientName: string, index: number) => {
+                                const clientProject = projects.find((p: any) => p.projects?.clients?.name === clientName);
                                 return (
                                   <span key={clientName} className="text-sm">
                                     <Link 
