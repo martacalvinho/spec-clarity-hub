@@ -318,7 +318,11 @@ const MaterialDetails = () => {
                     </CardTitle>
                     <CardDescription className="text-xs">Additional specialist details</CardDescription>
                   </div>
-                  <EditMaterialForm material={material} onMaterialUpdated={handleMaterialUpdated} />
+                  <EditMaterialForm 
+                    material={material} 
+                    onMaterialUpdated={handleMaterialUpdated}
+                    editMode="additional"
+                  />
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -354,13 +358,13 @@ const MaterialDetails = () => {
                     <Button variant="outline" size="sm" className="h-7 text-xs flex-1" asChild>
                       <a href={material.product_sheet_url} target="_blank" rel="noopener noreferrer">
                         <Download className="h-3 w-3 mr-1" />
-                        Download Product Sheet
+                        Product Sheet
                       </a>
                     </Button>
                   ) : (
                     <Button variant="outline" size="sm" className="h-7 text-xs flex-1" disabled>
                       <Download className="h-3 w-3 mr-1" />
-                      Download Product Sheet
+                      Product Sheet
                     </Button>
                   )}
                 </div>
