@@ -309,51 +309,53 @@ const MaterialDetails = () => {
 
             {/* Add Information Card */}
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-2 text-lg">
                   <Info className="h-4 w-4" />
                   Add Information
                 </CardTitle>
-                <CardDescription>Additional specialist details</CardDescription>
+                <CardDescription className="text-sm">Additional specialist details</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium text-gray-500">Certifications</label>
-                  <p className="text-lg">{material.certifications || 'Not specified'}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-500">Finish/Color</label>
-                  <p className="text-lg">{material.finish_color || 'Not specified'}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-500">Fire Rating</label>
-                  <p className="text-lg">{material.fire_rating || 'Not specified'}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-500">Product Page URL</label>
-                  {material.product_url ? (
-                    <Button variant="outline" size="sm" className="mt-1" asChild>
-                      <a href={material.product_url} target="_blank" rel="noopener noreferrer">
-                        <ExternalLink className="h-4 w-4 mr-2" />
-                        View Product Page
-                      </a>
-                    </Button>
-                  ) : (
-                    <p className="text-lg">Not specified</p>
-                  )}
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-500">Product Sheet URL</label>
-                  {material.product_sheet_url ? (
-                    <Button variant="outline" size="sm" className="mt-1" asChild>
-                      <a href={material.product_sheet_url} target="_blank" rel="noopener noreferrer">
-                        <Download className="h-4 w-4 mr-2" />
-                        Download Product Sheet
-                      </a>
-                    </Button>
-                  ) : (
-                    <p className="text-lg">Not specified</p>
-                  )}
+              <CardContent className="space-y-3">
+                <div className="grid grid-cols-1 gap-3">
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Certifications</label>
+                    <p className="text-sm">{material.certifications || 'Not specified'}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Finish/Color</label>
+                    <p className="text-sm">{material.finish_color || 'Not specified'}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Fire Rating</label>
+                    <p className="text-sm">{material.fire_rating || 'Not specified'}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Product Page URL</label>
+                    {material.product_url ? (
+                      <Button variant="outline" size="sm" className="mt-1 h-7 text-xs" asChild>
+                        <a href={material.product_url} target="_blank" rel="noopener noreferrer">
+                          <ExternalLink className="h-3 w-3 mr-1" />
+                          View Product Page
+                        </a>
+                      </Button>
+                    ) : (
+                      <p className="text-sm">Not specified</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Product Sheet URL</label>
+                    {material.product_sheet_url ? (
+                      <Button variant="outline" size="sm" className="mt-1 h-7 text-xs" asChild>
+                        <a href={material.product_sheet_url} target="_blank" rel="noopener noreferrer">
+                          <Download className="h-3 w-3 mr-1" />
+                          Download Product Sheet
+                        </a>
+                      </Button>
+                    ) : (
+                      <p className="text-sm">Not specified</p>
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>
