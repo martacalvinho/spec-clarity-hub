@@ -7,12 +7,14 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, Package, X, Filter, AlertTriangle, Settings } from 'lucide-react';
+import { Search, Package, X, Filter, AlertTriangle, Settings, Camera } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import AddMaterialForm from '@/components/forms/AddMaterialForm';
 import EditMaterialForm from '@/components/forms/EditMaterialForm';
 import ApplyToProjectForm from '@/components/forms/ApplyToProjectForm';
 import MaterialPricingInput from '@/components/MaterialPricingInput';
+import MaterialStatsCards from '@/components/MaterialStatsCards';
+import MaterialPhotoUpload from '@/components/MaterialPhotoUpload';
 import { useToast } from '@/hooks/use-toast';
 
 const Materials = () => {
@@ -30,11 +32,15 @@ const Materials = () => {
   const [manufacturerFilter, setManufacturerFilter] = useState('');
   const [clientFilter, setClientFilter] = useState('');
   const [locationFilter, setLocationFilter] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [subcategoryFilter, setSubcategoryFilter] = useState('');
   
   // Filter options
   const [projects, setProjects] = useState<any[]>([]);
   const [manufacturers, setManufacturers] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [subcategories, setSubcategories] = useState<string[]>([]);
 
   useEffect(() => {
     if (studioId) {
@@ -64,7 +70,16 @@ const Materials = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setMaterials(data || []);
+      
+      const materialsData = data || [];
+      setMaterials(materialsData);
+      
+      // Extract unique categories and subcategories
+      const uniqueCategories = [...new Set(materialsData.map(m => m.category).filter(Boolean))];
+      const uniqueSubcategories = [...new Set(materialsData.map(m => m.subcategory).filter(Boolean))];
+      
+      setCategories(uniqueCategories);
+      setSubcategories(uniqueSubcategories);
     } catch (error) {
       console.error('Error fetching materials:', error);
     } finally {
@@ -111,7 +126,6 @@ const Materials = () => {
   const checkForDuplicates = async () => {
     setCheckingDuplicates(true);
     try {
-      // Find materials with duplicate reference_sku (excluding null/empty values)
       const materialsWithSku = materials.filter(m => m.reference_sku && m.reference_sku.trim() !== '');
       
       const duplicateGroups = new Map();
@@ -125,7 +139,6 @@ const Materials = () => {
         duplicateGroups.get(sku).push(material);
       });
       
-      // Find groups with more than one material
       const duplicatesList: any[] = [];
       duplicateGroups.forEach((group, sku) => {
         if (group.length > 1) {
@@ -174,13 +187,11 @@ const Materials = () => {
   };
 
   const filteredMaterials = materials.filter(material => {
-    // If showing duplicates only, filter to show only duplicate materials
     if (showDuplicatesOnly) {
       const isDuplicate = duplicates.some(dup => dup.id === material.id);
       if (!isDuplicate) return false;
     }
 
-    // Text search filter
     const matchesSearch = material.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       material.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
       material.tag?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -189,23 +200,26 @@ const Materials = () => {
       material.dimensions?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       material.manufacturers?.name?.toLowerCase().includes(searchTerm.toLowerCase());
 
-    // Project filter
     const matchesProject = !projectFilter || projectFilter === 'all' ||
       material.proj_materials?.some((pm: any) => pm.project_id === projectFilter);
 
-    // Manufacturer filter
     const matchesManufacturer = !manufacturerFilter || manufacturerFilter === 'all' ||
       material.manufacturer_id === manufacturerFilter;
 
-    // Client filter
     const matchesClient = !clientFilter || clientFilter === 'all' ||
       material.proj_materials?.some((pm: any) => pm.projects?.client_id === clientFilter);
 
-    // Location filter
     const matchesLocation = !locationFilter ||
       material.location?.toLowerCase().includes(locationFilter.toLowerCase());
 
-    return matchesSearch && matchesProject && matchesManufacturer && matchesClient && matchesLocation;
+    const matchesCategory = !categoryFilter || categoryFilter === 'all' ||
+      material.category === categoryFilter;
+
+    const matchesSubcategory = !subcategoryFilter || subcategoryFilter === 'all' ||
+      material.subcategory === subcategoryFilter;
+
+    return matchesSearch && matchesProject && matchesManufacturer && matchesClient && 
+           matchesLocation && matchesCategory && matchesSubcategory;
   });
 
   const clearFilters = () => {
@@ -213,14 +227,17 @@ const Materials = () => {
     setManufacturerFilter('');
     setClientFilter('');
     setLocationFilter('');
+    setCategoryFilter('');
+    setSubcategoryFilter('');
   };
 
   const hasActiveFilters = projectFilter && projectFilter !== 'all' || 
                           manufacturerFilter && manufacturerFilter !== 'all' || 
                           clientFilter && clientFilter !== 'all' ||
-                          locationFilter;
+                          locationFilter ||
+                          categoryFilter && categoryFilter !== 'all' ||
+                          subcategoryFilter && subcategoryFilter !== 'all';
 
-  // Helper function to parse locations
   const parseLocations = (locationString: string | null) => {
     if (!locationString) return [];
     return locationString.split(',').map(loc => loc.trim()).filter(loc => loc.length > 0);
@@ -228,12 +245,18 @@ const Materials = () => {
 
   const handleLocationClick = (location: string) => {
     if (locationFilter === location) {
-      // If already filtered by this location, clear the filter
       setLocationFilter('');
     } else {
-      // Set filter to this location
       setLocationFilter(location);
     }
+  };
+
+  const handlePhotoUpdated = (materialId: string, photoUrl: string | null) => {
+    setMaterials(prev => prev.map(material => 
+      material.id === materialId 
+        ? { ...material, photo_url: photoUrl }
+        : material
+    ));
   };
 
   if (loading) {
@@ -270,6 +293,8 @@ const Materials = () => {
           <AddMaterialForm onMaterialAdded={fetchMaterials} />
         </div>
       </div>
+
+      <MaterialStatsCards />
 
       <Card>
         <CardHeader>
@@ -322,7 +347,7 @@ const Materials = () => {
               )}
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
               {/* Project Filter */}
               <div>
                 <Select value={projectFilter || 'all'} onValueChange={setProjectFilter}>
@@ -373,6 +398,40 @@ const Materials = () => {
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* Category Filter */}
+              <div>
+                <Select value={categoryFilter || 'all'} onValueChange={setCategoryFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Filter by category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All categories</SelectItem>
+                    {categories.map((category) => (
+                      <SelectItem key={category} value={category}>
+                        {category}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Subcategory Filter */}
+              <div>
+                <Select value={subcategoryFilter || 'all'} onValueChange={setSubcategoryFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Filter by subcategory" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All subcategories</SelectItem>
+                    {subcategories.map((subcategory) => (
+                      <SelectItem key={subcategory} value={subcategory}>
+                        {subcategory}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             {/* Active Filters Display */}
@@ -411,6 +470,28 @@ const Materials = () => {
                     </button>
                   </Badge>
                 )}
+                {categoryFilter && categoryFilter !== 'all' && (
+                  <Badge variant="secondary" className="text-xs">
+                    Category: {categoryFilter}
+                    <button
+                      onClick={() => setCategoryFilter('all')}
+                      className="ml-1 hover:text-destructive"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                )}
+                {subcategoryFilter && subcategoryFilter !== 'all' && (
+                  <Badge variant="secondary" className="text-xs">
+                    Subcategory: {subcategoryFilter}
+                    <button
+                      onClick={() => setSubcategoryFilter('all')}
+                      className="ml-1 hover:text-destructive"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                )}
                 {locationFilter && (
                   <Badge variant="secondary" className="text-xs">
                     Location: {locationFilter}
@@ -442,8 +523,17 @@ const Materials = () => {
                     }`}
                   >
                     <div className="flex items-center gap-4">
+                      {/* Photo or Package Icon */}
                       <div className={`p-2 rounded-lg ${isDuplicate ? 'bg-red-100' : 'bg-coral-100'}`}>
-                        <Package className={`h-6 w-6 ${isDuplicate ? 'text-red-600' : 'text-coral-600'}`} />
+                        {material.photo_url ? (
+                          <img 
+                            src={material.photo_url} 
+                            alt={material.name}
+                            className="h-12 w-12 object-cover rounded"
+                          />
+                        ) : (
+                          <Package className={`h-6 w-6 ${isDuplicate ? 'text-red-600' : 'text-coral-600'}`} />
+                        )}
                       </div>
                       <div className="flex-1">
                         <Link to={`/materials/${material.id}`} className="hover:text-coral">
@@ -506,6 +596,11 @@ const Materials = () => {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
+                      <MaterialPhotoUpload 
+                        materialId={material.id}
+                        currentPhotoUrl={material.photo_url}
+                        onPhotoUpdated={(photoUrl) => handlePhotoUpdated(material.id, photoUrl)}
+                      />
                       <ApplyToProjectForm material={material} onMaterialUpdated={fetchMaterials} />
                       <EditMaterialForm material={material} onMaterialUpdated={fetchMaterials} />
                     </div>
