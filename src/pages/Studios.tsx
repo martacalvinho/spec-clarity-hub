@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, Building, Users, Filter } from 'lucide-react';
+import { Search, Building, Users, Filter, Package, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import AddStudioForm from '@/components/forms/AddStudioForm';
 import EditStudioForm from '@/components/forms/EditStudioForm';
@@ -20,6 +21,12 @@ const Studios = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [subscriptionFilter, setSubscriptionFilter] = useState<string>('all');
 
+  const subscriptionLimits = {
+    starter: 100,
+    professional: 500,
+    enterprise: 1500
+  };
+
   useEffect(() => {
     if (isAdmin) {
       fetchStudios();
@@ -29,7 +36,7 @@ const Studios = () => {
   const fetchStudios = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('studios')
         .select(`
           *,
@@ -37,13 +44,54 @@ const Studios = () => {
         `)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setStudios(data || []);
+      if (data) {
+        // For each studio, get their material counts
+        const studiosWithCounts = await Promise.all(
+          data.map(async (studio) => {
+            const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM format
+            
+            // Get current month materials count
+            const { count: monthlyCount } = await supabase
+              .from('materials')
+              .select('*', { count: 'exact', head: true })
+              .eq('studio_id', studio.id)
+              .gte('created_at', `${currentMonth}-01T00:00:00.000Z`)
+              .lt('created_at', `${getNextMonth(currentMonth)}-01T00:00:00.000Z`);
+
+            // Get total materials count
+            const { count: totalCount } = await supabase
+              .from('materials')
+              .select('*', { count: 'exact', head: true })
+              .eq('studio_id', studio.id);
+
+            const monthlyLimit = subscriptionLimits[studio.subscription_tier as keyof typeof subscriptionLimits] || 100;
+            const isAtLimit = (monthlyCount || 0) >= monthlyLimit;
+
+            return {
+              ...studio,
+              monthlyMaterialsCount: monthlyCount || 0,
+              totalMaterialsCount: totalCount || 0,
+              monthlyLimit,
+              isAtLimit
+            };
+          })
+        );
+
+        setStudios(studiosWithCounts);
+      }
     } catch (error) {
       console.error('Error fetching studios:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  // Helper function to get next month in YYYY-MM format
+  const getNextMonth = (monthStr: string) => {
+    const [year, month] = monthStr.split('-').map(Number);
+    const nextMonth = month === 12 ? 1 : month + 1;
+    const nextYear = month === 12 ? year + 1 : year;
+    return `${nextYear}-${String(nextMonth).padStart(2, '0')}`;
   };
 
   const filteredStudios = studios.filter(studio => {
@@ -129,18 +177,32 @@ const Studios = () => {
                       <Building className="h-6 w-6 text-coral-600" />
                     </div>
                     <div className="flex-1">
-                      <h3 className="font-semibold text-lg">{studio.name}</h3>
-                      <div className="flex items-center gap-4 mt-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <h3 className="font-semibold text-lg">{studio.name}</h3>
                         <Badge className={getSubscriptionColor(studio.subscription_tier)}>
                           {studio.subscription_tier}
                         </Badge>
-                        <div className="flex items-center gap-1 text-sm text-gray-500">
+                        {studio.isAtLimit && (
+                          <Badge variant="destructive" className="text-xs">
+                            <AlertTriangle className="h-3 w-3 mr-1" />
+                            At Limit
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-4 gap-4 text-sm text-gray-500">
+                        <div className="flex items-center gap-1">
                           <Users className="h-3 w-3" />
                           <span>{userCount} user{userCount !== 1 ? 's' : ''}</span>
                         </div>
-                        <span className="text-sm text-gray-500">
-                          Created: {new Date(studio.created_at).toLocaleDateString()}
-                        </span>
+                        <div className="flex items-center gap-1">
+                          <Package className="h-3 w-3" />
+                          <span>Monthly: {studio.monthlyMaterialsCount}/{studio.monthlyLimit}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Package className="h-3 w-3" />
+                          <span>Total: {studio.totalMaterialsCount}</span>
+                        </div>
+                        <span>Created: {new Date(studio.created_at).toLocaleDateString()}</span>
                       </div>
                     </div>
                   </div>

@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { Building, Users, FolderOpen, Package, AlertTriangle, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import SystemHealthIndicators from './admin/SystemHealthIndicators';
@@ -33,15 +34,79 @@ const AdminDashboard = () => {
     }
   }, [isAdmin]);
 
+  const subscriptionLimits = {
+    starter: 100,
+    professional: 500,
+    enterprise: 1500
+  };
+
   const fetchGlobalData = async () => {
     try {
       setLoading(true);
       
-      // Fetch studios
+      // Fetch studios with material counts
       const { data: studiosData } = await supabase
         .from('studios')
         .select('*')
         .order('name');
+      
+      if (studiosData) {
+        // For each studio, get their material counts
+        const studiosWithCounts = await Promise.all(
+          studiosData.map(async (studio) => {
+            const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM format
+            
+            // Get current month materials count
+            const { count: monthlyCount } = await supabase
+              .from('materials')
+              .select('*', { count: 'exact', head: true })
+              .eq('studio_id', studio.id)
+              .gte('created_at', `${currentMonth}-01T00:00:00.000Z`)
+              .lt('created_at', `${getNextMonth(currentMonth)}-01T00:00:00.000Z`);
+
+            // Get total materials count
+            const { count: totalCount } = await supabase
+              .from('materials')
+              .select('*', { count: 'exact', head: true })
+              .eq('studio_id', studio.id);
+
+            const monthlyLimit = subscriptionLimits[studio.subscription_tier as keyof typeof subscriptionLimits] || 100;
+            const isAtLimit = (monthlyCount || 0) >= monthlyLimit;
+
+            // Create alert if studio is at limit and no active alert exists
+            if (isAtLimit) {
+              const { data: existingAlert } = await supabase
+                .from('alerts')
+                .select('id')
+                .eq('studio_id', studio.id)
+                .eq('status', 'active')
+                .ilike('message', '%monthly material limit%')
+                .single();
+
+              if (!existingAlert) {
+                await supabase
+                  .from('alerts')
+                  .insert({
+                    studio_id: studio.id,
+                    message: `${studio.name} has reached their monthly material limit of ${monthlyLimit} materials`,
+                    severity: 'high',
+                    status: 'active'
+                  });
+              }
+            }
+
+            return {
+              ...studio,
+              monthlyMaterialsCount: monthlyCount || 0,
+              totalMaterialsCount: totalCount || 0,
+              monthlyLimit,
+              isAtLimit
+            };
+          })
+        );
+
+        setStudios(studiosWithCounts);
+      }
       
       // Fetch global stats
       const [projectsCount, materialsCount, alertsCount] = await Promise.all([
@@ -50,7 +115,6 @@ const AdminDashboard = () => {
         supabase.from('alerts').select('id', { count: 'exact', head: true }).eq('status', 'active')
       ]);
 
-      setStudios(studiosData || []);
       setGlobalStats({
         totalStudios: studiosData?.length || 0,
         totalProjects: projectsCount.count || 0,
@@ -62,6 +126,14 @@ const AdminDashboard = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Helper function to get next month in YYYY-MM format
+  const getNextMonth = (monthStr: string) => {
+    const [year, month] = monthStr.split('-').map(Number);
+    const nextMonth = month === 12 ? 1 : month + 1;
+    const nextYear = month === 12 ? year + 1 : year;
+    return `${nextYear}-${String(nextMonth).padStart(2, '0')}`;
   };
 
   const handleViewStudioDashboard = () => {
@@ -76,6 +148,15 @@ const AdminDashboard = () => {
 
   const handleViewData = (studioId: string) => {
     navigate(`/studios/${studioId}/dashboard`);
+  };
+
+  const getSubscriptionColor = (tier: string) => {
+    switch (tier) {
+      case 'enterprise': return 'bg-purple-100 text-purple-700';
+      case 'professional': return 'bg-blue-100 text-blue-700';
+      case 'starter': return 'bg-green-100 text-green-700';
+      default: return 'bg-gray-100 text-gray-700';
+    }
   };
 
   if (!isAdmin) {
@@ -200,11 +281,30 @@ const AdminDashboard = () => {
           <div className="space-y-4">
             {studios.map((studio) => (
               <div key={studio.id} className="flex items-center justify-between p-4 border rounded-lg">
-                <div>
-                  <h3 className="font-semibold">{studio.name}</h3>
-                  <p className="text-sm text-gray-500">
-                    Plan: {studio.subscription_tier} • Created: {new Date(studio.created_at).toLocaleDateString()}
-                  </p>
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-2">
+                    <h3 className="font-semibold">{studio.name}</h3>
+                    <Badge className={getSubscriptionColor(studio.subscription_tier)}>
+                      {studio.subscription_tier}
+                    </Badge>
+                    {studio.isAtLimit && (
+                      <Badge variant="destructive" className="text-xs">
+                        <AlertTriangle className="h-3 w-3 mr-1" />
+                        At Limit
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-3 gap-4 text-sm text-gray-600">
+                    <div>
+                      <span className="font-medium">Monthly Usage:</span> {studio.monthlyMaterialsCount}/{studio.monthlyLimit}
+                    </div>
+                    <div>
+                      <span className="font-medium">Total Materials:</span> {studio.totalMaterialsCount}
+                    </div>
+                    <div>
+                      <span className="font-medium">Created:</span> {new Date(studio.created_at).toLocaleDateString()}
+                    </div>
+                  </div>
                 </div>
                 <div className="flex gap-2">
                   <Button 
