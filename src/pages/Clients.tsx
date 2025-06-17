@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { Search, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -15,6 +16,8 @@ const Clients = () => {
   const [clients, setClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterBy, setFilterBy] = useState('all');
+  const [sortBy, setSortBy] = useState('alphabetical');
 
   useEffect(() => {
     if (studioId) {
@@ -43,9 +46,21 @@ const Clients = () => {
     }
   };
 
-  const filteredClients = clients.filter(client =>
-    client.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredAndSortedClients = clients
+    .filter(client => {
+      const matchesSearch = client.name.toLowerCase().includes(searchTerm.toLowerCase());
+      if (filterBy === 'all') return matchesSearch;
+      return matchesSearch && client.status === filterBy;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'most_projects') {
+        const aProjectCount = a.projects?.length || 0;
+        const bProjectCount = b.projects?.length || 0;
+        return bProjectCount - aProjectCount;
+      }
+      // Default alphabetical sorting
+      return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+    });
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -74,20 +89,42 @@ const Clients = () => {
               <CardTitle>All Clients</CardTitle>
               <CardDescription>Manage your client relationships</CardDescription>
             </div>
-            <div className="relative w-64">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="Search clients..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
+            <div className="flex items-center gap-4">
+              <Select value={filterBy} onValueChange={setFilterBy}>
+                <SelectTrigger className="w-32">
+                  <SelectValue placeholder="Filter..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                  <SelectItem value="prospect">Prospect</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Sort by..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="alphabetical">Alphabetical</SelectItem>
+                  <SelectItem value="most_projects">Most Projects</SelectItem>
+                </SelectContent>
+              </Select>
+              <div className="relative w-64">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Search clients..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
             </div>
           </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {filteredClients.map((client) => {
+            {filteredAndSortedClients.map((client) => {
               const projectCount = client.projects?.length || 0;
               const activeProjects = client.projects?.filter((p: any) => p.status === 'active').length || 0;
               return (
@@ -120,7 +157,7 @@ const Clients = () => {
                 </div>
               );
             })}
-            {filteredClients.length === 0 && (
+            {filteredAndSortedClients.length === 0 && (
               <div className="text-center py-8 text-gray-500">
                 {searchTerm ? 'No clients found matching your search.' : 'No clients yet. Add your first client!'}
               </div>
