@@ -54,25 +54,25 @@ const OnboardingWizard = ({ onComplete }: OnboardingWizardProps) => {
 
   const historicImportOptions = [
     {
-      id: 'basic',
-      name: 'Basic Historic Import',
-      price: '$299',
-      description: 'Up to 3 years of project history, 500 materials maximum',
+      id: 'starter',
+      name: 'Starter',
+      price: '$99',
+      description: 'Includes setup of up to 100 materials',
+      timeframe: '1-2 weeks'
+    },
+    {
+      id: 'studio',
+      name: 'Studio',
+      price: '$499',
+      description: 'Includes setup of up to 500 materials',
       timeframe: '2-3 weeks'
     },
     {
-      id: 'comprehensive',
-      name: 'Comprehensive Historic Import',
-      price: '$599',
-      description: 'Complete studio history, unlimited materials and projects',
-      timeframe: '3-4 weeks'
-    },
-    {
-      id: 'premium',
-      name: 'Premium Historic Import + Setup',
+      id: 'growth',
+      name: 'Growth',
       price: '$999',
-      description: 'Complete history + custom categorization + 1-hour training session',
-      timeframe: '4-5 weeks'
+      description: 'Includes setup of up to 1,500 materials',
+      timeframe: '3-4 weeks'
     }
   ];
 
@@ -127,7 +127,7 @@ const OnboardingWizard = ({ onComplete }: OnboardingWizardProps) => {
         .from('alerts')
         .insert({
           studio_id: userProfile?.studio_id,
-          message: `Historic import request: ${userProfile?.studios?.name || 'Studio'} selected ${selectedHistoricPlan?.name} (${selectedHistoricPlan?.price}). Contact: ${user.email}`,
+          message: `Historic import request: ${userProfile?.studios?.name || 'Studio'} selected ${selectedHistoricPlan?.name} onboarding (${selectedHistoricPlan?.price}). Contact: ${user.email}`,
           severity: 'high',
           status: 'active'
         });
@@ -254,7 +254,7 @@ const OnboardingWizard = ({ onComplete }: OnboardingWizardProps) => {
 
   if (currentStep === 3) {
     return (
-      <Card className="max-w-3xl mx-auto">
+      <Card className="max-w-4xl mx-auto">
         <CardHeader>
           <CardTitle>Historic Material Import</CardTitle>
           <CardDescription>
@@ -294,20 +294,28 @@ const OnboardingWizard = ({ onComplete }: OnboardingWizardProps) => {
 
             {wantsHistoric === true && (
               <div className="mt-6">
-                <h4 className="font-semibold mb-4">Choose Your Import Package:</h4>
+                <h4 className="font-semibold mb-4">Choose Your Onboarding Package:</h4>
                 <RadioGroup value={historicOption} onValueChange={setHistoricOption}>
-                  <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {historicImportOptions.map((option) => (
-                      <div key={option.id} className="border rounded-lg p-4">
-                        <div className="flex items-center space-x-2 mb-2">
-                          <RadioGroupItem value={option.id} id={option.id} />
-                          <Label htmlFor={option.id} className="font-medium">
-                            {option.name}
-                          </Label>
-                          <Badge variant="secondary">{option.price}</Badge>
-                        </div>
-                        <p className="text-sm text-gray-600 ml-6">{option.description}</p>
-                        <p className="text-xs text-gray-500 ml-6 mt-1">Completion time: {option.timeframe}</p>
+                      <div key={option.id} className="relative">
+                        <RadioGroupItem value={option.id} id={option.id} className="sr-only" />
+                        <Label 
+                          htmlFor={option.id} 
+                          className={`block p-6 border rounded-lg cursor-pointer transition-all ${
+                            historicOption === option.id 
+                              ? 'border-blue-500 bg-blue-50' 
+                              : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                        >
+                          <div className="text-center">
+                            <h3 className="text-xl font-semibold">{option.name}</h3>
+                            <p className="text-2xl font-bold text-blue-600 mt-2">{option.price}</p>
+                            <p className="text-sm text-gray-600 mt-1">one-time optional onboarding</p>
+                            <p className="text-sm text-gray-600 mt-4">{option.description}</p>
+                            <p className="text-xs text-gray-500 mt-2">Completion time: {option.timeframe}</p>
+                          </div>
+                        </Label>
                       </div>
                     ))}
                   </div>
