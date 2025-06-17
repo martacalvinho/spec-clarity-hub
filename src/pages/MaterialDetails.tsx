@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
@@ -197,67 +196,67 @@ const MaterialDetails = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
-            {/* Core Details */}
+            {/* Core Details - Made more compact */}
             <Card>
-              <CardHeader>
+              <CardHeader className="pb-4">
                 <CardTitle className="flex items-center gap-2">
                   <Package className="h-5 w-5" />
                   Material Specifications
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+              <CardContent className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-sm font-medium text-gray-500">Category</label>
                     <Link to={`/materials/category/${encodeURIComponent(material.category)}`} className="hover:text-coral">
-                      <p className="text-lg hover:underline cursor-pointer">{material.category}</p>
+                      <p className="text-base hover:underline cursor-pointer">{material.category}</p>
                     </Link>
                   </div>
                   {material.subcategory && (
                     <div>
                       <label className="text-sm font-medium text-gray-500">Subcategory</label>
-                      <p className="text-lg">{material.subcategory}</p>
+                      <p className="text-base">{material.subcategory}</p>
                     </div>
                   )}
                   <div>
                     <label className="text-sm font-medium text-gray-500">Manufacturer</label>
                     {material.manufacturer_id ? (
                       <Link to={`/manufacturers/${material.manufacturer_id}`} className="hover:text-coral">
-                        <p className="text-lg hover:underline cursor-pointer">{material.manufacturers?.name || 'Not specified'}</p>
+                        <p className="text-base hover:underline cursor-pointer">{material.manufacturers?.name || 'Not specified'}</p>
                       </Link>
                     ) : (
-                      <p className="text-lg">Not specified</p>
+                      <p className="text-base">Not specified</p>
                     )}
                   </div>
                   {material.dimensions && (
                     <div>
                       <label className="text-sm font-medium text-gray-500">Dimensions</label>
-                      <p className="text-lg">{material.dimensions}</p>
+                      <p className="text-base">{material.dimensions}</p>
                     </div>
                   )}
                 </div>
 
-                {/* Pricing Information */}
+                {/* Pricing Information - Made more compact */}
                 {(material.price_per_unit || material.price_per_sqft) && (
-                  <div className="border-t pt-4">
-                    <h4 className="text-lg font-semibold mb-3">Pricing Information</h4>
-                    <div className="grid grid-cols-2 gap-4">
+                  <div className="border-t pt-3">
+                    <h4 className="text-base font-semibold mb-2">Pricing Information</h4>
+                    <div className="grid grid-cols-2 gap-3">
                       {material.price_per_unit && (
                         <div>
                           <label className="text-sm font-medium text-gray-500">Price per Unit</label>
-                          <p className="text-lg">${material.price_per_unit}</p>
+                          <p className="text-base">${material.price_per_unit}</p>
                         </div>
                       )}
                       {material.price_per_sqft && (
                         <div>
                           <label className="text-sm font-medium text-gray-500">Price per Sq Ft</label>
-                          <p className="text-lg">${material.price_per_sqft}</p>
+                          <p className="text-base">${material.price_per_sqft}</p>
                         </div>
                       )}
                       {material.unit_type && (
                         <div>
                           <label className="text-sm font-medium text-gray-500">Unit Type</label>
-                          <p className="text-lg">{material.unit_type}</p>
+                          <p className="text-base">{material.unit_type}</p>
                         </div>
                       )}
                     </div>
@@ -265,13 +264,13 @@ const MaterialDetails = () => {
                 )}
 
                 {material.notes && (
-                  <div className="border-t pt-4">
+                  <div className="border-t pt-3">
                     <label className="text-sm font-medium text-gray-500">Notes</label>
-                    <p className="text-gray-700 mt-1">{material.notes}</p>
+                    <p className="text-gray-700 mt-1 text-sm">{material.notes}</p>
                   </div>
                 )}
 
-                <div className="flex gap-2 pt-4">
+                <div className="flex gap-2 pt-3">
                   <EditMaterialForm material={material} onMaterialUpdated={handleMaterialUpdated} />
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -293,7 +292,7 @@ const MaterialDetails = () => {
             {/* Related Materials Section */}
             {relatedMaterials.length > 0 && (
               <Card>
-                <CardHeader>
+                <CardHeader className="pb-3">
                   <CardTitle className="flex items-center gap-2">
                     <Package className="h-5 w-5" />
                     Related Materials
