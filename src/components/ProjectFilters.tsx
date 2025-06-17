@@ -22,9 +22,9 @@ interface ProjectFiltersProps {
 
 const ProjectFilters = ({ onFiltersChange }: ProjectFiltersProps) => {
   const { studioId } = useAuth();
-  const [projectType, setProjectType] = useState('');
-  const [clientId, setClientId] = useState('');
-  const [status, setStatus] = useState('');
+  const [projectType, setProjectType] = useState('all');
+  const [clientId, setClientId] = useState('all');
+  const [status, setStatus] = useState('all');
   const [filterDate, setFilterDate] = useState('');
   const [dateType, setDateType] = useState('either');
   const [showFilters, setShowFilters] = useState(false);
@@ -53,18 +53,18 @@ const ProjectFilters = ({ onFiltersChange }: ProjectFiltersProps) => {
 
   const handleFilterChange = () => {
     onFiltersChange({
-      projectType,
-      clientId,
-      status,
+      projectType: projectType === 'all' ? '' : projectType,
+      clientId: clientId === 'all' ? '' : clientId,
+      status: status === 'all' ? '' : status,
       filterDate,
       dateType,
     });
   };
 
   const clearFilters = () => {
-    setProjectType('');
-    setClientId('');
-    setStatus('');
+    setProjectType('all');
+    setClientId('all');
+    setStatus('all');
     setFilterDate('');
     setDateType('either');
     onFiltersChange({
@@ -76,7 +76,7 @@ const ProjectFilters = ({ onFiltersChange }: ProjectFiltersProps) => {
     });
   };
 
-  const hasActiveFilters = projectType || clientId || status || filterDate;
+  const hasActiveFilters = projectType !== 'all' || clientId !== 'all' || status !== 'all' || filterDate;
 
   return (
     <div className="space-y-4">
@@ -91,7 +91,7 @@ const ProjectFilters = ({ onFiltersChange }: ProjectFiltersProps) => {
           Filters
           {hasActiveFilters && (
             <span className="bg-coral text-white text-xs px-1.5 py-0.5 rounded-full">
-              {[projectType, clientId, status, filterDate].filter(Boolean).length}
+              {[projectType !== 'all', clientId !== 'all', status !== 'all', filterDate].filter(Boolean).length}
             </span>
           )}
         </Button>
@@ -117,7 +117,7 @@ const ProjectFilters = ({ onFiltersChange }: ProjectFiltersProps) => {
                     <SelectValue placeholder="All types" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All types</SelectItem>
+                    <SelectItem value="all">All types</SelectItem>
                     <SelectItem value="residential">Residential</SelectItem>
                     <SelectItem value="commercial">Commercial</SelectItem>
                     <SelectItem value="hospitality">Hospitality</SelectItem>
@@ -140,7 +140,7 @@ const ProjectFilters = ({ onFiltersChange }: ProjectFiltersProps) => {
                     <SelectValue placeholder="All clients" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All clients</SelectItem>
+                    <SelectItem value="all">All clients</SelectItem>
                     {clients.map((client) => (
                       <SelectItem key={client.id} value={client.id}>
                         {client.name}
@@ -160,7 +160,7 @@ const ProjectFilters = ({ onFiltersChange }: ProjectFiltersProps) => {
                     <SelectValue placeholder="All statuses" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All statuses</SelectItem>
+                    <SelectItem value="all">All statuses</SelectItem>
                     <SelectItem value="planning">Planning</SelectItem>
                     <SelectItem value="active">Active</SelectItem>
                     <SelectItem value="completed">Completed</SelectItem>
