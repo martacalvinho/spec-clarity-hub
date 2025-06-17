@@ -9,19 +9,20 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Building, Plus, Settings, Crown, Users, Package, AlertTriangle, ArrowLeft } from 'lucide-react';
+import { Building, Plus, Settings, Crown, Users, Package, AlertTriangle, ArrowLeft, Filter } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const QuickStudioManagement = () => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [selectedTier, setSelectedTier] = useState<string | null>(null);
+  const [tierFilter, setTierFilter] = useState<string>('all');
   const [tierCounts, setTierCounts] = useState({
     starter: 0,
     professional: 0,
     enterprise: 0
   });
-  const [tierStudios, setTierStudios] = useState<any[]>([]);
+  const [allStudios, setAllStudios] = useState<any[]>([]);
   const [formData, setFormData] = useState({
     name: '',
     subscription_tier: 'starter'
@@ -36,35 +37,10 @@ const QuickStudioManagement = () => {
   };
 
   useEffect(() => {
-    fetchTierCounts();
+    fetchAllStudios();
   }, []);
 
-  useEffect(() => {
-    if (selectedTier) {
-      fetchTierStudios(selectedTier);
-    }
-  }, [selectedTier]);
-
-  const fetchTierCounts = async () => {
-    try {
-      const { data: studios } = await supabase
-        .from('studios')
-        .select('subscription_tier');
-
-      if (studios) {
-        const counts = studios.reduce((acc, studio) => {
-          acc[studio.subscription_tier] = (acc[studio.subscription_tier] || 0) + 1;
-          return acc;
-        }, { starter: 0, professional: 0, enterprise: 0 });
-
-        setTierCounts(counts);
-      }
-    } catch (error) {
-      console.error('Error fetching tier counts:', error);
-    }
-  };
-
-  const fetchTierStudios = async (tier: string) => {
+  const fetchAllStudios = async () => {
     try {
       setLoading(true);
       const { data: studios } = await supabase
@@ -73,7 +49,6 @@ const QuickStudioManagement = () => {
           *,
           users(id, first_name, last_name)
         `)
-        .eq('subscription_tier', tier)
         .order('name');
 
       if (studios) {
@@ -109,10 +84,18 @@ const QuickStudioManagement = () => {
           })
         );
 
-        setTierStudios(studiosWithCounts);
+        setAllStudios(studiosWithCounts);
+        
+        // Calculate tier counts
+        const counts = studiosWithCounts.reduce((acc, studio) => {
+          acc[studio.subscription_tier] = (acc[studio.subscription_tier] || 0) + 1;
+          return acc;
+        }, { starter: 0, professional: 0, enterprise: 0 });
+        
+        setTierCounts(counts);
       }
     } catch (error) {
-      console.error('Error fetching tier studios:', error);
+      console.error('Error fetching studios:', error);
     } finally {
       setLoading(false);
     }
@@ -155,10 +138,7 @@ const QuickStudioManagement = () => {
 
       setFormData({ name: '', subscription_tier: 'starter' });
       setIsCreateOpen(false);
-      fetchTierCounts(); // Refresh counts
-      if (selectedTier) {
-        fetchTierStudios(selectedTier); // Refresh tier studios if viewing specific tier
-      }
+      fetchAllStudios(); // Refresh studios
     } catch (error) {
       console.error('Error creating studio:', error);
       toast({
@@ -177,15 +157,6 @@ const QuickStudioManagement = () => {
 
   const handleManageSubscriptions = () => {
     navigate('/studios');
-  };
-
-  const handleManageTier = (tier: string) => {
-    setSelectedTier(tier);
-  };
-
-  const handleBackToOverview = () => {
-    setSelectedTier(null);
-    setTierStudios([]);
   };
 
   const handleManageUsers = (studioId: string) => {
@@ -216,101 +187,11 @@ const QuickStudioManagement = () => {
     }
   };
 
-  // If viewing specific tier, show tier studios
-  if (selectedTier) {
-    const tierInfo = getTierInfo(selectedTier);
-    const Icon = tierInfo.icon;
+  // Filter studios based on tier
+  const filteredStudios = allStudios.filter(studio => {
+    return tierFilter === 'all' || studio.subscription_tier === tierFilter;
+  });
 
-    return (
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" onClick={handleBackToOverview}>
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-              <Icon className="h-5 w-5" />
-              <CardTitle className="capitalize">{selectedTier} Studios</CardTitle>
-            </div>
-            <Badge className={getTierInfo(selectedTier).color}>
-              {tierCounts[selectedTier as keyof typeof tierCounts]} studio{tierCounts[selectedTier as keyof typeof tierCounts] !== 1 ? 's' : ''}
-            </Badge>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="text-center py-4">Loading studios...</div>
-          ) : (
-            <div className="space-y-4">
-              {tierStudios.map((studio) => {
-                const userCount = studio.users?.length || 0;
-                return (
-                  <div key={studio.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
-                    <div className="flex items-center gap-4">
-                      <div className="p-2 bg-coral-100 rounded-lg">
-                        <Building className="h-5 w-5 text-coral-600" />
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="font-semibold">{studio.name}</h3>
-                          <Badge className={getSubscriptionColor(studio.subscription_tier)}>
-                            {studio.subscription_tier}
-                          </Badge>
-                          {studio.isAtLimit && (
-                            <Badge variant="destructive" className="text-xs">
-                              <AlertTriangle className="h-3 w-3 mr-1" />
-                              At Limit
-                            </Badge>
-                          )}
-                        </div>
-                        <div className="grid grid-cols-3 gap-4 text-sm text-gray-500">
-                          <div className="flex items-center gap-1">
-                            <Users className="h-3 w-3" />
-                            <span>{userCount} user{userCount !== 1 ? 's' : ''}</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Package className="h-3 w-3" />
-                            <span>Monthly: {studio.monthlyMaterialsCount}/{studio.monthlyLimit}</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Package className="h-3 w-3" />
-                            <span>Total: {studio.totalMaterialsCount}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => handleManageUsers(studio.id)}
-                      >
-                        Manage Users
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => handleViewData(studio.id)}
-                      >
-                        View Data
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })}
-              {tierStudios.length === 0 && (
-                <div className="text-center py-8 text-gray-500">
-                  No {selectedTier} studios found.
-                </div>
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    );
-  }
-
-  // Default overview view
   return (
     <Card>
       <CardHeader>
@@ -411,12 +292,100 @@ const QuickStudioManagement = () => {
                       </p>
                     </div>
                   </div>
-                  <Button variant="ghost" size="sm" onClick={() => handleManageTier(tier)}>
-                    Manage
-                  </Button>
                 </div>
               );
             })}
+          </div>
+
+          {/* All Studios with Tier Filter */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h4 className="font-medium text-sm text-gray-700">All Studios</h4>
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-gray-400" />
+                <Select value={tierFilter} onValueChange={setTierFilter}>
+                  <SelectTrigger className="w-40">
+                    <SelectValue placeholder="Filter by tier" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Tiers</SelectItem>
+                    <SelectItem value="starter">Starter</SelectItem>
+                    <SelectItem value="professional">Professional</SelectItem>
+                    <SelectItem value="enterprise">Enterprise</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {loading ? (
+              <div className="text-center py-4">Loading studios...</div>
+            ) : (
+              <div className="space-y-4">
+                {filteredStudios.map((studio) => {
+                  const userCount = studio.users?.length || 0;
+                  return (
+                    <div key={studio.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
+                      <div className="flex items-center gap-4">
+                        <div className="p-2 bg-coral-100 rounded-lg">
+                          <Building className="h-5 w-5 text-coral-600" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <h3 className="font-semibold">{studio.name}</h3>
+                            <Badge className={getSubscriptionColor(studio.subscription_tier)}>
+                              {studio.subscription_tier}
+                            </Badge>
+                            {studio.isAtLimit && (
+                              <Badge variant="destructive" className="text-xs">
+                                <AlertTriangle className="h-3 w-3 mr-1" />
+                                At Limit
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-3 gap-4 text-sm text-gray-500">
+                            <div className="flex items-center gap-1">
+                              <Users className="h-3 w-3" />
+                              <span>{userCount} user{userCount !== 1 ? 's' : ''}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Package className="h-3 w-3" />
+                              <span>Monthly: {studio.monthlyMaterialsCount}/{studio.monthlyLimit}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Package className="h-3 w-3" />
+                              <span>Total: {studio.totalMaterialsCount}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleManageUsers(studio.id)}
+                        >
+                          Manage Users
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleViewData(studio.id)}
+                        >
+                          View Data
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+                {filteredStudios.length === 0 && (
+                  <div className="text-center py-8 text-gray-500">
+                    {tierFilter !== 'all' 
+                      ? `No ${tierFilter} studios found.`
+                      : 'No studios found.'}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </CardContent>

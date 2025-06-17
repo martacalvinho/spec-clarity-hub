@@ -2,7 +2,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,7 +18,6 @@ const AdminDashboard = () => {
   const { isAdmin } = useAuth();
   const navigate = useNavigate();
   const [studios, setStudios] = useState<any[]>([]);
-  const [selectedStudio, setSelectedStudio] = useState<string>('');
   const [globalStats, setGlobalStats] = useState({
     totalStudios: 0,
     totalProjects: 0,
@@ -136,12 +134,6 @@ const AdminDashboard = () => {
     return `${nextYear}-${String(nextMonth).padStart(2, '0')}`;
   };
 
-  const handleViewStudioDashboard = () => {
-    if (selectedStudio) {
-      navigate(`/studios/${selectedStudio}/dashboard`);
-    }
-  };
-
   const handleManageUsers = (studioId: string) => {
     navigate(`/users?studio=${studioId}`);
   };
@@ -241,92 +233,6 @@ const AdminDashboard = () => {
 
       {/* Platform Announcements */}
       <PlatformAnnouncements />
-
-      {/* Studio Selector */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Studio Management</CardTitle>
-          <CardDescription>Select a studio to view and manage their data</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex gap-4">
-            <Select value={selectedStudio} onValueChange={setSelectedStudio}>
-              <SelectTrigger className="w-64">
-                <SelectValue placeholder="Select a studio" />
-              </SelectTrigger>
-              <SelectContent>
-                {studios.map((studio) => (
-                  <SelectItem key={studio.id} value={studio.id}>
-                    {studio.name} ({studio.subscription_tier})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button 
-              disabled={!selectedStudio}
-              onClick={handleViewStudioDashboard}
-            >
-              View Studio Dashboard
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Studios List */}
-      <Card>
-        <CardHeader>
-          <CardTitle>All Studios</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {studios.map((studio) => (
-              <div key={studio.id} className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="font-semibold">{studio.name}</h3>
-                    <Badge className={getSubscriptionColor(studio.subscription_tier)}>
-                      {studio.subscription_tier}
-                    </Badge>
-                    {studio.isAtLimit && (
-                      <Badge variant="destructive" className="text-xs">
-                        <AlertTriangle className="h-3 w-3 mr-1" />
-                        At Limit
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-3 gap-4 text-sm text-gray-600">
-                    <div>
-                      <span className="font-medium">Monthly Usage:</span> {studio.monthlyMaterialsCount}/{studio.monthlyLimit}
-                    </div>
-                    <div>
-                      <span className="font-medium">Total Materials:</span> {studio.totalMaterialsCount}
-                    </div>
-                    <div>
-                      <span className="font-medium">Created:</span> {new Date(studio.created_at).toLocaleDateString()}
-                    </div>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => handleManageUsers(studio.id)}
-                  >
-                    Manage Users
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => handleViewData(studio.id)}
-                  >
-                    View Data
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 };
