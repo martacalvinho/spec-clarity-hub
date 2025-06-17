@@ -298,6 +298,7 @@ const Materials = () => {
               Material limit reached for this month
             </p>
           )}
+          <PDFExport type="general" />
           <Button
             onClick={() => setAdvancedMode(!advancedMode)}
             variant={advancedMode ? "default" : "outline"}
@@ -548,7 +549,8 @@ const Materials = () => {
               <div className="space-y-4">
                 {filteredMaterials.map((material) => {
                   const projectCount = material.proj_materials?.length || 0;
-                  const clientName = material.proj_materials?.[0]?.projects?.clients?.name;
+                  const projects = material.proj_materials || [];
+                  const uniqueClients = [...new Set(projects.map((p: any) => p.projects?.clients?.name).filter(Boolean))];
                   const locations = parseLocations(material.location);
                   const isDuplicate = duplicates.some(dup => dup.id === material.id);
                   const duplicateInfo = duplicates.find(dup => dup.id === material.id);
@@ -616,15 +618,71 @@ const Materials = () => {
                           </div>
                           <div className="flex-1">
                             <Link to={`/materials/${material.id}`} className="hover:text-coral">
-                              <h3 className="font-semibold text-lg">{material.name}</h3>
+                              <h3 className="font-semibold text-lg hover:underline">{material.name}</h3>
                             </Link>
                             <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
-                              <span>Category: {material.category}</span>
+                              <Link 
+                                to={`/materials/category/${encodeURIComponent(material.category)}`}
+                                className="hover:text-coral hover:underline"
+                              >
+                                Category: {material.category}
+                              </Link>
                               {material.subcategory && <span>• {material.subcategory}</span>}
-                              <span>• Manufacturer: {material.manufacturers?.name || 'None'}</span>
+                              {material.manufacturers?.name && (
+                                <>
+                                  <span>•</span>
+                                  <Link 
+                                    to={`/manufacturers/${material.manufacturer_id}`}
+                                    className="hover:text-coral hover:underline"
+                                  >
+                                    Manufacturer: {material.manufacturers.name}
+                                  </Link>
+                                </>
+                              )}
                               <span>• Used in {projectCount} project{projectCount !== 1 ? 's' : ''}</span>
-                              {clientName && <span>• Client: {clientName}</span>}
                             </div>
+                            
+                            {/* Projects and Clients */}
+                            {projects.length > 0 && (
+                              <div className="mt-2">
+                                <div className="flex flex-wrap gap-2">
+                                  <div>
+                                    <span className="text-sm text-gray-600 font-medium">Projects: </span>
+                                    {projects.map((projMaterial: any, index: number) => (
+                                      <span key={projMaterial.project_id} className="text-sm">
+                                        <Link 
+                                          to={`/projects/${projMaterial.projects.id}`}
+                                          className="text-blue-600 hover:text-blue-800 hover:underline"
+                                        >
+                                          {projMaterial.projects.name}
+                                        </Link>
+                                        {index < projects.length - 1 && <span className="text-gray-400">, </span>}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                                {uniqueClients.length > 0 && (
+                                  <div className="mt-1">
+                                    <span className="text-sm text-gray-600 font-medium">Clients: </span>
+                                    {uniqueClients.map((clientName: string, index: number) => {
+                                      const clientProject = projects.find((p: any) => p.projects?.clients?.name === clientName);
+                                      return (
+                                        <span key={clientName} className="text-sm">
+                                          <Link 
+                                            to={`/clients/${clientProject?.projects?.client_id}`}
+                                            className="text-green-600 hover:text-green-800 hover:underline"
+                                          >
+                                            {clientName}
+                                          </Link>
+                                          {index < uniqueClients.length - 1 && <span className="text-gray-400">, </span>}
+                                        </span>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                            
                             {(material.reference_sku || material.dimensions) && (
                               <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
                                 {material.reference_sku && (
