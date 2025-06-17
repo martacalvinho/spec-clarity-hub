@@ -508,6 +508,7 @@ export type Database = {
           location: string | null
           manufacturer_id: string | null
           material_id: string
+          model: string | null
           name: string
           notes: string | null
           photo_url: string | null
@@ -532,6 +533,7 @@ export type Database = {
           location?: string | null
           manufacturer_id?: string | null
           material_id: string
+          model?: string | null
           name: string
           notes?: string | null
           photo_url?: string | null
@@ -556,6 +558,7 @@ export type Database = {
           location?: string | null
           manufacturer_id?: string | null
           material_id?: string
+          model?: string | null
           name?: string
           notes?: string | null
           photo_url?: string | null
@@ -608,6 +611,7 @@ export type Database = {
           last_price_update: string | null
           location: string | null
           manufacturer_id: string | null
+          model: string | null
           name: string
           notes: string | null
           photo_url: string | null
@@ -638,6 +642,7 @@ export type Database = {
           last_price_update?: string | null
           location?: string | null
           manufacturer_id?: string | null
+          model?: string | null
           name: string
           notes?: string | null
           photo_url?: string | null
@@ -668,6 +673,7 @@ export type Database = {
           last_price_update?: string | null
           location?: string | null
           manufacturer_id?: string | null
+          model?: string | null
           name?: string
           notes?: string | null
           photo_url?: string | null

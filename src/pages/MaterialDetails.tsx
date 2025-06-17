@@ -177,6 +177,9 @@ const MaterialDetails = () => {
           </div>
           <div className="flex-1">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">{material.name}</h1>
+            {material.model && (
+              <p className="text-lg text-gray-600 mb-2">Model: {material.model}</p>
+            )}
             {material.reference_sku && (
               <p className="text-lg text-gray-600 mb-2">SKU: {material.reference_sku}</p>
             )}
@@ -196,7 +199,7 @@ const MaterialDetails = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
-            {/* Core Details - Moved action buttons to header */}
+            {/* Core Details */}
             <Card>
               <CardHeader className="pb-4">
                 <div className="flex items-center justify-between">
@@ -234,6 +237,12 @@ const MaterialDetails = () => {
                     <div>
                       <label className="text-sm font-medium text-gray-500">Subcategory</label>
                       <p className="text-base">{material.subcategory}</p>
+                    </div>
+                  )}
+                  {material.model && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">Model</label>
+                      <p className="text-base">{material.model}</p>
                     </div>
                   )}
                   <div>

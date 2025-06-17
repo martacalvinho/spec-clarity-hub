@@ -15,6 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 
 const formSchema = z.object({
   name: z.string().min(1, 'Material name is required'),
+  model: z.string().optional(),
   category: z.string().min(1, 'Category is required'),
   subcategory: z.string().optional(),
   manufacturer_id: z.string().optional(),
@@ -49,6 +50,7 @@ const EditMaterialForm = ({ material, onMaterialUpdated, editMode = 'full' }: Ed
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: material.name,
+      model: material.model || '',
       category: material.category,
       subcategory: material.subcategory || '',
       manufacturer_id: material.manufacturer_id || '',
@@ -68,6 +70,7 @@ const EditMaterialForm = ({ material, onMaterialUpdated, editMode = 'full' }: Ed
   useEffect(() => {
     form.reset({
       name: material.name,
+      model: material.model || '',
       category: material.category,
       subcategory: material.subcategory || '',
       manufacturer_id: material.manufacturer_id || '',
@@ -171,11 +174,12 @@ const EditMaterialForm = ({ material, onMaterialUpdated, editMode = 'full' }: Ed
 
         if (materialError) throw materialError;
       } else {
-        // Update the material including all main fields (excluding location and tag)
+        // Update the material including all main fields
         const { error: materialError } = await supabase
           .from('materials')
           .update({
             name: values.name,
+            model: values.model || null,
             category: values.category,
             subcategory: values.subcategory || null,
             manufacturer_id: values.manufacturer_id || null,
@@ -375,7 +379,7 @@ const EditMaterialForm = ({ material, onMaterialUpdated, editMode = 'full' }: Ed
                 </div>
               </>
             ) : (
-              // Full material edit fields (excluding location and tag)
+              // Full material edit fields
               <>
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
@@ -386,6 +390,20 @@ const EditMaterialForm = ({ material, onMaterialUpdated, editMode = 'full' }: Ed
                         <FormLabel>Material Name</FormLabel>
                         <FormControl>
                           <Input placeholder="Enter material name" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="model"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Model</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g., NATURAL, RUSTICORK" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

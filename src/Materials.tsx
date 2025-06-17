@@ -56,6 +56,7 @@ const Materials = () => {
   const filteredMaterials = materials.filter(material =>
     material.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     material.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    material.model?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     material.manufacturers?.name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -92,7 +93,6 @@ const Materials = () => {
           <div className="space-y-4">
             {filteredMaterials.map((material) => {
               const projects = material.proj_materials || [];
-              const uniqueClients = [...new Set(projects.map((p: any) => p.projects?.clients?.name).filter(Boolean))];
               
               return (
                 <div key={material.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
@@ -105,6 +105,12 @@ const Materials = () => {
                         <h3 className="font-semibold text-lg hover:underline">{material.name}</h3>
                       </Link>
                       <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
+                        {material.model && (
+                          <>
+                            <span>Model: {material.model}</span>
+                            <span>•</span>
+                          </>
+                        )}
                         <Link 
                           to={`/materials/category/${encodeURIComponent(material.category)}`}
                           className="hover:text-coral hover:underline"
@@ -120,6 +126,12 @@ const Materials = () => {
                             >
                               Manufacturer: {material.manufacturers.name}
                             </Link>
+                          </>
+                        )}
+                        {material.reference_sku && (
+                          <>
+                            <span>•</span>
+                            <span>SKU: {material.reference_sku}</span>
                           </>
                         )}
                         {material.users && (

@@ -26,6 +26,7 @@ const AddMaterialForm = ({ onMaterialAdded }: AddMaterialFormProps) => {
   const [open, setOpen] = useState(false);
   const [limitDialogOpen, setLimitDialogOpen] = useState(false);
   const [name, setName] = useState('');
+  const [model, setModel] = useState('');
   const [category, setCategory] = useState('');
   const [subcategory, setSubcategory] = useState('');
   const [tag, setTag] = useState('');
@@ -145,6 +146,7 @@ const AddMaterialForm = ({ onMaterialAdded }: AddMaterialFormProps) => {
         .from('materials')
         .insert({
           name,
+          model: model || null,
           category,
           subcategory: subcategory || null,
           tag: tag || null,
@@ -193,6 +195,7 @@ const AddMaterialForm = ({ onMaterialAdded }: AddMaterialFormProps) => {
 
       // Reset form
       setName('');
+      setModel('');
       setCategory('');
       setSubcategory('');
       setTag('');
@@ -256,6 +259,16 @@ const AddMaterialForm = ({ onMaterialAdded }: AddMaterialFormProps) => {
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Enter material name"
                 required
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="model">Model</Label>
+              <Input
+                id="model"
+                value={model}
+                onChange={(e) => setModel(e.target.value)}
+                placeholder="e.g., NATURAL, RUSTICORK"
               />
             </div>
             
@@ -340,7 +353,7 @@ const AddMaterialForm = ({ onMaterialAdded }: AddMaterialFormProps) => {
             </div>
             
             <div>
-              <Label htmlFor="referenceSku">Reference SKU</Label>
+              <Label htmlFor="referenceSku">Reference/SKU</Label>
               <Input
                 id="referenceSku"
                 value={referenceSku}
