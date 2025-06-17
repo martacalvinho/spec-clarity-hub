@@ -422,6 +422,7 @@ export type Database = {
           manufacturer_id: string | null
           name: string
           notes: string | null
+          photo_url: string | null
           price_per_sqft: number | null
           price_per_unit: number | null
           reference_sku: string | null
@@ -443,6 +444,7 @@ export type Database = {
           manufacturer_id?: string | null
           name: string
           notes?: string | null
+          photo_url?: string | null
           price_per_sqft?: number | null
           price_per_unit?: number | null
           reference_sku?: string | null
@@ -464,6 +466,7 @@ export type Database = {
           manufacturer_id?: string | null
           name?: string
           notes?: string | null
+          photo_url?: string | null
           price_per_sqft?: number | null
           price_per_unit?: number | null
           reference_sku?: string | null
