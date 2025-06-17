@@ -160,7 +160,7 @@ const MaterialDetails = () => {
           </Link>
         </div>
 
-        {/* Visual Header - cleaned up */}
+        {/* Visual Header */}
         <div className="flex items-start gap-6 bg-white p-6 rounded-lg border">
           <div className="flex-shrink-0">
             {material.photo_url || material.thumbnail_url ? (
@@ -177,14 +177,12 @@ const MaterialDetails = () => {
           </div>
           <div className="flex-1">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">{material.name}</h1>
-            <div className="space-y-1 mb-3">
-              {material.model && (
-                <p className="text-lg font-medium text-gray-700">Model: {material.model}</p>
-              )}
-              {material.reference_sku && (
-                <p className="text-base text-gray-600">REF: {material.reference_sku}</p>
-              )}
-            </div>
+            {material.model && (
+              <p className="text-lg text-gray-600 mb-2">Model: {material.model}</p>
+            )}
+            {material.reference_sku && (
+              <p className="text-lg text-gray-600 mb-2">SKU: {material.reference_sku}</p>
+            )}
             <div className="flex flex-wrap gap-2">
               <Badge variant="outline">{material.category}</Badge>
               {material.subcategory && (
@@ -227,8 +225,8 @@ const MaterialDetails = () => {
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+              <CardContent className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-sm font-medium text-gray-500">Category</label>
                     <Link to={`/materials/category/${encodeURIComponent(material.category)}`} className="hover:text-coral">
@@ -244,13 +242,7 @@ const MaterialDetails = () => {
                   {material.model && (
                     <div>
                       <label className="text-sm font-medium text-gray-500">Model</label>
-                      <p className="text-base font-medium">{material.model}</p>
-                    </div>
-                  )}
-                  {material.reference_sku && (
-                    <div>
-                      <label className="text-sm font-medium text-gray-500">Reference/SKU</label>
-                      <p className="text-base">{material.reference_sku}</p>
+                      <p className="text-base">{material.model}</p>
                     </div>
                   )}
                   <div>
