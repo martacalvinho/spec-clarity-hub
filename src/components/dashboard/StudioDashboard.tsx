@@ -63,7 +63,7 @@ const StudioDashboard = () => {
           .eq('status', 'active')
       ]);
 
-      const activeProjects = projectsResult.data?.filter(p => p.status === 'active').length || 0;
+      const activeProjects = (projectsResult.data || []).filter(p => p.status === 'active').length;
 
       // Fetch recent materials (limit to 3 for compactness)
       const { data: recentMaterialsData } = await supabase
@@ -88,7 +88,7 @@ const StudioDashboard = () => {
         .eq('studio_id', studioId);
 
       const materialUsageMap = new Map();
-      allProjMaterials?.forEach(pm => {
+      (allProjMaterials || []).forEach(pm => {
         if (pm.materials) {
           const count = materialUsageMap.get(pm.material_id) || 0;
           materialUsageMap.set(pm.material_id, count + 1);
@@ -97,7 +97,7 @@ const StudioDashboard = () => {
 
       const topMaterialsProcessed = Array.from(materialUsageMap.entries())
         .map(([materialId, count]) => {
-          const material = allProjMaterials?.find(pm => pm.material_id === materialId)?.materials;
+          const material = (allProjMaterials || []).find(pm => pm.material_id === materialId)?.materials;
           return { material, count, materialId };
         })
         .filter(item => item.material)
@@ -115,9 +115,13 @@ const StudioDashboard = () => {
 
       setRecentMaterials(recentMaterialsData || []);
       setRecentProjects(recentProjectsData || []);
-      setTopMaterials(topMaterialsProcessed);
+      setTopMaterials(topMaterialsProcessed || []);
     } catch (error) {
       console.error('Error fetching studio data:', error);
+      // Set default empty arrays to prevent map errors
+      setRecentMaterials([]);
+      setRecentProjects([]);
+      setTopMaterials([]);
     } finally {
       setLoading(false);
     }
@@ -263,7 +267,7 @@ const StudioDashboard = () => {
           </CardHeader>
           <CardContent className="pt-0">
             <div className="space-y-3">
-              {recentMaterials.map((material) => (
+              {(recentMaterials || []).map((material) => (
                 <Link key={material.id} to={`/materials/${material.id}`}>
                   <div className="flex items-center justify-between hover:bg-gray-50 p-2 rounded cursor-pointer">
                     <div className="min-w-0 flex-1">
@@ -275,7 +279,7 @@ const StudioDashboard = () => {
                   </div>
                 </Link>
               ))}
-              {recentMaterials.length === 0 && (
+              {(recentMaterials || []).length === 0 && (
                 <p className="text-gray-500 text-center py-4 text-sm">No materials yet</p>
               )}
             </div>
@@ -291,7 +295,7 @@ const StudioDashboard = () => {
           </CardHeader>
           <CardContent className="pt-0">
             <div className="space-y-3">
-              {recentProjects.map((project) => (
+              {(recentProjects || []).map((project) => (
                 <Link key={project.id} to={`/projects/${project.id}`}>
                   <div className="flex items-center justify-between hover:bg-gray-50 p-2 rounded cursor-pointer">
                     <div className="min-w-0 flex-1">
@@ -310,7 +314,7 @@ const StudioDashboard = () => {
                   </div>
                 </Link>
               ))}
-              {recentProjects.length === 0 && (
+              {(recentProjects || []).length === 0 && (
                 <p className="text-gray-500 text-center py-4 text-sm">No projects yet</p>
               )}
             </div>
@@ -323,7 +327,7 @@ const StudioDashboard = () => {
           </CardHeader>
           <CardContent className="pt-0">
             <div className="space-y-3">
-              {topMaterials.map((item, index) => (
+              {(topMaterials || []).map((item, index) => (
                 <Link key={item.materialId} to={`/materials/${item.materialId}`}>
                   <div className="flex items-center justify-between p-2 rounded hover:bg-gray-50 cursor-pointer">
                     <div className="min-w-0 flex-1">
@@ -334,7 +338,7 @@ const StudioDashboard = () => {
                   </div>
                 </Link>
               ))}
-              {topMaterials.length === 0 && (
+              {(topMaterials || []).length === 0 && (
                 <p className="text-gray-500 text-center py-4 text-sm">No usage data yet</p>
               )}
             </div>

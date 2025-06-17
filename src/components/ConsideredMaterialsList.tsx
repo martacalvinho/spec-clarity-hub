@@ -66,9 +66,10 @@ const ConsideredMaterialsList = ({ projectId, showProjectFilter = false }: Consi
         })
       );
 
-      setConsideredMaterials(materialsWithSelected);
+      setConsideredMaterials(materialsWithSelected || []);
     } catch (error) {
       console.error('Error fetching considered materials:', error);
+      setConsideredMaterials([]);
     } finally {
       setLoading(false);
     }
@@ -108,7 +109,7 @@ const ConsideredMaterialsList = ({ projectId, showProjectFilter = false }: Consi
 
   return (
     <div className="space-y-4">
-      {consideredMaterials.map((material) => (
+      {(consideredMaterials || []).map((material) => (
         <Card key={material.id} className="border-orange-200">
           <CardContent className="p-4">
             <div className="flex items-start justify-between">
@@ -192,7 +193,7 @@ const ConsideredMaterialsList = ({ projectId, showProjectFilter = false }: Consi
           </CardContent>
         </Card>
       ))}
-      {consideredMaterials.length === 0 && (
+      {(consideredMaterials || []).length === 0 && (
         <div className="text-center py-8 text-gray-500">
           No considered materials found.
         </div>

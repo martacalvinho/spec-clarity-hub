@@ -44,7 +44,7 @@ const MaterialStatsCards = () => {
         .select('project_id')
         .eq('studio_id', studioId);
 
-      const uniqueProjects = new Set(projectsData?.map(p => p.project_id) || []);
+      const uniqueProjects = new Set((projectsData || []).map(p => p.project_id));
 
       // Get unique locations count
       const { data: materialsData } = await supabase
@@ -54,7 +54,7 @@ const MaterialStatsCards = () => {
         .not('location', 'is', null);
 
       const allLocations = new Set();
-      materialsData?.forEach(material => {
+      (materialsData || []).forEach(material => {
         if (material.location) {
           material.location.split(',').forEach(loc => {
             const trimmedLoc = loc.trim();
