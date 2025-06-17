@@ -258,7 +258,7 @@ const ProjectDetails = () => {
       <Tabs defaultValue="materials" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="materials">Selected Materials</TabsTrigger>
-          <TabsTrigger value="considered">Considered Materials</TabsTrigger>
+          <TabsTrigger value="considered">Outtakes</TabsTrigger>
         </TabsList>
         
         <TabsContent value="materials">
@@ -367,7 +367,7 @@ const ProjectDetails = () => {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Considered Materials</CardTitle>
+                  <CardTitle>Outtakes</CardTitle>
                   <CardDescription>Materials that were evaluated but not selected</CardDescription>
                 </div>
                 <AddConsideredMaterialForm 

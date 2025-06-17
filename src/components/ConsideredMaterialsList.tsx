@@ -68,7 +68,7 @@ const ConsideredMaterialsList = ({ projectId, showProjectFilter = false }: Consi
 
       setConsideredMaterials(materialsWithSelected || []);
     } catch (error) {
-      console.error('Error fetching considered materials:', error);
+      console.error('Error fetching outtake materials:', error);
       setConsideredMaterials([]);
     } finally {
       setLoading(false);
@@ -87,7 +87,7 @@ const ConsideredMaterialsList = ({ projectId, showProjectFilter = false }: Consi
         dimensions: consideredMaterial.dimensions,
         location: consideredMaterial.location,
         photo_url: consideredMaterial.photo_url,
-        notes: `Copied from considered material: ${consideredMaterial.notes || ''}`
+        notes: `Copied from outtake material: ${consideredMaterial.notes || ''}`
       };
 
       const { error } = await supabase
@@ -104,7 +104,7 @@ const ConsideredMaterialsList = ({ projectId, showProjectFilter = false }: Consi
   };
 
   if (loading) {
-    return <div className="p-6">Loading considered materials...</div>;
+    return <div className="p-6">Loading outtake materials...</div>;
   }
 
   return (
@@ -195,7 +195,7 @@ const ConsideredMaterialsList = ({ projectId, showProjectFilter = false }: Consi
       ))}
       {(consideredMaterials || []).length === 0 && (
         <div className="text-center py-8 text-gray-500">
-          No considered materials found.
+          No outtake materials found.
         </div>
       )}
     </div>

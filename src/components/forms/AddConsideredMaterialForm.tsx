@@ -1,5 +1,4 @@
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,8 +24,30 @@ const AddConsideredMaterialForm = ({ projectId, onMaterialAdded, manufacturers, 
   const [open, setOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [projects, setProjects] = useState<any[]>([]);
 
   const { register, handleSubmit, reset, setValue, watch } = useForm();
+
+  useEffect(() => {
+    if (studioId && !projectId) {
+      fetchProjects();
+    }
+  }, [studioId, projectId]);
+
+  const fetchProjects = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('id, name')
+        .eq('studio_id', studioId)
+        .order('name');
+
+      if (error) throw error;
+      setProjects(data || []);
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+    }
+  };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     try {
@@ -78,7 +99,7 @@ const AddConsideredMaterialForm = ({ projectId, onMaterialAdded, manufacturers, 
         .from('considered_materials')
         .insert({
           studio_id: studioId,
-          project_id: data.project_id,
+          project_id: data.project_id || projectId,
           material_name: data.material_name,
           manufacturer_id: data.manufacturer_id || null,
           category: data.category,
@@ -96,7 +117,7 @@ const AddConsideredMaterialForm = ({ projectId, onMaterialAdded, manufacturers, 
 
       toast({
         title: "Success",
-        description: "Considered material added successfully",
+        description: "Outtake material added successfully",
       });
 
       reset();
@@ -107,7 +128,7 @@ const AddConsideredMaterialForm = ({ projectId, onMaterialAdded, manufacturers, 
       console.error('Error adding considered material:', error);
       toast({
         title: "Error",
-        description: "Failed to add considered material. Please try again.",
+        description: "Failed to add outtake material. Please try again.",
         variant: "destructive",
       });
     }
@@ -118,17 +139,35 @@ const AddConsideredMaterialForm = ({ projectId, onMaterialAdded, manufacturers, 
       <DialogTrigger asChild>
         <Button className="bg-coral hover:bg-coral-600">
           <Plus className="h-4 w-4 mr-2" />
-          Add Considered Material
+          {projectId ? 'Add Outtake Material' : 'Add Outtake'}
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add Considered Material</DialogTitle>
+          <DialogTitle>{projectId ? 'Add Outtake Material' : 'Add Outtake'}</DialogTitle>
           <DialogDescription>
-            Track materials that were evaluated but not selected for this project.
+            Track materials that were evaluated but not selected{projectId ? ' for this project' : ''}.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          {!projectId && (
+            <div>
+              <Label htmlFor="project_id">Project *</Label>
+              <Select onValueChange={(value) => setValue('project_id', value)} required>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select project" />
+                </SelectTrigger>
+                <SelectContent>
+                  {projects.map((project) => (
+                    <SelectItem key={project.id} value={project.id}>
+                      {project.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="material_name">Material Name *</Label>
@@ -255,14 +294,14 @@ const AddConsideredMaterialForm = ({ projectId, onMaterialAdded, manufacturers, 
             </div>
           </div>
 
-          <input type="hidden" {...register('project_id')} value={projectId} />
+          {projectId && <input type="hidden" {...register('project_id')} value={projectId} />}
 
           <div className="flex justify-end gap-2 pt-4">
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>
             <Button type="submit" className="bg-coral hover:bg-coral-600">
-              Add Considered Material
+              {projectId ? 'Add Outtake Material' : 'Add Outtake'}
             </Button>
           </div>
         </form>

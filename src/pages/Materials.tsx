@@ -21,6 +21,7 @@ import ConsideredMaterialsList from '@/components/ConsideredMaterialsList';
 import UserInitials from '@/components/UserInitials';
 import { useToast } from '@/hooks/use-toast';
 import DeleteMaterialForm from '@/components/forms/DeleteMaterialForm';
+import AddConsideredMaterialForm from '@/components/forms/AddConsideredMaterialForm';
 
 const Materials = () => {
   const { studioId } = useAuth();
@@ -299,7 +300,7 @@ const Materials = () => {
             <AlertTriangle className="h-4 w-4" />
             Check for Duplicates
           </TabsTrigger>
-          <TabsTrigger value="not-used">Not Used</TabsTrigger>
+          <TabsTrigger value="not-used">Outtakes</TabsTrigger>
         </TabsList>
         
         <TabsContent value="materials">
@@ -728,10 +729,19 @@ const Materials = () => {
         <TabsContent value="not-used">
           <Card>
             <CardHeader>
-              <CardTitle>Not Used Materials</CardTitle>
-              <CardDescription>
-                Materials that were considered but not selected for projects
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Outtakes</CardTitle>
+                  <CardDescription>
+                    Materials that were considered but not selected for projects
+                  </CardDescription>
+                </div>
+                <AddConsideredMaterialForm 
+                  onMaterialAdded={fetchMaterials}
+                  manufacturers={manufacturers}
+                  materials={materials}
+                />
+              </div>
             </CardHeader>
             <CardContent>
               <ConsideredMaterialsList showProjectFilter={true} />
