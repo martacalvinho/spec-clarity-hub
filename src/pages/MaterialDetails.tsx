@@ -196,13 +196,31 @@ const MaterialDetails = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
-            {/* Core Details - Made more compact */}
+            {/* Core Details - Moved action buttons to header */}
             <Card>
               <CardHeader className="pb-4">
-                <CardTitle className="flex items-center gap-2">
-                  <Package className="h-5 w-5" />
-                  Material Specifications
-                </CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <Package className="h-5 w-5" />
+                    Material Specifications
+                  </CardTitle>
+                  <div className="flex gap-2">
+                    <EditMaterialForm material={material} onMaterialUpdated={handleMaterialUpdated} />
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div>
+                          <ApplyToProjectForm 
+                            material={material} 
+                            onMaterialUpdated={handleMaterialUpdated}
+                          />
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Apply to Project</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
@@ -269,23 +287,6 @@ const MaterialDetails = () => {
                     <p className="text-gray-700 mt-1 text-sm">{material.notes}</p>
                   </div>
                 )}
-
-                <div className="flex gap-2 pt-3">
-                  <EditMaterialForm material={material} onMaterialUpdated={handleMaterialUpdated} />
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div>
-                        <ApplyToProjectForm 
-                          material={material} 
-                          onMaterialUpdated={handleMaterialUpdated}
-                        />
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Apply to Project</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </div>
               </CardContent>
             </Card>
 
