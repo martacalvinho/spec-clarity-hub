@@ -75,6 +75,7 @@ const Materials = () => {
         .select(`
           id,
           name,
+          model,
           category,
           subcategory,
           reference_sku,
@@ -256,6 +257,7 @@ const Materials = () => {
 
     const matchesSearch = material.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       material.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      material.model?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       material.tag?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       material.location?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       material.reference_sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -600,7 +602,7 @@ const Materials = () => {
                   return (
                     <div key={material.id} className="space-y-0">
                       <div 
-                        className={`flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 relative ${
+                        className={`flex items-center justify-between p-6 border rounded-lg hover:bg-gray-50 relative ${
                           isDuplicate ? 'border-red-200 bg-red-50' : ''
                         }`}
                       >
@@ -645,123 +647,157 @@ const Materials = () => {
                           </div>
                         </TooltipProvider>
 
-                        <div className="flex items-center gap-4 flex-1 pr-32">
+                        <div className="flex items-start gap-6 flex-1 pr-32">
                           {/* Photo or Package Icon */}
-                          <div className={`p-2 rounded-lg ${isDuplicate ? 'bg-red-100' : 'bg-coral-100'}`}>
+                          <div className={`p-2 rounded-lg flex-shrink-0 ${isDuplicate ? 'bg-red-100' : 'bg-coral-100'}`}>
                             {material.photo_url ? (
                               <img 
                                 src={material.photo_url} 
                                 alt={material.name}
-                                className="h-12 w-12 object-cover rounded"
+                                className="h-16 w-16 object-cover rounded"
                               />
                             ) : (
-                              <Package className={`h-6 w-6 ${isDuplicate ? 'text-red-600' : 'text-coral-600'}`} />
+                              <Package className={`h-8 w-8 ${isDuplicate ? 'text-red-600' : 'text-coral-600'}`} />
                             )}
                           </div>
-                          <div className="flex-1">
-                            <Link to={`/materials/${material.id}`} className="hover:text-coral">
-                              <h3 className="font-semibold text-lg hover:underline">{material.name}</h3>
-                            </Link>
-                            <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
-                              <Link 
-                                to={`/materials/category/${encodeURIComponent(material.category)}`}
-                                className="hover:text-coral hover:underline"
-                              >
-                                Category: {material.category}
+                          
+                          {/* Content */}
+                          <div className="flex-1 min-w-0">
+                            {/* Material Name */}
+                            <div className="mb-3">
+                              <Link to={`/materials/${material.id}`} className="hover:text-coral">
+                                <h3 className="font-semibold text-xl text-gray-900 hover:underline leading-tight">
+                                  {material.name}
+                                </h3>
                               </Link>
-                              {material.subcategory && <span>• {material.subcategory}</span>}
-                              {material.manufacturers?.name && (
-                                <>
-                                  <span>•</span>
-                                  <Link 
-                                    to={`/manufacturers/${material.manufacturer_id}`}
-                                    className="hover:text-coral hover:underline"
-                                  >
-                                    Manufacturer: {material.manufacturers.name}
-                                  </Link>
-                                </>
-                              )}
                             </div>
                             
-                            {/* Projects, Clients, and Added by information */}
+                            {/* Main Info Line */}
+                            <div className="mb-2">
+                              <div className="flex items-center gap-2 text-sm text-gray-700 flex-wrap">
+                                <span className="font-medium">Category:</span>
+                                <Link 
+                                  to={`/materials/category/${encodeURIComponent(material.category)}`}
+                                  className="text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                                >
+                                  {material.category}
+                                </Link>
+                                {material.subcategory && (
+                                  <>
+                                    <span className="text-gray-400">•</span>
+                                    <span className="text-gray-600">{material.subcategory}</span>
+                                  </>
+                                )}
+                                {material.model && (
+                                  <>
+                                    <span className="text-gray-400">•</span>
+                                    <span className="font-medium">Model:</span>
+                                    <span className="text-gray-900 font-medium">{material.model}</span>
+                                  </>
+                                )}
+                                {material.manufacturers?.name && (
+                                  <>
+                                    <span className="text-gray-400">•</span>
+                                    <span className="font-medium">Manufacturer:</span>
+                                    <Link 
+                                      to={`/manufacturers/${material.manufacturer_id}`}
+                                      className="text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                                    >
+                                      {material.manufacturers.name}
+                                    </Link>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                            
+                            {/* Projects and Client Info */}
                             {(projects.length > 0 || material.users) && (
-                              <div className="mt-2">
-                                <div className="flex flex-wrap gap-2">
-                                  <div className="text-sm text-gray-600">
-                                    {projects.length > 0 && (
-                                      <>
-                                        <span className="font-medium">Projects: </span>
-                                        {projects.map((projMaterial: any, index: number) => (
-                                          <span key={projMaterial.project_id}>
-                                            <Link 
-                                              to={`/projects/${projMaterial.projects.id}`}
-                                              className="text-blue-600 hover:text-blue-800 hover:underline"
-                                            >
-                                              {projMaterial.projects.name}
-                                            </Link>
-                                            {index < projects.length - 1 && <span className="text-gray-400">, </span>}
-                                          </span>
-                                        ))}
-                                        
-                                        {/* Show unique clients */}
-                                        {(() => {
-                                          const uniqueClients = [...new Set(projects.map((p: any) => p.projects?.clients?.name).filter(Boolean))];
-                                          if (uniqueClients.length > 0) {
-                                            return (
-                                              <>
-                                                <span className="font-medium"> Client: </span>
-                                                {uniqueClients.map((clientName: string, index: number) => {
-                                                  const clientProject = projects.find((p: any) => p.projects?.clients?.name === clientName);
-                                                  return (
-                                                    <span key={clientName}>
-                                                      <Link 
-                                                        to={`/clients/${clientProject?.projects?.client_id}`}
-                                                        className="text-green-600 hover:text-green-800 hover:underline"
-                                                      >
-                                                        {clientName}
-                                                      </Link>
-                                                      {index < uniqueClients.length - 1 && <span className="text-gray-400">, </span>}
-                                                    </span>
-                                                  );
-                                                })}
-                                              </>
-                                            );
-                                          }
-                                          return null;
-                                        })()}
-                                        
-                                        {material.users && <span> </span>}
-                                      </>
-                                    )}
-                                    
-                                    {/* Added by information */}
-                                    {material.users && (
-                                      <>
-                                        <span className="font-medium">Added by: </span>
-                                        <span>{material.users.first_name} {material.users.last_name}</span>
-                                      </>
-                                    )}
-                                  </div>
+                              <div className="mb-2">
+                                <div className="text-sm text-gray-600">
+                                  {projects.length > 0 && (
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <span className="font-medium text-gray-700">Projects:</span>
+                                      {projects.map((projMaterial: any, index: number) => (
+                                        <span key={projMaterial.project_id} className="flex items-center gap-1">
+                                          <Link 
+                                            to={`/projects/${projMaterial.projects.id}`}
+                                            className="text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                                          >
+                                            {projMaterial.projects.name}
+                                          </Link>
+                                          {index < projects.length - 1 && <span className="text-gray-400">,</span>}
+                                        </span>
+                                      ))}
+                                      
+                                      {/* Show unique clients */}
+                                      {(() => {
+                                        const uniqueClients = [...new Set(projects.map((p: any) => p.projects?.clients?.name).filter(Boolean))];
+                                        if (uniqueClients.length > 0) {
+                                          return (
+                                            <div className="flex items-center gap-2 ml-2">
+                                              <span className="font-medium text-gray-700">Client:</span>
+                                              {uniqueClients.map((clientName: string, index: number) => {
+                                                const clientProject = projects.find((p: any) => p.projects?.clients?.name === clientName);
+                                                return (
+                                                  <span key={clientName} className="flex items-center gap-1">
+                                                    <Link 
+                                                      to={`/clients/${clientProject?.projects?.client_id}`}
+                                                      className="text-green-600 hover:text-green-800 hover:underline font-medium"
+                                                    >
+                                                      {clientName}
+                                                    </Link>
+                                                    {index < uniqueClients.length - 1 && <span className="text-gray-400">,</span>}
+                                                  </span>
+                                                );
+                                              })}
+                                            </div>
+                                          );
+                                        }
+                                        return null;
+                                      })()}
+                                    </div>
+                                  )}
+                                  
+                                  {/* Added by information */}
+                                  {material.users && (
+                                    <div className="flex items-center gap-2 mt-1">
+                                      <span className="font-medium text-gray-700">Added by:</span>
+                                      <span className="text-gray-600">{material.users.first_name} {material.users.last_name}</span>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             )}
                             
+                            {/* SKU and Dimensions */}
                             {(material.reference_sku || material.dimensions) && (
-                              <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
-                                {material.reference_sku && (
-                                  <span className={isDuplicate ? 'text-red-600 font-medium' : ''}>
-                                    SKU: {material.reference_sku}
-                                    {isDuplicate && (
-                                      <span className="ml-1 text-red-500">
-                                        (Duplicate - {duplicateInfo?.duplicateCount} total)
+                              <div className="mb-3">
+                                <div className="flex items-center gap-4 text-sm">
+                                  {material.reference_sku && (
+                                    <div className="flex items-center gap-1">
+                                      <span className="font-medium text-gray-700">SKU:</span>
+                                      <span className={`font-mono ${isDuplicate ? 'text-red-600 font-bold' : 'text-gray-900'}`}>
+                                        {material.reference_sku}
+                                        {isDuplicate && (
+                                          <span className="ml-2 text-red-500 font-normal">
+                                            (Duplicate - {duplicateInfo?.duplicateCount} total)
+                                          </span>
+                                        )}
                                       </span>
-                                    )}
-                                  </span>
-                                )}
-                                {material.dimensions && <span>• Dimensions: {material.dimensions}</span>}
+                                    </div>
+                                  )}
+                                  {material.dimensions && (
+                                    <div className="flex items-center gap-1">
+                                      <span className="font-medium text-gray-700">Dimensions:</span>
+                                      <span className="text-gray-900">{material.dimensions}</span>
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                             )}
-                            <div className="flex items-center gap-2 mt-2">
+                            
+                            {/* Tags and Badges */}
+                            <div className="flex items-center gap-2 mb-2">
                               {material.tag && (
                                 <Badge variant="secondary" className="text-xs">
                                   {material.tag}
@@ -790,8 +826,14 @@ const Materials = () => {
                                 </Badge>
                               )}
                             </div>
+                            
+                            {/* Notes */}
                             {material.notes && (
-                              <p className="text-sm text-gray-600 mt-1">{material.notes}</p>
+                              <div className="mt-2">
+                                <p className="text-sm text-gray-600 bg-gray-50 p-2 rounded border-l-2 border-gray-300">
+                                  {material.notes}
+                                </p>
+                              </div>
                             )}
                           </div>
                         </div>

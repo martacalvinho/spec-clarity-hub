@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -69,25 +68,44 @@ const EditMaterialForm = ({ material, onMaterialUpdated, editMode = 'full' }: Ed
   });
 
   useEffect(() => {
-    // Reset form when material changes
-    form.reset({
-      name: material.name || '',
-      model: material.model || '',
-      category: material.category || '',
-      subcategory: material.subcategory || '',
-      manufacturer_id: material.manufacturer_id || '',
-      project_id: currentProjectLink || '',
-      reference_sku: material.reference_sku || '',
-      dimensions: material.dimensions || '',
-      finish_color: material.finish_color || '',
-      fire_rating: material.fire_rating || '',
-      certifications: material.certifications || '',
-      cost_band: material.cost_band || '',
-      product_url: material.product_url || '',
-      product_sheet_url: material.product_sheet_url || '',
-      notes: material.notes || '',
-    });
-  }, [material, currentProjectLink, form]);
+    // Reset form when material changes or dialog opens
+    if (open) {
+      console.log('Setting form values:', {
+        name: material.name,
+        model: material.model,
+        category: material.category,
+        subcategory: material.subcategory,
+        manufacturer_id: material.manufacturer_id,
+        reference_sku: material.reference_sku,
+        dimensions: material.dimensions,
+        finish_color: material.finish_color,
+        fire_rating: material.fire_rating,
+        certifications: material.certifications,
+        cost_band: material.cost_band,
+        product_url: material.product_url,
+        product_sheet_url: material.product_sheet_url,
+        notes: material.notes
+      });
+      
+      form.reset({
+        name: material.name || '',
+        model: material.model || '',
+        category: material.category || '',
+        subcategory: material.subcategory || '',
+        manufacturer_id: material.manufacturer_id || '',
+        project_id: currentProjectLink || '',
+        reference_sku: material.reference_sku || '',
+        dimensions: material.dimensions || '',
+        finish_color: material.finish_color || '',
+        fire_rating: material.fire_rating || '',
+        certifications: material.certifications || '',
+        cost_band: material.cost_band || '',
+        product_url: material.product_url || '',
+        product_sheet_url: material.product_sheet_url || '',
+        notes: material.notes || '',
+      });
+    }
+  }, [material, currentProjectLink, form, open]);
 
   // Common tag options
   const commonTags = [
@@ -405,7 +423,7 @@ const EditMaterialForm = ({ material, onMaterialUpdated, editMode = 'full' }: Ed
                       <FormItem>
                         <FormLabel>Model</FormLabel>
                         <FormControl>
-                          <Input placeholder="e.g., NATURAL, RUSTICORK" {...field} />
+                          <Input placeholder="e.g., NATURAL, RUSTICORK, FLOTEX" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
