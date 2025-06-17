@@ -95,7 +95,7 @@ const MaterialPhotoUpload = ({ materialId, currentPhotoUrl, onPhotoUpdated }: Ma
               variant="ghost"
               size="sm"
               disabled={uploading}
-              className="pointer-events-none p-2 h-8 w-8"
+              className="pointer-events-none p-2 h-8 w-8 hover:bg-accent hover:text-accent-foreground"
             >
               <Camera className="h-4 w-4" />
             </Button>

@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { supabase } from '@/integrations/supabase/client';
 import { Search, Package, X, Filter, AlertTriangle, Settings, Camera } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -529,16 +530,45 @@ const Materials = () => {
                         }`}
                       >
                         {/* Action icons - fixed positioning in top right */}
-                        <div className="absolute top-4 right-4 flex items-center gap-1">
-                          <MaterialPhotoUpload 
-                            materialId={material.id}
-                            currentPhotoUrl={material.photo_url}
-                            onPhotoUpdated={(photoUrl) => handlePhotoUpdated(material.id, photoUrl)}
-                          />
-                          <ApplyToProjectForm material={material} onMaterialUpdated={fetchMaterials} />
-                          <EditMaterialForm material={material} onMaterialUpdated={fetchMaterials} />
-                          <DeleteMaterialForm material={material} onMaterialDeleted={fetchMaterials} />
-                        </div>
+                        <TooltipProvider>
+                          <div className="absolute top-4 right-4 flex items-center gap-1">
+                            <MaterialPhotoUpload 
+                              materialId={material.id}
+                              currentPhotoUrl={material.photo_url}
+                              onPhotoUpdated={(photoUrl) => handlePhotoUpdated(material.id, photoUrl)}
+                            />
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div>
+                                  <ApplyToProjectForm material={material} onMaterialUpdated={fetchMaterials} />
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Copy material to project</p>
+                              </TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div>
+                                  <EditMaterialForm material={material} onMaterialUpdated={fetchMaterials} />
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Edit material</p>
+                              </TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div>
+                                  <DeleteMaterialForm material={material} onMaterialDeleted={fetchMaterials} />
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Delete material</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                        </TooltipProvider>
 
                         <div className="flex items-center gap-4 flex-1 pr-32">
                           {/* Photo or Package Icon */}
