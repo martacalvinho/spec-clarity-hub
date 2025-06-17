@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useMaterialLimits } from '@/hooks/useMaterialLimits';
@@ -10,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { supabase } from '@/integrations/supabase/client';
 import { Search, Package, X, Filter, AlertTriangle, Settings, Camera } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import AddMaterialForm from '@/components/forms/AddMaterialForm';
 import EditMaterialForm from '@/components/forms/EditMaterialForm';
 import ApplyToProjectForm from '@/components/forms/ApplyToProjectForm';
@@ -27,6 +28,7 @@ const Materials = () => {
   const { studioId } = useAuth();
   const { canAddMaterial } = useMaterialLimits();
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
   const [materials, setMaterials] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [checkingDuplicates, setCheckingDuplicates] = useState(false);
@@ -40,6 +42,7 @@ const Materials = () => {
   const [locationFilter, setLocationFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [subcategoryFilter, setSubcategoryFilter] = useState('');
+  const [sortBy, setSortBy] = useState('alphabetical');
   
   // Filter options
   const [projects, setProjects] = useState<any[]>([]);
@@ -54,6 +57,14 @@ const Materials = () => {
       fetchFilterOptions();
     }
   }, [studioId]);
+
+  useEffect(() => {
+    // Check for sortBy query parameter and set it
+    const sortByParam = searchParams.get('sortBy');
+    if (sortByParam === 'most_projects') {
+      setSortBy('most_projects');
+    }
+  }, [searchParams]);
 
   const fetchMaterials = async () => {
     try {
@@ -73,7 +84,7 @@ const Materials = () => {
           )
         `)
         .eq('studio_id', studioId)
-        .order('name', { ascending: true }); // Changed from created_at to name for alphabetical sorting
+        .order('name', { ascending: true }); // Default alphabetical sorting
 
       if (error) throw error;
       
@@ -226,6 +237,14 @@ const Materials = () => {
 
     return matchesSearch && matchesProject && matchesManufacturer && matchesClient && 
            matchesLocation && matchesCategory && matchesSubcategory;
+  }).sort((a, b) => {
+    if (sortBy === 'most_projects') {
+      const aProjectCount = a.proj_materials?.length || 0;
+      const bProjectCount = b.proj_materials?.length || 0;
+      return bProjectCount - aProjectCount;
+    }
+    // Default alphabetical sorting
+    return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
   });
 
   const clearFilters = () => {
@@ -314,14 +333,25 @@ const Materials = () => {
                     {advancedMode && <span className="text-blue-600"> • Advanced pricing mode enabled</span>}
                   </CardDescription>
                 </div>
-                <div className="relative w-64">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input
-                    placeholder="Search materials..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
+                <div className="flex items-center gap-4">
+                  <Select value={sortBy} onValueChange={setSortBy}>
+                    <SelectTrigger className="w-48">
+                      <SelectValue placeholder="Sort by..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="alphabetical">Alphabetical</SelectItem>
+                      <SelectItem value="most_projects">Most Projects</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <div className="relative w-64">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Input
+                      placeholder="Search materials..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
                 </div>
               </div>
             </CardHeader>

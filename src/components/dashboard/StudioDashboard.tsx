@@ -323,7 +323,10 @@ const StudioDashboard = () => {
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-lg">Top Materials Used</CardTitle>
+            <CardTitle className="text-lg flex items-center justify-between">
+              Top Materials Used
+              <Link to="/materials?sortBy=most_projects" className="text-sm text-coral-600 hover:text-coral-700">View all</Link>
+            </CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
             <div className="space-y-3">
