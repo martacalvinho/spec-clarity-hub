@@ -5,17 +5,23 @@ import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, Edit, Plus, TrendingUp } from 'lucide-react';
+import { ArrowLeft, Edit, Plus, TrendingUp, Package } from 'lucide-react';
 import EditProjectForm from '@/components/forms/EditProjectForm';
 import EditMaterialForm from '@/components/forms/EditMaterialForm';
+import AddConsideredMaterialForm from '@/components/forms/AddConsideredMaterialForm';
+import ConsideredMaterialsList from '@/components/ConsideredMaterialsList';
 import PricingAnalytics from '@/components/PricingAnalytics';
+import UserInitials from '@/components/UserInitials';
 
 const ProjectDetails = () => {
   const { id } = useParams();
   const { studioId } = useAuth();
   const [project, setProject] = useState<any>(null);
   const [materials, setMaterials] = useState<any[]>([]);
+  const [allMaterials, setAllMaterials] = useState<any[]>([]);
+  const [manufacturers, setManufacturers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddMaterial, setShowAddMaterial] = useState(false);
   const [showAdvancedAnalytics, setShowAdvancedAnalytics] = useState(false);
@@ -24,6 +30,8 @@ const ProjectDetails = () => {
     if (id && studioId) {
       fetchProjectDetails();
       fetchProjectMaterials();
+      fetchAllMaterials();
+      fetchManufacturers();
     }
   }, [id, studioId]);
 
@@ -59,6 +67,7 @@ const ProjectDetails = () => {
             notes,
             reference_sku,
             dimensions,
+            photo_url,
             manufacturers(name)
           )
         `)
@@ -71,6 +80,36 @@ const ProjectDetails = () => {
       console.error('Error fetching project materials:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchAllMaterials = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('materials')
+        .select('id, name')
+        .eq('studio_id', studioId)
+        .order('name');
+
+      if (error) throw error;
+      setAllMaterials(data || []);
+    } catch (error) {
+      console.error('Error fetching all materials:', error);
+    }
+  };
+
+  const fetchManufacturers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('manufacturers')
+        .select('id, name')
+        .eq('studio_id', studioId)
+        .order('name');
+
+      if (error) throw error;
+      setManufacturers(data || []);
+    } catch (error) {
+      console.error('Error fetching manufacturers:', error);
     }
   };
 
@@ -92,9 +131,12 @@ const ProjectDetails = () => {
     fetchProjectMaterials();
   };
 
+  const handleConsideredMaterialAdded = () => {
+    // Refresh considered materials list
+  };
+
   const handleDeleteMaterial = async (projMaterialId: string) => {
     try {
-      // Only delete the proj_material entry, not the material itself
       const { error } = await supabase
         .from('proj_materials')
         .delete()
@@ -103,7 +145,6 @@ const ProjectDetails = () => {
 
       if (error) throw error;
       
-      // Refresh the materials list
       fetchProjectMaterials();
     } catch (error) {
       console.error('Error deleting material from project:', error);
@@ -136,7 +177,6 @@ const ProjectDetails = () => {
         </Button>
       </div>
 
-      {/* Pricing Analytics */}
       {showAdvancedAnalytics && (
         <PricingAnalytics 
           type="project" 
@@ -215,91 +255,135 @@ const ProjectDetails = () => {
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Materials Used</CardTitle>
-              <CardDescription>Materials assigned to this project</CardDescription>
-            </div>
-            <Button 
-              className="bg-coral hover:bg-coral-600"
-              onClick={() => setShowAddMaterial(true)}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Material
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {materials.map((projMaterial) => (
-              <div key={projMaterial.id} className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="flex-1">
-                  <Link to={`/materials/${projMaterial.material_id}`} className="hover:text-coral">
-                    <h3 className="font-semibold">{projMaterial.materials?.name}</h3>
-                  </Link>
-                  <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
-                    <span>Category: {projMaterial.materials?.category}</span>
-                    {projMaterial.materials?.subcategory && (
-                      <span>• {projMaterial.materials.subcategory}</span>
-                    )}
-                    {projMaterial.materials?.manufacturers?.name && (
-                      <span>• Manufacturer: {projMaterial.materials.manufacturers.name}</span>
-                    )}
-                    {projMaterial.quantity && (
-                      <span>• Qty: {projMaterial.quantity} {projMaterial.unit || ''}</span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
-                    {projMaterial.materials?.tag && (
-                      <span>Tag: {projMaterial.materials.tag}</span>
-                    )}
-                    {projMaterial.materials?.location && (
-                      <span>• Location: {projMaterial.materials.location}</span>
-                    )}
-                    {projMaterial.materials?.reference_sku && (
-                      <span>• SKU: {projMaterial.materials.reference_sku}</span>
-                    )}
-                  </div>
-                  {projMaterial.materials?.dimensions && (
-                    <div className="text-sm text-gray-500 mt-1">
-                      Dimensions: {projMaterial.materials.dimensions}
+      <Tabs defaultValue="materials" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="materials">Selected Materials</TabsTrigger>
+          <TabsTrigger value="considered">Considered Materials</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="materials">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Materials Used</CardTitle>
+                  <CardDescription>Materials assigned to this project</CardDescription>
+                </div>
+                <Button 
+                  className="bg-coral hover:bg-coral-600"
+                  onClick={() => setShowAddMaterial(true)}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Material
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {materials.map((projMaterial) => (
+                  <div key={projMaterial.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center gap-4">
+                      <div className="p-2 bg-coral-100 rounded-lg">
+                        {projMaterial.materials?.photo_url ? (
+                          <img 
+                            src={projMaterial.materials.photo_url} 
+                            alt={projMaterial.materials.name}
+                            className="h-12 w-12 object-cover rounded"
+                          />
+                        ) : (
+                          <Package className="h-6 w-6 text-coral-600" />
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <Link to={`/materials/${projMaterial.material_id}`} className="hover:text-coral">
+                          <h3 className="font-semibold">{projMaterial.materials?.name}</h3>
+                        </Link>
+                        <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
+                          <span>Category: {projMaterial.materials?.category}</span>
+                          {projMaterial.materials?.subcategory && (
+                            <span>• {projMaterial.materials.subcategory}</span>
+                          )}
+                          {projMaterial.materials?.manufacturers?.name && (
+                            <span>• Manufacturer: {projMaterial.materials.manufacturers.name}</span>
+                          )}
+                          {projMaterial.quantity && (
+                            <span>• Qty: {projMaterial.quantity} {projMaterial.unit || ''}</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
+                          {projMaterial.materials?.tag && (
+                            <span>Tag: {projMaterial.materials.tag}</span>
+                          )}
+                          {projMaterial.materials?.location && (
+                            <span>• Location: {projMaterial.materials.location}</span>
+                          )}
+                          {projMaterial.materials?.reference_sku && (
+                            <span>• SKU: {projMaterial.materials.reference_sku}</span>
+                          )}
+                        </div>
+                        {projMaterial.materials?.dimensions && (
+                          <div className="text-sm text-gray-500 mt-1">
+                            Dimensions: {projMaterial.materials.dimensions}
+                          </div>
+                        )}
+                        {projMaterial.materials?.notes && (
+                          <p className="text-sm text-gray-600 mt-1">Material Notes: {projMaterial.materials.notes}</p>
+                        )}
+                        {projMaterial.notes && (
+                          <p className="text-sm text-gray-600 mt-1">Project Notes: {projMaterial.notes}</p>
+                        )}
+                      </div>
                     </div>
-                  )}
-                  {projMaterial.materials?.notes && (
-                    <p className="text-sm text-gray-600 mt-1">Material Notes: {projMaterial.materials.notes}</p>
-                  )}
-                  {projMaterial.notes && (
-                    <p className="text-sm text-gray-600 mt-1">Project Notes: {projMaterial.notes}</p>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  {projMaterial.materials && (
-                    <EditMaterialForm 
-                      material={projMaterial.materials} 
-                      onMaterialUpdated={handleMaterialUpdated} 
-                    />
-                  )}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleDeleteMaterial(projMaterial.id)}
-                    className="text-red-600 hover:text-red-700"
-                  >
-                    Remove
-                  </Button>
-                </div>
+                    <div className="flex items-center gap-2">
+                      {projMaterial.materials && (
+                        <EditMaterialForm 
+                          material={projMaterial.materials} 
+                          onMaterialUpdated={handleMaterialUpdated} 
+                        />
+                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDeleteMaterial(projMaterial.id)}
+                        className="text-red-600 hover:text-red-700"
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+                {materials.length === 0 && (
+                  <div className="text-center py-8 text-gray-500">
+                    No materials assigned to this project yet.
+                  </div>
+                )}
               </div>
-            ))}
-            {materials.length === 0 && (
-              <div className="text-center py-8 text-gray-500">
-                No materials assigned to this project yet.
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="considered">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Considered Materials</CardTitle>
+                  <CardDescription>Materials that were evaluated but not selected</CardDescription>
+                </div>
+                <AddConsideredMaterialForm 
+                  projectId={id}
+                  onMaterialAdded={handleConsideredMaterialAdded}
+                  manufacturers={manufacturers}
+                  materials={allMaterials}
+                />
               </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+            </CardHeader>
+            <CardContent>
+              <ConsideredMaterialsList projectId={id} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {showAddMaterial && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">

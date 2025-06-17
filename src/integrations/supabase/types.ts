@@ -108,6 +108,92 @@ export type Database = {
           },
         ]
       }
+      considered_materials: {
+        Row: {
+          category: string
+          created_at: string
+          dimensions: string | null
+          evaluated_by: string
+          id: string
+          location: string | null
+          manufacturer_id: string | null
+          material_name: string
+          notes: string | null
+          photo_url: string | null
+          project_id: string
+          reference_sku: string | null
+          selected_material_id: string | null
+          studio_id: string
+          subcategory: string | null
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          dimensions?: string | null
+          evaluated_by: string
+          id?: string
+          location?: string | null
+          manufacturer_id?: string | null
+          material_name: string
+          notes?: string | null
+          photo_url?: string | null
+          project_id: string
+          reference_sku?: string | null
+          selected_material_id?: string | null
+          studio_id: string
+          subcategory?: string | null
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          dimensions?: string | null
+          evaluated_by?: string
+          id?: string
+          location?: string | null
+          manufacturer_id?: string | null
+          material_name?: string
+          notes?: string | null
+          photo_url?: string | null
+          project_id?: string
+          reference_sku?: string | null
+          selected_material_id?: string | null
+          studio_id?: string
+          subcategory?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_considered_materials_manufacturer_id"
+            columns: ["manufacturer_id"]
+            isOneToOne: false
+            referencedRelation: "manufacturers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_considered_materials_project_id"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_considered_materials_selected_material_id"
+            columns: ["selected_material_id"]
+            isOneToOne: false
+            referencedRelation: "materials"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_considered_materials_studio_id"
+            columns: ["studio_id"]
+            isOneToOne: false
+            referencedRelation: "studios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       feedback: {
         Row: {
           contact_email: string | null
@@ -407,6 +493,103 @@ export type Database = {
             columns: ["material_id"]
             isOneToOne: false
             referencedRelation: "materials"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      material_versions: {
+        Row: {
+          category: string
+          change_reason: string | null
+          changed_by: string
+          created_at: string
+          dimensions: string | null
+          id: string
+          location: string | null
+          manufacturer_id: string | null
+          material_id: string
+          name: string
+          notes: string | null
+          photo_url: string | null
+          price_per_sqft: number | null
+          price_per_unit: number | null
+          reference_sku: string | null
+          studio_id: string
+          subcategory: string | null
+          tag: string | null
+          total_area: number | null
+          total_units: number | null
+          unit_type: string | null
+          version_number: number
+        }
+        Insert: {
+          category: string
+          change_reason?: string | null
+          changed_by: string
+          created_at?: string
+          dimensions?: string | null
+          id?: string
+          location?: string | null
+          manufacturer_id?: string | null
+          material_id: string
+          name: string
+          notes?: string | null
+          photo_url?: string | null
+          price_per_sqft?: number | null
+          price_per_unit?: number | null
+          reference_sku?: string | null
+          studio_id: string
+          subcategory?: string | null
+          tag?: string | null
+          total_area?: number | null
+          total_units?: number | null
+          unit_type?: string | null
+          version_number?: number
+        }
+        Update: {
+          category?: string
+          change_reason?: string | null
+          changed_by?: string
+          created_at?: string
+          dimensions?: string | null
+          id?: string
+          location?: string | null
+          manufacturer_id?: string | null
+          material_id?: string
+          name?: string
+          notes?: string | null
+          photo_url?: string | null
+          price_per_sqft?: number | null
+          price_per_unit?: number | null
+          reference_sku?: string | null
+          studio_id?: string
+          subcategory?: string | null
+          tag?: string | null
+          total_area?: number | null
+          total_units?: number | null
+          unit_type?: string | null
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_material_versions_manufacturer_id"
+            columns: ["manufacturer_id"]
+            isOneToOne: false
+            referencedRelation: "manufacturers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_material_versions_material_id"
+            columns: ["material_id"]
+            isOneToOne: false
+            referencedRelation: "materials"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_material_versions_studio_id"
+            columns: ["studio_id"]
+            isOneToOne: false
+            referencedRelation: "studios"
             referencedColumns: ["id"]
           },
         ]
