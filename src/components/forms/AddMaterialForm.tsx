@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -293,7 +292,7 @@ const AddMaterialForm = ({ onMaterialAdded }: AddMaterialFormProps) => {
                   <SelectValue placeholder="Select a manufacturer" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No manufacturer</SelectItem>
+                  <SelectItem value="none">No manufacturer</SelectItem>
                   {manufacturers.map((manufacturer) => (
                     <SelectItem key={manufacturer.id} value={manufacturer.id}>
                       {manufacturer.name}
@@ -310,7 +309,7 @@ const AddMaterialForm = ({ onMaterialAdded }: AddMaterialFormProps) => {
                   <SelectValue placeholder="Select a project (optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No project</SelectItem>
+                  <SelectItem value="none">No project</SelectItem>
                   {projects.map((project) => (
                     <SelectItem key={project.id} value={project.id}>
                       {project.name} {project.clients?.name && `(${project.clients.name})`}
@@ -364,7 +363,7 @@ const AddMaterialForm = ({ onMaterialAdded }: AddMaterialFormProps) => {
               <Checkbox 
                 id="includePhoto" 
                 checked={includePhoto}
-                onCheckedChange={setIncludePhoto}
+                onCheckedChange={(checked) => setIncludePhoto(checked === true)}
               />
               <Label htmlFor="includePhoto">Add photo</Label>
             </div>
