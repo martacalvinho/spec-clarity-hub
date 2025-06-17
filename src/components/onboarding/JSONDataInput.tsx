@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -185,7 +184,7 @@ const JSONDataInput = ({ studioId, projectId }: JSONDataInputProps) => {
             model: m.model || null,
             category: m.category,
             subcategory: m.subcategory || null,
-            manufacturer_id: selectedManufacturerId, // Use selected manufacturer
+            manufacturer_id: selectedManufacturerId === 'none' ? null : selectedManufacturerId, // Use null if NONE is selected
             tag: m.tag || null,
             location: m.location || null,
             reference_sku: m.reference_sku || null,
@@ -362,7 +361,7 @@ const JSONDataInput = ({ studioId, projectId }: JSONDataInputProps) => {
           <CardHeader>
             <CardTitle>Select Manufacturer</CardTitle>
             <CardDescription>
-              Choose which manufacturer these materials belong to
+              Choose which manufacturer these materials belong to, or select "NONE" if no manufacturer is specified
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -372,6 +371,7 @@ const JSONDataInput = ({ studioId, projectId }: JSONDataInputProps) => {
                   <SelectValue placeholder="Select a manufacturer..." />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="none">*NONE*</SelectItem>
                   {manufacturers.map((manufacturer) => (
                     <SelectItem key={manufacturer.id} value={manufacturer.id}>
                       {manufacturer.name}
