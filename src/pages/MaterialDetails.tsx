@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
@@ -387,6 +388,9 @@ const MaterialDetails = () => {
                       )}
                       {projMaterial.location && (
                         <span>Location: {projMaterial.location}</span>
+                      )}
+                      {projMaterial.tag && (
+                        <span>Tag: {projMaterial.tag}</span>
                       )}
                     </div>
                     {projMaterial.notes && (
