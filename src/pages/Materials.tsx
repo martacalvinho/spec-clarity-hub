@@ -73,7 +73,6 @@ const Materials = () => {
         .select(`
           *,
           manufacturers(name),
-          users!materials_created_by_fkey(first_name, last_name),
           proj_materials(
             project_id, 
             projects(
@@ -634,12 +633,6 @@ const Materials = () => {
                                   >
                                     Manufacturer: {material.manufacturers.name}
                                   </Link>
-                                </>
-                              )}
-                              {material.users && (
-                                <>
-                                  <span>•</span>
-                                  <span>Added by: {material.users.first_name} {material.users.last_name}</span>
                                 </>
                               )}
                             </div>
