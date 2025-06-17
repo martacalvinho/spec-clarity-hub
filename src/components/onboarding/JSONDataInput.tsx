@@ -15,6 +15,7 @@ interface JSONDataInputProps {
 const TEMPLATE_MATERIALS = [
   {
     name: "White Oak Flooring",
+    model: "NATURAL",
     category: "Flooring",
     subcategory: "Hardwood",
     manufacturer_name: "Premium Woods Co",
@@ -26,6 +27,7 @@ const TEMPLATE_MATERIALS = [
   },
   {
     name: "Carrara Marble",
+    model: "CLASSIC",
     category: "Stone", 
     subcategory: "Marble",
     manufacturer_name: "Stone Masters",
@@ -157,6 +159,7 @@ const JSONDataInput = ({ studioId, projectId }: JSONDataInputProps) => {
             const manufacturer = allManufacturers?.find(sm => sm.name === m.manufacturer_name);
             return {
               name: m.name,
+              model: m.model || null,
               category: m.category,
               subcategory: m.subcategory || null,
               manufacturer_id: manufacturer?.id || null,
@@ -262,7 +265,7 @@ const JSONDataInput = ({ studioId, projectId }: JSONDataInputProps) => {
         return (
           <div className="space-y-2 text-sm">
             <p><strong>Required fields:</strong> name and category</p>
-            <p><strong>Optional fields:</strong> subcategory, manufacturer_name, tag, location, reference_sku, dimensions, notes</p>
+            <p><strong>Optional fields:</strong> model, subcategory, manufacturer_name, tag, location, reference_sku, dimensions, notes</p>
             <p className="mt-4"><strong>Available categories:</strong></p>
             <p className="text-gray-600">Flooring, Surface, Tile, Stone, Wood, Metal, Glass, Fabric, Lighting, Hardware, Other</p>
             <p className="mt-4"><strong>Common tags:</strong></p>
