@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { Search, Package } from 'lucide-react';
 import AddMaterialForm from '@/components/forms/AddMaterialForm';
@@ -90,100 +91,88 @@ const Materials = () => {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
+          <div className="space-y-3">
             {filteredMaterials.map((material) => {
               const projects = material.proj_materials || [];
               
               return (
-                <div key={material.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
-                  <div className="flex items-center gap-4 flex-1">
-                    <div className="p-2 bg-coral-100 rounded-lg">
-                      <Package className="h-6 w-6 text-coral-600" />
-                    </div>
-                    <div className="flex-1">
-                      <Link to={`/materials/${material.id}`} className="hover:text-coral">
-                        <h3 className="font-semibold text-lg hover:underline">{material.name}</h3>
-                      </Link>
-                      <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
-                        {material.model && (
-                          <>
-                            <span>Model: {material.model}</span>
-                            <span>•</span>
-                          </>
-                        )}
-                        <Link 
-                          to={`/materials/category/${encodeURIComponent(material.category)}`}
-                          className="hover:text-coral hover:underline"
-                        >
-                          Category: {material.category}
+                <div key={material.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4 flex-1">
+                      <div className="p-2 bg-coral-100 rounded-lg flex-shrink-0">
+                        <Package className="h-5 w-5 text-coral-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        {/* Main material info - clean hierarchy */}
+                        <Link to={`/materials/${material.id}`} className="hover:text-coral">
+                          <h3 className="font-semibold text-lg text-gray-900 hover:underline truncate">
+                            {material.name}
+                          </h3>
                         </Link>
-                        {material.manufacturers?.name && (
-                          <>
-                            <span>•</span>
-                            <Link 
-                              to={`/manufacturers/${material.manufacturer_id}`}
-                              className="hover:text-coral hover:underline"
-                            >
-                              Manufacturer: {material.manufacturers.name}
-                            </Link>
-                          </>
-                        )}
-                        {material.reference_sku && (
-                          <>
-                            <span>•</span>
-                            <span>SKU: {material.reference_sku}</span>
-                          </>
-                        )}
-                        {material.users && (
-                          <>
-                            <span>•</span>
-                            <span>Added by: {material.users.first_name} {material.users.last_name}</span>
-                          </>
+                        
+                        {/* Secondary info line - model and reference */}
+                        <div className="flex items-center gap-3 text-sm text-gray-600 mt-1">
+                          {material.model && (
+                            <span className="font-medium">Model: {material.model}</span>
+                          )}
+                          {material.reference_sku && (
+                            <>
+                              {material.model && <span>•</span>}
+                              <span>REF: {material.reference_sku}</span>
+                            </>
+                          )}
+                        </div>
+
+                        {/* Category and manufacturer line */}
+                        <div className="flex items-center gap-3 text-sm text-gray-500 mt-1">
+                          <Link 
+                            to={`/materials/category/${encodeURIComponent(material.category)}`}
+                            className="hover:text-coral hover:underline"
+                          >
+                            {material.category}
+                          </Link>
+                          {material.manufacturers?.name && (
+                            <>
+                              <span>•</span>
+                              <Link 
+                                to={`/manufacturers/${material.manufacturer_id}`}
+                                className="hover:text-coral hover:underline"
+                              >
+                                {material.manufacturers.name}
+                              </Link>
+                            </>
+                          )}
+                        </div>
+                        
+                        {/* Projects - simplified */}
+                        {projects.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-1">
+                            <Badge variant="outline" className="text-xs">
+                              {projects.length} project{projects.length !== 1 ? 's' : ''}
+                            </Badge>
+                            {projects.slice(0, 2).map((projMaterial: any) => (
+                              <Badge key={projMaterial.project_id} variant="outline" className="text-xs">
+                                <Link 
+                                  to={`/projects/${projMaterial.projects.id}`}
+                                  className="hover:underline"
+                                >
+                                  {projMaterial.projects.name}
+                                </Link>
+                              </Badge>
+                            ))}
+                            {projects.length > 2 && (
+                              <Badge variant="outline" className="text-xs text-gray-500">
+                                +{projects.length - 2} more
+                              </Badge>
+                            )}
+                          </div>
                         )}
                       </div>
-                      
-                      {/* Projects and Clients */}
-                      {projects.length > 0 && (
-                        <div className="mt-2">
-                          <div className="flex flex-wrap gap-2">
-                            <div>
-                              <span className="text-sm text-gray-600 font-medium">Projects: </span>
-                              {projects.map((projMaterial: any, index: number) => (
-                                <span key={projMaterial.project_id} className="text-sm">
-                                  <Link 
-                                    to={`/projects/${projMaterial.projects.id}`}
-                                    className="text-blue-600 hover:text-blue-800 hover:underline"
-                                  >
-                                    {projMaterial.projects.name}
-                                  </Link>
-                                  {projMaterial.projects.clients?.name && (
-                                    <span className="text-gray-500">
-                                      {' '}(
-                                      <Link 
-                                        to={`/clients/${projMaterial.projects.client_id}`}
-                                        className="text-green-600 hover:text-green-800 hover:underline"
-                                      >
-                                        {projMaterial.projects.clients.name}
-                                      </Link>
-                                      )
-                                    </span>
-                                  )}
-                                  {index < projects.length - 1 && <span className="text-gray-400">, </span>}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                      
-                      {material.notes && (
-                        <p className="text-sm text-gray-600 mt-1">{material.notes}</p>
-                      )}
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <EditMaterialForm material={material} onMaterialUpdated={fetchMaterials} />
-                    <DeleteMaterialForm material={material} onMaterialDeleted={fetchMaterials} />
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <EditMaterialForm material={material} onMaterialUpdated={fetchMaterials} />
+                      <DeleteMaterialForm material={material} onMaterialDeleted={fetchMaterials} />
+                    </div>
                   </div>
                 </div>
               );

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -50,9 +49,9 @@ const EditMaterialForm = ({ material, onMaterialUpdated, editMode = 'full' }: Ed
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: material.name,
+      name: material.name || '',
       model: material.model || '',
-      category: material.category,
+      category: material.category || '',
       subcategory: material.subcategory || '',
       manufacturer_id: material.manufacturer_id || '',
       project_id: '',
@@ -70,9 +69,9 @@ const EditMaterialForm = ({ material, onMaterialUpdated, editMode = 'full' }: Ed
 
   useEffect(() => {
     form.reset({
-      name: material.name,
+      name: material.name || '',
       model: material.model || '',
-      category: material.category,
+      category: material.category || '',
       subcategory: material.subcategory || '',
       manufacturer_id: material.manufacturer_id || '',
       project_id: currentProjectLink || '',
@@ -188,6 +187,11 @@ const EditMaterialForm = ({ material, onMaterialUpdated, editMode = 'full' }: Ed
             dimensions: values.dimensions || null,
             cost_band: values.cost_band || null,
             notes: values.notes || null,
+            finish_color: values.finish_color || null,
+            fire_rating: values.fire_rating || null,
+            certifications: values.certifications || null,
+            product_url: values.product_url || null,
+            product_sheet_url: values.product_sheet_url || null,
           })
           .eq('id', material.id)
           .eq('studio_id', studioId);
@@ -410,7 +414,7 @@ const EditMaterialForm = ({ material, onMaterialUpdated, editMode = 'full' }: Ed
                       </FormItem>
                     )}
                   />
-                  
+
                   <FormField
                     control={form.control}
                     name="category"
