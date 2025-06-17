@@ -30,6 +30,7 @@ const Materials = () => {
         .select(`
           *,
           manufacturers(name),
+          users!materials_created_by_fkey(first_name, last_name),
           proj_materials(
             project_id, 
             projects(
@@ -90,8 +91,8 @@ const Materials = () => {
         <CardContent>
           <div className="space-y-4">
             {filteredMaterials.map((material) => {
-              const projectCount = material.proj_materials?.length || 0;
               const projects = material.proj_materials || [];
+              const uniqueClients = [...new Set(projects.map((p: any) => p.projects?.clients?.name).filter(Boolean))];
               
               return (
                 <div key={material.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
@@ -121,37 +122,44 @@ const Materials = () => {
                             </Link>
                           </>
                         )}
-                        <span>• Used in {projectCount} project{projectCount !== 1 ? 's' : ''}</span>
+                        {material.users && (
+                          <>
+                            <span>•</span>
+                            <span>Added by: {material.users.first_name} {material.users.last_name}</span>
+                          </>
+                        )}
                       </div>
                       
-                      {/* Projects List */}
+                      {/* Projects and Clients */}
                       {projects.length > 0 && (
-                        <div className="mt-2 text-sm">
-                          <span className="text-gray-600 font-medium">Projects: </span>
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {projects.map((projMaterial, index) => (
-                              <span key={projMaterial.project_id}>
-                                <Link 
-                                  to={`/projects/${projMaterial.projects.id}`}
-                                  className="text-blue-600 hover:text-blue-800 hover:underline"
-                                >
-                                  {projMaterial.projects.name}
-                                </Link>
-                                {projMaterial.projects.clients?.name && (
-                                  <span className="text-gray-500">
-                                    {' '}(
-                                    <Link 
-                                      to={`/clients/${projMaterial.projects.client_id}`}
-                                      className="hover:text-coral hover:underline"
-                                    >
-                                      {projMaterial.projects.clients.name}
-                                    </Link>
-                                    )
-                                  </span>
-                                )}
-                                {index < projects.length - 1 && <span className="text-gray-400">, </span>}
-                              </span>
-                            ))}
+                        <div className="mt-2">
+                          <div className="flex flex-wrap gap-2">
+                            <div>
+                              <span className="text-sm text-gray-600 font-medium">Projects: </span>
+                              {projects.map((projMaterial: any, index: number) => (
+                                <span key={projMaterial.project_id} className="text-sm">
+                                  <Link 
+                                    to={`/projects/${projMaterial.projects.id}`}
+                                    className="text-blue-600 hover:text-blue-800 hover:underline"
+                                  >
+                                    {projMaterial.projects.name}
+                                  </Link>
+                                  {projMaterial.projects.clients?.name && (
+                                    <span className="text-gray-500">
+                                      {' '}(
+                                      <Link 
+                                        to={`/clients/${projMaterial.projects.client_id}`}
+                                        className="text-green-600 hover:text-green-800 hover:underline"
+                                      >
+                                        {projMaterial.projects.clients.name}
+                                      </Link>
+                                      )
+                                    </span>
+                                  )}
+                                  {index < projects.length - 1 && <span className="text-gray-400">, </span>}
+                                </span>
+                              ))}
+                            </div>
                           </div>
                         </div>
                       )}

@@ -22,7 +22,6 @@ import UserInitials from '@/components/UserInitials';
 import { useToast } from '@/hooks/use-toast';
 import DeleteMaterialForm from '@/components/forms/DeleteMaterialForm';
 import AddConsideredMaterialForm from '@/components/forms/AddConsideredMaterialForm';
-import PDFExport from '@/components/PDFExport';
 
 const Materials = () => {
   const { studioId } = useAuth();
@@ -74,6 +73,7 @@ const Materials = () => {
         .select(`
           *,
           manufacturers(name),
+          users!materials_created_by_fkey(first_name, last_name),
           proj_materials(
             project_id, 
             projects(
@@ -298,7 +298,6 @@ const Materials = () => {
               Material limit reached for this month
             </p>
           )}
-          <PDFExport type="general" />
           <Button
             onClick={() => setAdvancedMode(!advancedMode)}
             variant={advancedMode ? "default" : "outline"}
@@ -548,9 +547,7 @@ const Materials = () => {
 
               <div className="space-y-4">
                 {filteredMaterials.map((material) => {
-                  const projectCount = material.proj_materials?.length || 0;
                   const projects = material.proj_materials || [];
-                  const uniqueClients = [...new Set(projects.map((p: any) => p.projects?.clients?.name).filter(Boolean))];
                   const locations = parseLocations(material.location);
                   const isDuplicate = duplicates.some(dup => dup.id === material.id);
                   const duplicateInfo = duplicates.find(dup => dup.id === material.id);
@@ -639,10 +636,15 @@ const Materials = () => {
                                   </Link>
                                 </>
                               )}
-                              <span>• Used in {projectCount} project{projectCount !== 1 ? 's' : ''}</span>
+                              {material.users && (
+                                <>
+                                  <span>•</span>
+                                  <span>Added by: {material.users.first_name} {material.users.last_name}</span>
+                                </>
+                              )}
                             </div>
                             
-                            {/* Projects and Clients */}
+                            {/* Projects */}
                             {projects.length > 0 && (
                               <div className="mt-2">
                                 <div className="flex flex-wrap gap-2">
@@ -656,30 +658,23 @@ const Materials = () => {
                                         >
                                           {projMaterial.projects.name}
                                         </Link>
+                                        {projMaterial.projects.clients?.name && (
+                                          <span className="text-gray-500">
+                                            {' '}(
+                                            <Link 
+                                              to={`/clients/${projMaterial.projects.client_id}`}
+                                              className="text-green-600 hover:text-green-800 hover:underline"
+                                            >
+                                              {projMaterial.projects.clients.name}
+                                            </Link>
+                                            )
+                                          </span>
+                                        )}
                                         {index < projects.length - 1 && <span className="text-gray-400">, </span>}
                                       </span>
                                     ))}
                                   </div>
                                 </div>
-                                {uniqueClients.length > 0 && (
-                                  <div className="mt-1">
-                                    <span className="text-sm text-gray-600 font-medium">Clients: </span>
-                                    {uniqueClients.map((clientName: string, index: number) => {
-                                      const clientProject = projects.find((p: any) => p.projects?.clients?.name === clientName);
-                                      return (
-                                        <span key={clientName} className="text-sm">
-                                          <Link 
-                                            to={`/clients/${clientProject?.projects?.client_id}`}
-                                            className="text-green-600 hover:text-green-800 hover:underline"
-                                          >
-                                            {clientName}
-                                          </Link>
-                                          {index < uniqueClients.length - 1 && <span className="text-gray-400">, </span>}
-                                        </span>
-                                      );
-                                    })}
-                                  </div>
-                                )}
                               </div>
                             )}
                             
