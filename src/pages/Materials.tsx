@@ -69,15 +69,32 @@ const Materials = () => {
     try {
       setLoading(true);
       
-      // First try with the created_by relationship
-      let query = supabase
+      // Simplified query for better performance
+      const { data, error } = await supabase
         .from('materials')
         .select(`
-          *,
+          id,
+          name,
+          category,
+          subcategory,
+          reference_sku,
+          dimensions,
+          location,
+          tag,
+          photo_url,
+          price_per_sqft,
+          price_per_unit,
+          unit_type,
+          total_area,
+          total_units,
+          notes,
+          created_by,
+          manufacturer_id,
           manufacturers(name),
           proj_materials(
             project_id, 
             projects(
+              id,
               name,
               client_id,
               clients(name)
@@ -87,8 +104,6 @@ const Materials = () => {
         .eq('studio_id', studioId)
         .order('name', { ascending: true });
 
-      const { data, error } = await query;
-
       if (error) {
         console.error('Error fetching materials:', error);
         throw error;
@@ -96,30 +111,28 @@ const Materials = () => {
       
       const materialsData = data || [];
       
-      // Fetch user information separately for created_by field
-      const materialsWithUsers = await Promise.all(
-        materialsData.map(async (material) => {
-          if (material.created_by) {
-            try {
-              const { data: userData, error: userError } = await supabase
-                .from('users')
-                .select('first_name, last_name')
-                .eq('id', material.created_by)
-                .single();
-              
-              if (!userError && userData) {
-                return {
-                  ...material,
-                  users: userData
-                };
-              }
-            } catch (userError) {
-              console.log('Could not fetch user data for material:', material.id);
-            }
-          }
-          return material;
-        })
-      );
+      // Batch fetch user information for better performance
+      const userIds = [...new Set(materialsData.map(m => m.created_by).filter(Boolean))];
+      const usersMap = new Map();
+      
+      if (userIds.length > 0) {
+        const { data: usersData, error: usersError } = await supabase
+          .from('users')
+          .select('id, first_name, last_name')
+          .in('id', userIds);
+        
+        if (!usersError && usersData) {
+          usersData.forEach(user => {
+            usersMap.set(user.id, user);
+          });
+        }
+      }
+      
+      // Map user data to materials
+      const materialsWithUsers = materialsData.map(material => ({
+        ...material,
+        users: material.created_by ? usersMap.get(material.created_by) : null
+      }));
       
       setMaterials(materialsWithUsers);
       
