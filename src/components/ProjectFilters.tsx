@@ -53,9 +53,9 @@ const ProjectFilters = ({ onFiltersChange }: ProjectFiltersProps) => {
 
   const handleFilterChange = () => {
     onFiltersChange({
-      projectType: projectType === 'all' ? '' : projectType,
-      clientId: clientId === 'all' ? '' : clientId,
-      status: status === 'all' ? '' : status,
+      projectType,
+      clientId,
+      status,
       filterDate,
       dateType,
     });
@@ -68,9 +68,9 @@ const ProjectFilters = ({ onFiltersChange }: ProjectFiltersProps) => {
     setFilterDate('');
     setDateType('either');
     onFiltersChange({
-      projectType: '',
-      clientId: '',
-      status: '',
+      projectType: 'all',
+      clientId: 'all',
+      status: 'all',
       filterDate: '',
       dateType: 'either',
     });
