@@ -19,6 +19,7 @@ import MaterialPhotoUpload from '@/components/MaterialPhotoUpload';
 import ConsideredMaterialsList from '@/components/ConsideredMaterialsList';
 import UserInitials from '@/components/UserInitials';
 import { useToast } from '@/hooks/use-toast';
+import DeleteMaterialForm from '@/components/forms/DeleteMaterialForm';
 
 const Materials = () => {
   const { studioId } = useAuth();
@@ -608,6 +609,7 @@ const Materials = () => {
                           />
                           <ApplyToProjectForm material={material} onMaterialUpdated={fetchMaterials} />
                           <EditMaterialForm material={material} onMaterialUpdated={fetchMaterials} />
+                          <DeleteMaterialForm material={material} onMaterialDeleted={fetchMaterials} />
                         </div>
                       </div>
                       {advancedMode && (

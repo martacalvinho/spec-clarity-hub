@@ -1,12 +1,13 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Plus, Upload } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useMaterialLimits } from '@/hooks/useMaterialLimits';
 import { supabase } from '@/integrations/supabase/client';
@@ -33,12 +34,93 @@ const AddMaterialForm = ({ onMaterialAdded }: AddMaterialFormProps) => {
   const [referenceSku, setReferenceSku] = useState('');
   const [dimensions, setDimensions] = useState('');
   const [notes, setNotes] = useState('');
+  const [manufacturerId, setManufacturerId] = useState('');
+  const [projectId, setProjectId] = useState('');
+  const [includePhoto, setIncludePhoto] = useState(false);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [pendingSubmit, setPendingSubmit] = useState(false);
+  
+  // Options for dropdowns
+  const [manufacturers, setManufacturers] = useState<any[]>([]);
+  const [projects, setProjects] = useState<any[]>([]);
   
   const { user, studioId } = useAuth();
   const { canAddMaterial, checkAndHandleMaterialLimit, incrementMaterialCount } = useMaterialLimits();
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (studioId && open) {
+      fetchManufacturers();
+      fetchProjects();
+    }
+  }, [studioId, open]);
+
+  const fetchManufacturers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('manufacturers')
+        .select('id, name')
+        .eq('studio_id', studioId)
+        .order('name');
+
+      if (error) throw error;
+      setManufacturers(data || []);
+    } catch (error) {
+      console.error('Error fetching manufacturers:', error);
+    }
+  };
+
+  const fetchProjects = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('projects')
+        .select(`
+          id, 
+          name,
+          clients(name)
+        `)
+        .eq('studio_id', studioId)
+        .order('name');
+
+      if (error) throw error;
+      setProjects(data || []);
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+    }
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setPhotoFile(file);
+    }
+  };
+
+  const uploadPhoto = async (materialId: string): Promise<string | null> => {
+    if (!photoFile) return null;
+
+    try {
+      const fileExt = photoFile.name.split('.').pop();
+      const fileName = `${materialId}-${Math.random()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('material-photos')
+        .upload(filePath, photoFile);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('material-photos')
+        .getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (error) {
+      console.error('Error uploading photo:', error);
+      return null;
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,7 +141,8 @@ const AddMaterialForm = ({ onMaterialAdded }: AddMaterialFormProps) => {
 
     setLoading(true);
     try {
-      const { error } = await supabase
+      // Create material first
+      const { data: materialData, error: materialError } = await supabase
         .from('materials')
         .insert({
           name,
@@ -70,10 +153,36 @@ const AddMaterialForm = ({ onMaterialAdded }: AddMaterialFormProps) => {
           reference_sku: referenceSku || null,
           dimensions: dimensions || null,
           notes: notes || null,
+          manufacturer_id: manufacturerId || null,
           studio_id: studioId,
-        });
+        })
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (materialError) throw materialError;
+
+      // Upload photo if included
+      let photoUrl = null;
+      if (includePhoto && photoFile) {
+        photoUrl = await uploadPhoto(materialData.id);
+        if (photoUrl) {
+          await supabase
+            .from('materials')
+            .update({ photo_url: photoUrl })
+            .eq('id', materialData.id);
+        }
+      }
+
+      // Add to project if selected
+      if (projectId) {
+        await supabase
+          .from('proj_materials')
+          .insert({
+            project_id: projectId,
+            material_id: materialData.id,
+            studio_id: studioId,
+          });
+      }
 
       // Increment material count after successful creation
       await incrementMaterialCount();
@@ -92,6 +201,10 @@ const AddMaterialForm = ({ onMaterialAdded }: AddMaterialFormProps) => {
       setReferenceSku('');
       setDimensions('');
       setNotes('');
+      setManufacturerId('');
+      setProjectId('');
+      setIncludePhoto(false);
+      setPhotoFile(null);
       setOpen(false);
       setPendingSubmit(false);
       
@@ -128,7 +241,7 @@ const AddMaterialForm = ({ onMaterialAdded }: AddMaterialFormProps) => {
             Add Material
           </Button>
         </DialogTrigger>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add New Material</DialogTitle>
             <DialogDescription>
@@ -146,6 +259,7 @@ const AddMaterialForm = ({ onMaterialAdded }: AddMaterialFormProps) => {
                 required
               />
             </div>
+            
             <div>
               <Label htmlFor="category">Category *</Label>
               <Select value={category} onValueChange={setCategory} required>
@@ -161,6 +275,7 @@ const AddMaterialForm = ({ onMaterialAdded }: AddMaterialFormProps) => {
                 </SelectContent>
               </Select>
             </div>
+
             <div>
               <Label htmlFor="subcategory">Subcategory</Label>
               <Input
@@ -170,6 +285,41 @@ const AddMaterialForm = ({ onMaterialAdded }: AddMaterialFormProps) => {
                 placeholder="e.g., Hardwood, Ceramic, etc."
               />
             </div>
+
+            <div>
+              <Label htmlFor="manufacturer">Manufacturer</Label>
+              <Select value={manufacturerId} onValueChange={setManufacturerId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a manufacturer" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">No manufacturer</SelectItem>
+                  {manufacturers.map((manufacturer) => (
+                    <SelectItem key={manufacturer.id} value={manufacturer.id}>
+                      {manufacturer.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="project">Project</Label>
+              <Select value={projectId} onValueChange={setProjectId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a project (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">No project</SelectItem>
+                  {projects.map((project) => (
+                    <SelectItem key={project.id} value={project.id}>
+                      {project.name} {project.clients?.name && `(${project.clients.name})`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div>
               <Label htmlFor="tag">Tag</Label>
               <Input
@@ -179,6 +329,7 @@ const AddMaterialForm = ({ onMaterialAdded }: AddMaterialFormProps) => {
                 placeholder="e.g., Sustainable, Budget-friendly"
               />
             </div>
+            
             <div>
               <Label htmlFor="location">Location</Label>
               <Input
@@ -188,6 +339,7 @@ const AddMaterialForm = ({ onMaterialAdded }: AddMaterialFormProps) => {
                 placeholder="Storage location or showroom"
               />
             </div>
+            
             <div>
               <Label htmlFor="referenceSku">Reference SKU</Label>
               <Input
@@ -197,6 +349,7 @@ const AddMaterialForm = ({ onMaterialAdded }: AddMaterialFormProps) => {
                 placeholder="Product SKU or code"
               />
             </div>
+            
             <div>
               <Label htmlFor="dimensions">Dimensions</Label>
               <Input
@@ -206,6 +359,37 @@ const AddMaterialForm = ({ onMaterialAdded }: AddMaterialFormProps) => {
                 placeholder="e.g., 12x12 inches, 2x4 feet"
               />
             </div>
+
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="includePhoto" 
+                checked={includePhoto}
+                onCheckedChange={setIncludePhoto}
+              />
+              <Label htmlFor="includePhoto">Add photo</Label>
+            </div>
+
+            {includePhoto && (
+              <div>
+                <Label htmlFor="photo">Material Photo</Label>
+                <div className="relative">
+                  <Input
+                    id="photo"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    className="cursor-pointer"
+                  />
+                  <Upload className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                </div>
+                {photoFile && (
+                  <p className="text-sm text-gray-500 mt-1">
+                    Selected: {photoFile.name}
+                  </p>
+                )}
+              </div>
+            )}
+            
             <div>
               <Label htmlFor="notes">Notes</Label>
               <Textarea
@@ -216,6 +400,7 @@ const AddMaterialForm = ({ onMaterialAdded }: AddMaterialFormProps) => {
                 rows={3}
               />
             </div>
+            
             <div className="flex gap-2">
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                 Cancel

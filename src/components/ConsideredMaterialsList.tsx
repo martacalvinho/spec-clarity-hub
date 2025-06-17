@@ -34,8 +34,7 @@ const ConsideredMaterialsList = ({ projectId, showProjectFilter = false }: Consi
         .select(`
           *,
           manufacturers(name),
-          projects(name),
-          materials!considered_materials_selected_material_id_fkey(name)
+          projects(name)
         `)
         .eq('studio_id', studioId)
         .order('created_at', { ascending: false });
@@ -47,7 +46,27 @@ const ConsideredMaterialsList = ({ projectId, showProjectFilter = false }: Consi
       const { data, error } = await query;
 
       if (error) throw error;
-      setConsideredMaterials(data || []);
+
+      // Fetch selected materials separately if they exist
+      const materialsWithSelected = await Promise.all(
+        (data || []).map(async (item) => {
+          if (item.selected_material_id) {
+            const { data: selectedMaterial } = await supabase
+              .from('materials')
+              .select('name')
+              .eq('id', item.selected_material_id)
+              .single();
+            
+            return {
+              ...item,
+              selected_material: selectedMaterial
+            };
+          }
+          return item;
+        })
+      );
+
+      setConsideredMaterials(materialsWithSelected);
     } catch (error) {
       console.error('Error fetching considered materials:', error);
     } finally {
@@ -67,7 +86,7 @@ const ConsideredMaterialsList = ({ projectId, showProjectFilter = false }: Consi
         dimensions: consideredMaterial.dimensions,
         location: consideredMaterial.location,
         photo_url: consideredMaterial.photo_url,
-        notes: `Copied from considered material: ${consideredMaterial.notes}`
+        notes: `Copied from considered material: ${consideredMaterial.notes || ''}`
       };
 
       const { error } = await supabase
@@ -133,11 +152,11 @@ const ConsideredMaterialsList = ({ projectId, showProjectFilter = false }: Consi
                       <strong>Why not chosen:</strong> {material.notes}
                     </div>
                   )}
-                  {material.materials?.name && (
+                  {material.selected_material?.name && (
                     <div className="mt-2 text-sm text-green-600">
                       <strong>Chosen instead:</strong> 
                       <Link to={`/materials/${material.selected_material_id}`} className="hover:underline ml-1">
-                        {material.materials.name}
+                        {material.selected_material.name}
                         <ExternalLink className="h-3 w-3 inline ml-1" />
                       </Link>
                     </div>
@@ -161,7 +180,7 @@ const ConsideredMaterialsList = ({ projectId, showProjectFilter = false }: Consi
                   <Copy className="h-4 w-4" />
                   Copy to Materials
                 </Button>
-                {material.manufacturers?.name && (
+                {material.manufacturers?.name && material.manufacturer_id && (
                   <Link to={`/manufacturers/${material.manufacturer_id}`}>
                     <Button variant="outline" size="sm">
                       View Manufacturer
