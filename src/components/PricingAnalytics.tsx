@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -100,14 +99,15 @@ const PricingAnalytics = ({ type, entityId, entityName, onClose }: PricingAnalyt
     materialsWithPricing.forEach(material => {
       let materialPrice = 0;
 
-      if (material.unit_type === 'sqft' && material.price_per_sqft && material.total_area) {
-        materialPrice = material.price_per_sqft * material.total_area;
-      } else if (material.unit_type === 'unit' && material.price_per_unit && material.total_units) {
-        materialPrice = material.price_per_unit * material.total_units;
+      // For manufacturer view, use the unit price directly
+      if (material.unit_type === 'sqft' && material.price_per_sqft) {
+        materialPrice = material.price_per_sqft;
+      } else if (material.unit_type === 'unit' && material.price_per_unit) {
+        materialPrice = material.price_per_unit;
       } else if (material.price_per_sqft) {
-        materialPrice = material.price_per_sqft; // Use price per sqft as base price
+        materialPrice = material.price_per_sqft;
       } else if (material.price_per_unit) {
-        materialPrice = material.price_per_unit; // Use price per unit as base price
+        materialPrice = material.price_per_unit;
       }
 
       totalPriceSum += materialPrice;
@@ -325,6 +325,13 @@ const PricingAnalytics = ({ type, entityId, entityName, onClose }: PricingAnalyt
     }).format(amount);
   };
 
+  const getAveragePriceLabel = () => {
+    if (type === 'manufacturer') {
+      return 'Avg Material Price';
+    }
+    return 'Avg Cost per Material';
+  };
+
   if (loading) {
     return (
       <Card>
@@ -381,8 +388,7 @@ const PricingAnalytics = ({ type, entityId, entityName, onClose }: PricingAnalyt
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
-                {type === 'manufacturer' ? 'Avg Material Price' : 
-                 type === 'client' ? 'Avg Cost per Material' : 'Avg Material Cost'}
+                {getAveragePriceLabel()}
               </CardTitle>
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>

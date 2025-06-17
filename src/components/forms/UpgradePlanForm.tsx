@@ -13,7 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 
 const UpgradePlanForm = () => {
   const [open, setOpen] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState('professional');
+  const [selectedPlan, setSelectedPlan] = useState('studio');
   const [includeOnboarding, setIncludeOnboarding] = useState(false);
   const [additionalNotes, setAdditionalNotes] = useState('');
   const [loading, setLoading] = useState(false);
@@ -21,14 +21,14 @@ const UpgradePlanForm = () => {
   const { toast } = useToast();
 
   const plans = [
-    { id: 'professional', name: 'Professional', description: '500 materials/month' },
-    { id: 'enterprise', name: 'Enterprise', description: '1500 materials/month + premium features' }
+    { id: 'studio', name: 'Studio', description: '500 materials/month', price: '$89/month' },
+    { id: 'growth', name: 'Growth', description: '1500 materials/month', price: '$299/month' }
   ];
 
   const getOnboardingPrice = (planId: string) => {
     switch (planId) {
-      case 'professional': return '$499';
-      case 'enterprise': return '$999';
+      case 'studio': return '$499';
+      case 'growth': return '$999';
       default: return '$499';
     }
   };
@@ -39,12 +39,13 @@ const UpgradePlanForm = () => {
 
     setLoading(true);
     try {
-      const onboardingText = includeOnboarding ? ` + Optional onboarding (${getOnboardingPrice(selectedPlan)})` : '';
+      const selectedPlanData = plans.find(p => p.id === selectedPlan);
+      const onboardingText = includeOnboarding ? ` + Optional onboarding (${getOnboardingPrice(selectedPlan)} one-time)` : '';
       const { error } = await supabase
         .from('alerts')
         .insert({
           studio_id: studioId,
-          message: `${userProfile?.studios?.name || 'Studio'} requests upgrade to ${selectedPlan} plan${onboardingText}. Additional notes: ${additionalNotes || 'None'}`,
+          message: `${userProfile?.studios?.name || 'Studio'} requests upgrade to ${selectedPlanData?.name} plan (${selectedPlanData?.price})${onboardingText}. Additional notes: ${additionalNotes || 'None'}`,
           severity: 'medium',
           status: 'active'
         });
@@ -56,7 +57,7 @@ const UpgradePlanForm = () => {
         description: "We'll contact you soon to discuss your upgrade options.",
       });
 
-      setSelectedPlan('professional');
+      setSelectedPlan('studio');
       setIncludeOnboarding(false);
       setAdditionalNotes('');
       setOpen(false);
@@ -97,7 +98,7 @@ const UpgradePlanForm = () => {
                 <div key={plan.id} className="flex items-center space-x-2">
                   <RadioGroupItem value={plan.id} id={plan.id} />
                   <Label htmlFor={plan.id} className="flex-1">
-                    <div className="font-medium">{plan.name}</div>
+                    <div className="font-medium">{plan.name} - {plan.price}</div>
                     <div className="text-sm text-gray-500">{plan.description}</div>
                   </Label>
                 </div>
@@ -109,7 +110,7 @@ const UpgradePlanForm = () => {
             <Checkbox 
               id="onboarding" 
               checked={includeOnboarding}
-              onCheckedChange={setIncludeOnboarding}
+              onCheckedChange={(checked) => setIncludeOnboarding(checked === true)}
             />
             <Label htmlFor="onboarding" className="text-sm">
               Include optional onboarding service ({getOnboardingPrice(selectedPlan)} one-time)
