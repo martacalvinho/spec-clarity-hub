@@ -53,16 +53,16 @@ const Projects = () => {
     const matchesSearch = project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       project.type.toLowerCase().includes(searchTerm.toLowerCase());
 
-    // Type filter - only apply if a specific type is selected and it's not empty or "all"
-    const matchesType = !filters.projectType || filters.projectType === '' || project.type === filters.projectType;
+    // Type filter - match exactly or show all if no filter
+    const matchesType = !filters.projectType || filters.projectType === 'all' || project.type === filters.projectType;
 
-    // Client filter - only apply if a specific client is selected and it's not empty or "no-client"
-    const matchesClient = !filters.clientId || filters.clientId === '' || filters.clientId === 'no-client' || project.client_id === filters.clientId;
+    // Client filter - match exactly or show all if no filter
+    const matchesClient = !filters.clientId || filters.clientId === 'all' || project.client_id === filters.clientId;
 
-    // Status filter - only apply if a specific status is selected and it's not empty or "all"
-    const matchesStatus = !filters.status || filters.status === '' || project.status === filters.status;
+    // Status filter - match exactly or show all if no filter
+    const matchesStatus = !filters.status || filters.status === 'all' || project.status === filters.status;
 
-    // Date filter - only apply if a date is selected (not empty)
+    // Date filter - match the selected date to start or end date
     let matchesDate = true;
     if (filters.filterDate) {
       const filterDate = new Date(filters.filterDate);
@@ -78,18 +78,6 @@ const Projects = () => {
                      (endDate && endDate.toDateString() === filterDate.toDateString());
       }
     }
-
-    console.log('Project:', project.name, {
-      matchesSearch,
-      matchesType,
-      matchesClient,
-      matchesStatus,
-      matchesDate,
-      filters,
-      projectType: project.type,
-      projectClientId: project.client_id,
-      projectStatus: project.status
-    });
 
     return matchesSearch && matchesType && matchesClient && matchesStatus && matchesDate;
   });
