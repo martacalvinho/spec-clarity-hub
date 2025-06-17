@@ -73,6 +73,7 @@ const Materials = () => {
         .select(`
           *,
           manufacturers(name),
+          users!materials_created_by_fkey(first_name, last_name),
           proj_materials(
             project_id, 
             projects(
@@ -637,7 +638,7 @@ const Materials = () => {
                               )}
                             </div>
                             
-                            {/* Projects */}
+                            {/* Projects and Added by information */}
                             {projects.length > 0 && (
                               <div className="mt-2">
                                 <div className="flex flex-wrap gap-2">
@@ -651,21 +652,36 @@ const Materials = () => {
                                         >
                                           {projMaterial.projects.name}
                                         </Link>
-                                        {projMaterial.projects.clients?.name && (
-                                          <span className="text-gray-500">
-                                            {' '}(
-                                            <Link 
-                                              to={`/clients/${projMaterial.projects.client_id}`}
-                                              className="text-green-600 hover:text-green-800 hover:underline"
-                                            >
-                                              {projMaterial.projects.clients.name}
-                                            </Link>
-                                            )
-                                          </span>
-                                        )}
                                         {index < projects.length - 1 && <span className="text-gray-400">, </span>}
                                       </span>
                                     ))}
+                                    {/* Show unique clients */}
+                                    {(() => {
+                                      const uniqueClients = [...new Set(projects.map((p: any) => p.projects?.clients?.name).filter(Boolean))];
+                                      if (uniqueClients.length > 0) {
+                                        return (
+                                          <>
+                                            <span className="text-gray-600 font-medium"> Client: </span>
+                                            {uniqueClients.map((clientName: string, index: number) => (
+                                              <span key={clientName} className="text-sm">
+                                                <span className="text-green-600">{clientName}</span>
+                                                {index < uniqueClients.length - 1 && <span className="text-gray-400">, </span>}
+                                              </span>
+                                            ))}
+                                          </>
+                                        );
+                                      }
+                                      return null;
+                                    })()}
+                                    {/* Added by information */}
+                                    {material.users && (
+                                      <>
+                                        <span className="text-gray-600 font-medium"> Added by: </span>
+                                        <span className="text-sm text-gray-600">
+                                          {material.users.first_name} {material.users.last_name}
+                                        </span>
+                                      </>
+                                    )}
                                   </div>
                                 </div>
                               </div>
