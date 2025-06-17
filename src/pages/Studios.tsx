@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { Search, Building, Users, Filter, Package, AlertTriangle } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import AddStudioForm from '@/components/forms/AddStudioForm';
 import EditStudioForm from '@/components/forms/EditStudioForm';
 import DeleteStudioForm from '@/components/forms/DeleteStudioForm';
@@ -16,10 +15,13 @@ import DeleteStudioForm from '@/components/forms/DeleteStudioForm';
 const Studios = () => {
   const { isAdmin } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [studios, setStudios] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [subscriptionFilter, setSubscriptionFilter] = useState<string>('all');
+  const [subscriptionFilter, setSubscriptionFilter] = useState<string>(
+    searchParams.get('tier') || 'all'
+  );
 
   const subscriptionLimits = {
     starter: 100,
@@ -32,6 +34,23 @@ const Studios = () => {
       fetchStudios();
     }
   }, [isAdmin]);
+
+  // Update filter when URL parameters change
+  useEffect(() => {
+    const tierParam = searchParams.get('tier');
+    if (tierParam) {
+      setSubscriptionFilter(tierParam);
+    }
+  }, [searchParams]);
+
+  // Update URL when filter changes
+  useEffect(() => {
+    if (subscriptionFilter !== 'all') {
+      setSearchParams({ tier: subscriptionFilter });
+    } else {
+      setSearchParams({});
+    }
+  }, [subscriptionFilter, setSearchParams]);
 
   const fetchStudios = async () => {
     try {
