@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -28,17 +27,16 @@ const formSchema = z.object({
   cost_band: z.string().optional(),
   product_url: z.string().optional(),
   product_sheet_url: z.string().optional(),
-  tag: z.string().optional(),
-  location: z.string().optional(),
   notes: z.string().optional(),
 });
 
 interface EditMaterialFormProps {
   material: any;
   onMaterialUpdated: () => void;
+  editMode?: 'full' | 'additional';
 }
 
-const EditMaterialForm = ({ material, onMaterialUpdated }: EditMaterialFormProps) => {
+const EditMaterialForm = ({ material, onMaterialUpdated, editMode = 'full' }: EditMaterialFormProps) => {
   const { studioId } = useAuth();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
@@ -63,8 +61,6 @@ const EditMaterialForm = ({ material, onMaterialUpdated }: EditMaterialFormProps
       cost_band: material.cost_band || '',
       product_url: material.product_url || '',
       product_sheet_url: material.product_sheet_url || '',
-      tag: material.tag || '',
-      location: material.location || '',
       notes: material.notes || '',
     },
   });
@@ -84,8 +80,6 @@ const EditMaterialForm = ({ material, onMaterialUpdated }: EditMaterialFormProps
       cost_band: material.cost_band || '',
       product_url: material.product_url || '',
       product_sheet_url: material.product_sheet_url || '',
-      tag: material.tag || '',
-      location: material.location || '',
       notes: material.notes || '',
     });
   }, [material, currentProjectLink, form]);
@@ -161,52 +155,62 @@ const EditMaterialForm = ({ material, onMaterialUpdated }: EditMaterialFormProps
     try {
       setLoading(true);
       
-      // Update the material including all new fields
-      const { error: materialError } = await supabase
-        .from('materials')
-        .update({
-          name: values.name,
-          category: values.category,
-          subcategory: values.subcategory || null,
-          manufacturer_id: values.manufacturer_id || null,
-          reference_sku: values.reference_sku || null,
-          dimensions: values.dimensions || null,
-          finish_color: values.finish_color || null,
-          fire_rating: values.fire_rating || null,
-          certifications: values.certifications || null,
-          cost_band: values.cost_band || null,
-          product_url: values.product_url || null,
-          product_sheet_url: values.product_sheet_url || null,
-          tag: values.tag || null,
-          location: values.location || null,
-          notes: values.notes || null,
-        })
-        .eq('id', material.id)
-        .eq('studio_id', studioId);
-
-      if (materialError) throw materialError;
-
-      // Handle project linking
-      if (currentProjectLink) {
-        // Remove existing project link
-        await supabase
-          .from('proj_materials')
-          .delete()
-          .eq('material_id', material.id)
+      if (editMode === 'additional') {
+        // Only update the additional fields
+        const { error: materialError } = await supabase
+          .from('materials')
+          .update({
+            finish_color: values.finish_color || null,
+            fire_rating: values.fire_rating || null,
+            certifications: values.certifications || null,
+            product_url: values.product_url || null,
+            product_sheet_url: values.product_sheet_url || null,
+          })
+          .eq('id', material.id)
           .eq('studio_id', studioId);
-      }
 
-      if (values.project_id && values.project_id !== 'none') {
-        // Add new project link
-        const { error: projMaterialError } = await supabase
-          .from('proj_materials')
-          .insert({
-            project_id: values.project_id,
-            material_id: material.id,
-            studio_id: studioId,
-          });
+        if (materialError) throw materialError;
+      } else {
+        // Update the material including all main fields (excluding location and tag)
+        const { error: materialError } = await supabase
+          .from('materials')
+          .update({
+            name: values.name,
+            category: values.category,
+            subcategory: values.subcategory || null,
+            manufacturer_id: values.manufacturer_id || null,
+            reference_sku: values.reference_sku || null,
+            dimensions: values.dimensions || null,
+            cost_band: values.cost_band || null,
+            notes: values.notes || null,
+          })
+          .eq('id', material.id)
+          .eq('studio_id', studioId);
 
-        if (projMaterialError) throw projMaterialError;
+        if (materialError) throw materialError;
+
+        // Handle project linking only in full edit mode
+        if (currentProjectLink) {
+          // Remove existing project link
+          await supabase
+            .from('proj_materials')
+            .delete()
+            .eq('material_id', material.id)
+            .eq('studio_id', studioId);
+        }
+
+        if (values.project_id && values.project_id !== 'none') {
+          // Add new project link
+          const { error: projMaterialError } = await supabase
+            .from('proj_materials')
+            .insert({
+              project_id: values.project_id,
+              material_id: material.id,
+              studio_id: studioId,
+            });
+
+          if (projMaterialError) throw projMaterialError;
+        }
       }
 
       toast({
@@ -271,7 +275,7 @@ const EditMaterialForm = ({ material, onMaterialUpdated }: EditMaterialFormProps
 
   const handleOpenChange = (newOpen: boolean) => {
     setOpen(newOpen);
-    if (newOpen) {
+    if (newOpen && editMode === 'full') {
       fetchManufacturers();
       fetchActiveProjects();
       fetchCurrentProjectLink();
@@ -287,284 +291,269 @@ const EditMaterialForm = ({ material, onMaterialUpdated }: EditMaterialFormProps
       </DialogTrigger>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Edit Material</DialogTitle>
+          <DialogTitle>
+            {editMode === 'additional' ? 'Edit Additional Information' : 'Edit Material'}
+          </DialogTitle>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Material Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter material name" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="category"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Category</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g., Flooring, Wall Covering" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="subcategory"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Subcategory (Optional)</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g., Vinyl, Carpet" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="reference_sku"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Reference/SKU</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Product reference or SKU" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="dimensions"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Dimensions</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g., 12x24, 2m x 1m x 10mm" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="finish_color"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Finish/Color</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g., Matte White, Oak Natural" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="fire_rating"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Fire Rating</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g., Bfl-s1, Class A" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="cost_band"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Cost Band</FormLabel>
-                    <Select onValueChange={(value) => field.onChange(value === "none" ? "" : value)} value={field.value || "none"}>
+            {editMode === 'additional' ? (
+              // Additional information fields only
+              <>
+                <FormField
+                  control={form.control}
+                  name="certifications"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Certifications</FormLabel>
                       <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select cost band" />
-                        </SelectTrigger>
+                        <Input placeholder="e.g., LEED, FSC, EPD, GREENGUARD" {...field} />
                       </FormControl>
-                      <SelectContent>
-                        <SelectItem value="none">Not specified</SelectItem>
-                        <SelectItem value="Low">Low</SelectItem>
-                        <SelectItem value="Mid">Mid</SelectItem>
-                        <SelectItem value="High">High</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-            <FormField
-              control={form.control}
-              name="certifications"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Certifications</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g., LEED, FSC, EPD, GREENGUARD" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="finish_color"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Finish/Color</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g., Matte White, Oak Natural" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="product_url"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Product URL</FormLabel>
-                    <FormControl>
-                      <Input placeholder="https://manufacturer.com/product" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                  <FormField
+                    control={form.control}
+                    name="fire_rating"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Fire Rating</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g., Bfl-s1, Class A" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
 
-              <FormField
-                control={form.control}
-                name="product_sheet_url"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Product Sheet URL</FormLabel>
-                    <FormControl>
-                      <Input placeholder="https://manufacturer.com/spec-sheet.pdf" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="product_url"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Product URL</FormLabel>
+                        <FormControl>
+                          <Input placeholder="https://manufacturer.com/product" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="tag"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Tag</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter tag" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                  <FormField
+                    control={form.control}
+                    name="product_sheet_url"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Product Sheet URL</FormLabel>
+                        <FormControl>
+                          <Input placeholder="https://manufacturer.com/spec-sheet.pdf" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </>
+            ) : (
+              // Full material edit fields (excluding location and tag)
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Material Name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter material name" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="category"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Category</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g., Flooring, Wall Covering" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-              <FormField
-                control={form.control}
-                name="location"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Location</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter location(s)" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+                  <FormField
+                    control={form.control}
+                    name="subcategory"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Subcategory (Optional)</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g., Vinyl, Carpet" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-            <FormField
-              control={form.control}
-              name="manufacturer_id"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Manufacturer</FormLabel>
-                  <Select onValueChange={(value) => field.onChange(value === "none" ? "" : value)} value={field.value || "none"}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a manufacturer" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="none">No manufacturer</SelectItem>
-                      {manufacturers.map((manufacturer) => (
-                        <SelectItem key={manufacturer.id} value={manufacturer.id}>
-                          {manufacturer.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                  <FormField
+                    control={form.control}
+                    name="reference_sku"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Reference/SKU</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Product reference or SKU" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-            <FormField
-              control={form.control}
-              name="project_id"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Link to Project</FormLabel>
-                  <Select onValueChange={(value) => field.onChange(value === "none" ? "" : value)} value={field.value || "none"}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select an active project" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="none">No project</SelectItem>
-                      {projects.map((project) => (
-                        <SelectItem key={project.id} value={project.id}>
-                          {project.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                  <FormField
+                    control={form.control}
+                    name="dimensions"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Dimensions</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g., 12x24, 2m x 1m x 10mm" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-            <FormField
-              control={form.control}
-              name="notes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Notes</FormLabel>
-                  <FormControl>
-                    <Textarea placeholder="Enter material notes" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                  <FormField
+                    control={form.control}
+                    name="cost_band"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Cost Band</FormLabel>
+                        <Select onValueChange={(value) => field.onChange(value === "none" ? "" : value)} value={field.value || "none"}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select cost band" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="none">Not specified</SelectItem>
+                            <SelectItem value="Low">Low</SelectItem>
+                            <SelectItem value="Mid">Mid</SelectItem>
+                            <SelectItem value="High">High</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <FormField
+                  control={form.control}
+                  name="manufacturer_id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Manufacturer</FormLabel>
+                      <Select onValueChange={(value) => field.onChange(value === "none" ? "" : value)} value={field.value || "none"}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a manufacturer" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="none">No manufacturer</SelectItem>
+                          {manufacturers.map((manufacturer) => (
+                            <SelectItem key={manufacturer.id} value={manufacturer.id}>
+                              {manufacturer.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="project_id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Link to Project</FormLabel>
+                      <Select onValueChange={(value) => field.onChange(value === "none" ? "" : value)} value={field.value || "none"}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select an active project" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="none">No project</SelectItem>
+                          {projects.map((project) => (
+                            <SelectItem key={project.id} value={project.id}>
+                              {project.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="notes"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Notes</FormLabel>
+                      <FormControl>
+                        <Textarea placeholder="Enter material notes" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </>
+            )}
 
             <div className="flex justify-between pt-4">
-              <Button 
-                type="button" 
-                variant="destructive" 
-                onClick={handleDelete}
-                disabled={loading}
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete
-              </Button>
+              {editMode === 'full' && (
+                <Button 
+                  type="button" 
+                  variant="destructive" 
+                  onClick={handleDelete}
+                  disabled={loading}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </Button>
+              )}
+              {editMode === 'additional' && <div />}
               <div className="flex gap-2">
                 <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                   Cancel

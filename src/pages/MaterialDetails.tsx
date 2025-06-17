@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
@@ -137,9 +136,6 @@ const MaterialDetails = () => {
               {material.subcategory && (
                 <Badge variant="outline">{material.subcategory}</Badge>
               )}
-              {material.tag && (
-                <Badge variant="outline" className="bg-coral-50 text-coral-700">{material.tag}</Badge>
-              )}
               {material.cost_band && (
                 <Badge className={getCostBandColor(material.cost_band)}>
                   {material.cost_band} Cost
@@ -187,12 +183,6 @@ const MaterialDetails = () => {
                     <div>
                       <label className="text-sm font-medium text-gray-500">Dimensions</label>
                       <p className="text-lg">{material.dimensions}</p>
-                    </div>
-                  )}
-                  {material.location && (
-                    <div>
-                      <label className="text-sm font-medium text-gray-500">Location</label>
-                      <p className="text-lg">{material.location}</p>
                     </div>
                   )}
                 </div>
@@ -394,6 +384,9 @@ const MaterialDetails = () => {
                       </Badge>
                       {projMaterial.quantity && (
                         <span>Qty: {projMaterial.quantity} {projMaterial.unit || ''}</span>
+                      )}
+                      {projMaterial.location && (
+                        <span>Location: {projMaterial.location}</span>
                       )}
                     </div>
                     {projMaterial.notes && (
