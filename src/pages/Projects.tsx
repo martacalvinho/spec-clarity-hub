@@ -9,20 +9,12 @@ import { Search } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import AddProjectForm from '@/components/forms/AddProjectForm';
 import EditProjectForm from '@/components/forms/EditProjectForm';
-import ProjectFilters from '@/components/ProjectFilters';
 
 const Projects = () => {
   const { studioId } = useAuth();
   const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filters, setFilters] = useState({
-    projectType: '',
-    clientId: '',
-    status: '',
-    filterDate: '',
-    dateType: 'either',
-  });
 
   useEffect(() => {
     if (studioId) {
@@ -48,39 +40,10 @@ const Projects = () => {
     }
   };
 
-  const filteredProjects = projects.filter(project => {
-    // Search filter
-    const matchesSearch = project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      project.type.toLowerCase().includes(searchTerm.toLowerCase());
-
-    // Type filter - match exactly or show all if no filter
-    const matchesType = !filters.projectType || filters.projectType === 'all' || project.type === filters.projectType;
-
-    // Client filter - match exactly or show all if no filter
-    const matchesClient = !filters.clientId || filters.clientId === 'all' || project.client_id === filters.clientId;
-
-    // Status filter - match exactly or show all if no filter
-    const matchesStatus = !filters.status || filters.status === 'all' || project.status === filters.status;
-
-    // Date filter - match the selected date to start or end date
-    let matchesDate = true;
-    if (filters.filterDate) {
-      const filterDate = new Date(filters.filterDate);
-      const startDate = project.start_date ? new Date(project.start_date) : null;
-      const endDate = project.end_date ? new Date(project.end_date) : null;
-
-      if (filters.dateType === 'start') {
-        matchesDate = startDate && startDate.toDateString() === filterDate.toDateString();
-      } else if (filters.dateType === 'end') {
-        matchesDate = endDate && endDate.toDateString() === filterDate.toDateString();
-      } else { // either
-        matchesDate = (startDate && startDate.toDateString() === filterDate.toDateString()) ||
-                     (endDate && endDate.toDateString() === filterDate.toDateString());
-      }
-    }
-
-    return matchesSearch && matchesType && matchesClient && matchesStatus && matchesDate;
-  });
+  const filteredProjects = projects.filter(project =>
+    project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    project.type.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -121,9 +84,7 @@ const Projects = () => {
             </div>
           </div>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <ProjectFilters onFiltersChange={setFilters} />
-          
+        <CardContent>
           <div className="space-y-4">
             {filteredProjects.map((project) => (
               <div key={project.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
@@ -142,9 +103,6 @@ const Projects = () => {
                     {project.start_date && (
                       <span className="text-sm text-gray-500">Start: {new Date(project.start_date).toLocaleDateString()}</span>
                     )}
-                    {project.end_date && (
-                      <span className="text-sm text-gray-500">End: {new Date(project.end_date).toLocaleDateString()}</span>
-                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -154,9 +112,7 @@ const Projects = () => {
             ))}
             {filteredProjects.length === 0 && (
               <div className="text-center py-8 text-gray-500">
-                {searchTerm || filters.projectType || filters.clientId || filters.status || filters.filterDate
-                  ? 'No projects found matching your filters.' 
-                  : 'No projects yet. Create your first project!'}
+                {searchTerm ? 'No projects found matching your search.' : 'No projects yet. Create your first project!'}
               </div>
             )}
           </div>
