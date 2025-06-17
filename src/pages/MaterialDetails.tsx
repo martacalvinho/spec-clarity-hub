@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, Edit, Package, ExternalLink, Download, Calendar, User } from 'lucide-react';
+import { ArrowLeft, Edit, Package, ExternalLink, Download, Calendar, User, Info } from 'lucide-react';
 import EditMaterialForm from '@/components/forms/EditMaterialForm';
 import ApplyToProjectForm from '@/components/forms/ApplyToProjectForm';
 
@@ -189,28 +189,10 @@ const MaterialDetails = () => {
                       <p className="text-lg">{material.dimensions}</p>
                     </div>
                   )}
-                  {material.finish_color && (
-                    <div>
-                      <label className="text-sm font-medium text-gray-500">Finish/Color</label>
-                      <p className="text-lg">{material.finish_color}</p>
-                    </div>
-                  )}
-                  {material.fire_rating && (
-                    <div>
-                      <label className="text-sm font-medium text-gray-500">Fire Rating</label>
-                      <p className="text-lg">{material.fire_rating}</p>
-                    </div>
-                  )}
                   {material.location && (
                     <div>
                       <label className="text-sm font-medium text-gray-500">Location</label>
                       <p className="text-lg">{material.location}</p>
-                    </div>
-                  )}
-                  {material.certifications && (
-                    <div className="col-span-2">
-                      <label className="text-sm font-medium text-gray-500">Certifications</label>
-                      <p className="text-lg">{material.certifications}</p>
                     </div>
                   )}
                 </div>
@@ -237,31 +219,6 @@ const MaterialDetails = () => {
                           <label className="text-sm font-medium text-gray-500">Unit Type</label>
                           <p className="text-lg">{material.unit_type}</p>
                         </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* External Links */}
-                {(material.product_url || material.product_sheet_url) && (
-                  <div className="border-t pt-4">
-                    <h4 className="text-lg font-semibold mb-3">Resources</h4>
-                    <div className="flex gap-3">
-                      {material.product_url && (
-                        <Button variant="outline" size="sm" asChild>
-                          <a href={material.product_url} target="_blank" rel="noopener noreferrer">
-                            <ExternalLink className="h-4 w-4 mr-2" />
-                            Product Page
-                          </a>
-                        </Button>
-                      )}
-                      {material.product_sheet_url && (
-                        <Button variant="outline" size="sm" asChild>
-                          <a href={material.product_sheet_url} target="_blank" rel="noopener noreferrer">
-                            <Download className="h-4 w-4 mr-2" />
-                            Product Sheet
-                          </a>
-                        </Button>
                       )}
                     </div>
                   </div>
@@ -347,6 +304,57 @@ const MaterialDetails = () => {
                     </div>
                   </div>
                 )}
+              </CardContent>
+            </Card>
+
+            {/* Add Information Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Info className="h-4 w-4" />
+                  Add Information
+                </CardTitle>
+                <CardDescription>Additional specialist details</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Certifications</label>
+                  <p className="text-lg">{material.certifications || 'Not specified'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Finish/Color</label>
+                  <p className="text-lg">{material.finish_color || 'Not specified'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Fire Rating</label>
+                  <p className="text-lg">{material.fire_rating || 'Not specified'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Product Page URL</label>
+                  {material.product_url ? (
+                    <Button variant="outline" size="sm" className="mt-1" asChild>
+                      <a href={material.product_url} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="h-4 w-4 mr-2" />
+                        View Product Page
+                      </a>
+                    </Button>
+                  ) : (
+                    <p className="text-lg">Not specified</p>
+                  )}
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Product Sheet URL</label>
+                  {material.product_sheet_url ? (
+                    <Button variant="outline" size="sm" className="mt-1" asChild>
+                      <a href={material.product_sheet_url} target="_blank" rel="noopener noreferrer">
+                        <Download className="h-4 w-4 mr-2" />
+                        Download Product Sheet
+                      </a>
+                    </Button>
+                  ) : (
+                    <p className="text-lg">Not specified</p>
+                  )}
+                </div>
               </CardContent>
             </Card>
           </div>
