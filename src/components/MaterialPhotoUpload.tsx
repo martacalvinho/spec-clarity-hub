@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Camera, Upload, X } from 'lucide-react';
+import { Camera } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -78,86 +78,23 @@ const MaterialPhotoUpload = ({ materialId, currentPhotoUrl, onPhotoUpdated }: Ma
     }
   };
 
-  const handleRemovePhoto = async () => {
-    try {
-      setUploading(true);
-
-      if (currentPhotoUrl) {
-        const fileName = currentPhotoUrl.split('/').pop();
-        if (fileName) {
-          await supabase.storage
-            .from('material-photos')
-            .remove([fileName]);
-        }
-      }
-
-      const { error } = await supabase
-        .from('materials')
-        .update({ photo_url: null })
-        .eq('id', materialId);
-
-      if (error) throw error;
-
-      onPhotoUpdated(null);
-      toast({
-        title: "Success",
-        description: "Material photo removed successfully",
-      });
-    } catch (error) {
-      console.error('Error removing photo:', error);
-      toast({
-        title: "Error",
-        description: "Failed to remove photo. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setUploading(false);
-    }
-  };
-
   return (
-    <div className="flex items-center gap-2">
-      {currentPhotoUrl ? (
-        <div className="flex items-center gap-2">
-          <img 
-            src={currentPhotoUrl} 
-            alt="Material" 
-            className="w-12 h-12 object-cover rounded border"
-          />
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRemovePhoto}
-            disabled={uploading}
-            className="text-red-600 hover:text-red-700"
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-      ) : (
-        <div className="w-12 h-12 bg-gray-100 rounded border flex items-center justify-center">
-          <Camera className="h-5 w-5 text-gray-400" />
-        </div>
-      )}
-      
-      <div className="relative">
-        <Input
-          type="file"
-          accept="image/*"
-          onChange={handleFileUpload}
-          disabled={uploading}
-          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-        />
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={uploading}
-          className="pointer-events-none"
-        >
-          <Upload className="h-4 w-4 mr-1" />
-          {uploading ? 'Uploading...' : currentPhotoUrl ? 'Change' : 'Add Photo'}
-        </Button>
-      </div>
+    <div className="relative">
+      <Input
+        type="file"
+        accept="image/*"
+        onChange={handleFileUpload}
+        disabled={uploading}
+        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+      />
+      <Button
+        variant="ghost"
+        size="sm"
+        disabled={uploading}
+        className="pointer-events-none p-2 h-8 w-8"
+      >
+        <Camera className="h-4 w-4" />
+      </Button>
     </div>
   );
 };

@@ -524,11 +524,20 @@ const Materials = () => {
                   return (
                     <div key={material.id} className="space-y-0">
                       <div 
-                        className={`flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 ${
+                        className={`flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 relative ${
                           isDuplicate ? 'border-red-200 bg-red-50' : ''
                         }`}
                       >
-                        <div className="flex items-center gap-4">
+                        {/* Camera icon in top right */}
+                        <div className="absolute top-4 right-4">
+                          <MaterialPhotoUpload 
+                            materialId={material.id}
+                            currentPhotoUrl={material.photo_url}
+                            onPhotoUpdated={(photoUrl) => handlePhotoUpdated(material.id, photoUrl)}
+                          />
+                        </div>
+
+                        <div className="flex items-center gap-4 flex-1 pr-12">
                           {/* Photo or Package Icon */}
                           <div className={`p-2 rounded-lg ${isDuplicate ? 'bg-red-100' : 'bg-coral-100'}`}>
                             {material.photo_url ? (
@@ -602,11 +611,6 @@ const Materials = () => {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <MaterialPhotoUpload 
-                            materialId={material.id}
-                            currentPhotoUrl={material.photo_url}
-                            onPhotoUpdated={(photoUrl) => handlePhotoUpdated(material.id, photoUrl)}
-                          />
                           <ApplyToProjectForm material={material} onMaterialUpdated={fetchMaterials} />
                           <EditMaterialForm material={material} onMaterialUpdated={fetchMaterials} />
                           <DeleteMaterialForm material={material} onMaterialDeleted={fetchMaterials} />
