@@ -710,12 +710,20 @@ const Materials = () => {
                                             return (
                                               <>
                                                 <span className="font-medium"> Client: </span>
-                                                {uniqueClients.map((clientName: string, index: number) => (
-                                                  <span key={clientName}>
-                                                    <span className="text-green-600">{clientName}</span>
-                                                    {index < uniqueClients.length - 1 && <span className="text-gray-400">, </span>}
-                                                  </span>
-                                                ))}
+                                                {uniqueClients.map((clientName: string, index: number) => {
+                                                  const clientProject = projects.find((p: any) => p.projects?.clients?.name === clientName);
+                                                  return (
+                                                    <span key={clientName}>
+                                                      <Link 
+                                                        to={`/clients/${clientProject?.projects?.client_id}`}
+                                                        className="text-green-600 hover:text-green-800 hover:underline"
+                                                      >
+                                                        {clientName}
+                                                      </Link>
+                                                      {index < uniqueClients.length - 1 && <span className="text-gray-400">, </span>}
+                                                    </span>
+                                                  );
+                                                })}
                                               </>
                                             );
                                           }
