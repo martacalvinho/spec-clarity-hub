@@ -142,19 +142,24 @@ const PricingAnalytics = ({ type, entityId, entityName, onClose }: PricingAnalyt
   };
 
   const fetchClientPricing = async (): Promise<PricingData> => {
-    const { data: projects, error } = await supabase
-      .from('projects')
+    console.log('Fetching client pricing for client ID:', entityId);
+    
+    const { data: projMaterials, error } = await supabase
+      .from('proj_materials')
       .select(`
-        id, name,
-        proj_materials(
-          quantity, cost_per_sqft, cost_per_unit, total_cost, square_feet,
-          materials(id, category, price_per_sqft, price_per_unit, unit_type)
-        )
+        quantity, cost_per_sqft, cost_per_unit, total_cost, square_feet,
+        materials(id, category, price_per_sqft, price_per_unit, unit_type),
+        projects!inner(id, client_id)
       `)
-      .eq('client_id', entityId)
+      .eq('projects.client_id', entityId)
       .eq('studio_id', studioId);
 
-    if (error) throw error;
+    console.log('Client proj_materials data:', projMaterials);
+
+    if (error) {
+      console.error('Error fetching client pricing:', error);
+      throw error;
+    }
 
     let totalSpend = 0;
     let totalMaterials = 0;
@@ -162,50 +167,55 @@ const PricingAnalytics = ({ type, entityId, entityName, onClose }: PricingAnalyt
     const categoryMap = new Map();
     let hasPricingData = false;
 
-    projects?.forEach(project => {
-      project.proj_materials?.forEach((pm: any) => {
-        const material = pm.materials;
-        if (!material) return;
+    projMaterials?.forEach(pm => {
+      const material = pm.materials;
+      if (!material) return;
 
-        let materialCost = 0;
-        
-        // Priority: saved project cost > calculated from material pricing
-        if (pm.total_cost && pm.total_cost > 0) {
-          materialCost = pm.total_cost;
-          hasPricingData = true;
-        } else if (pm.cost_per_sqft && pm.square_feet) {
-          materialCost = pm.cost_per_sqft * pm.square_feet;
-          hasPricingData = true;
-        } else if (pm.cost_per_unit && pm.quantity) {
-          materialCost = pm.cost_per_unit * pm.quantity;
-          hasPricingData = true;
-        } else if (material.price_per_sqft && pm.square_feet) {
-          materialCost = material.price_per_sqft * pm.square_feet;
-          hasPricingData = true;
-        } else if (material.price_per_unit && pm.quantity) {
-          materialCost = material.price_per_unit * pm.quantity;
-          hasPricingData = true;
+      let materialCost = 0;
+      
+      // Priority: saved project cost > calculated from material pricing
+      if (pm.total_cost && pm.total_cost > 0) {
+        materialCost = pm.total_cost;
+        hasPricingData = true;
+        console.log(`Using total_cost: ${materialCost} for material ${material.id}`);
+      } else if (pm.cost_per_sqft && pm.square_feet) {
+        materialCost = pm.cost_per_sqft * pm.square_feet;
+        hasPricingData = true;
+        console.log(`Using cost_per_sqft * square_feet: ${materialCost} for material ${material.id}`);
+      } else if (pm.cost_per_unit && pm.quantity) {
+        materialCost = pm.cost_per_unit * pm.quantity;
+        hasPricingData = true;
+        console.log(`Using cost_per_unit * quantity: ${materialCost} for material ${material.id}`);
+      } else if (material.price_per_sqft && pm.square_feet) {
+        materialCost = material.price_per_sqft * pm.square_feet;
+        hasPricingData = true;
+        console.log(`Using material.price_per_sqft * square_feet: ${materialCost} for material ${material.id}`);
+      } else if (material.price_per_unit && pm.quantity) {
+        materialCost = material.price_per_unit * pm.quantity;
+        hasPricingData = true;
+        console.log(`Using material.price_per_unit * quantity: ${materialCost} for material ${material.id}`);
+      }
+
+      if (materialCost > 0) {
+        totalSpend += materialCost;
+        totalMaterials += 1;
+        totalSqft += pm.square_feet || 0;
+
+        const category = material.category || 'Unknown';
+        if (!categoryMap.has(category)) {
+          categoryMap.set(category, {
+            category,
+            totalSpend: 0,
+            materialCount: 0
+          });
         }
-
-        if (materialCost > 0) {
-          totalSpend += materialCost;
-          totalMaterials += 1;
-          totalSqft += pm.square_feet || 0;
-
-          const category = material.category || 'Unknown';
-          if (!categoryMap.has(category)) {
-            categoryMap.set(category, {
-              category,
-              totalSpend: 0,
-              materialCount: 0
-            });
-          }
-          const categoryData = categoryMap.get(category);
-          categoryData.totalSpend += materialCost;
-          categoryData.materialCount += 1;
-        }
-      });
+        const categoryData = categoryMap.get(category);
+        categoryData.totalSpend += materialCost;
+        categoryData.materialCount += 1;
+      }
     });
+
+    console.log('Client pricing summary:', { totalSpend, totalMaterials, totalSqft, hasPricingData });
 
     if (!hasPricingData) {
       return {
@@ -234,6 +244,8 @@ const PricingAnalytics = ({ type, entityId, entityName, onClose }: PricingAnalyt
   };
 
   const fetchProjectPricing = async (): Promise<PricingData> => {
+    console.log('Fetching project pricing for project ID:', entityId);
+    
     const { data: projMaterials, error } = await supabase
       .from('proj_materials')
       .select(`
@@ -243,12 +255,18 @@ const PricingAnalytics = ({ type, entityId, entityName, onClose }: PricingAnalyt
       .eq('project_id', entityId)
       .eq('studio_id', studioId);
 
-    if (error) throw error;
+    console.log('Project proj_materials data:', projMaterials);
+
+    if (error) {
+      console.error('Error fetching project pricing:', error);
+      throw error;
+    }
 
     let totalSpend = 0;
     let totalSqft = 0;
     const categoryMap = new Map();
     let hasPricingData = false;
+    let materialsWithPricing = 0;
 
     projMaterials?.forEach(pm => {
       const material = pm.materials;
@@ -260,22 +278,28 @@ const PricingAnalytics = ({ type, entityId, entityName, onClose }: PricingAnalyt
       if (pm.total_cost && pm.total_cost > 0) {
         materialCost = pm.total_cost;
         hasPricingData = true;
+        console.log(`Using total_cost: ${materialCost} for material ${material.id}`);
       } else if (pm.cost_per_sqft && pm.square_feet) {
         materialCost = pm.cost_per_sqft * pm.square_feet;
         hasPricingData = true;
+        console.log(`Using cost_per_sqft * square_feet: ${materialCost} for material ${material.id}`);
       } else if (pm.cost_per_unit && pm.quantity) {
         materialCost = pm.cost_per_unit * pm.quantity;
         hasPricingData = true;
+        console.log(`Using cost_per_unit * quantity: ${materialCost} for material ${material.id}`);
       } else if (material.price_per_sqft && pm.square_feet) {
         materialCost = material.price_per_sqft * pm.square_feet;
         hasPricingData = true;
+        console.log(`Using material.price_per_sqft * square_feet: ${materialCost} for material ${material.id}`);
       } else if (material.price_per_unit && pm.quantity) {
         materialCost = material.price_per_unit * pm.quantity;
         hasPricingData = true;
+        console.log(`Using material.price_per_unit * quantity: ${materialCost} for material ${material.id}`);
       }
 
       if (materialCost > 0) {
         totalSpend += materialCost;
+        materialsWithPricing += 1;
         totalSqft += pm.square_feet || 0;
 
         const category = material.category || 'Unknown';
@@ -292,10 +316,12 @@ const PricingAnalytics = ({ type, entityId, entityName, onClose }: PricingAnalyt
       }
     });
 
+    console.log('Project pricing summary:', { totalSpend, materialsWithPricing, totalSqft, hasPricingData });
+
     if (!hasPricingData) {
       return {
         averagePrice: 0,
-        totalMaterials: 0,
+        totalMaterials: projMaterials?.length || 0,
         totalSpend: 0,
         pricePerSqft: 0,
         categoryBreakdown: [],
@@ -309,7 +335,7 @@ const PricingAnalytics = ({ type, entityId, entityName, onClose }: PricingAnalyt
     }));
 
     return {
-      averagePrice: projMaterials?.length > 0 ? totalSpend / projMaterials.length : 0,
+      averagePrice: materialsWithPricing > 0 ? totalSpend / materialsWithPricing : 0,
       totalMaterials: projMaterials?.length || 0,
       totalSpend,
       pricePerSqft: totalSqft > 0 ? totalSpend / totalSqft : 0,
