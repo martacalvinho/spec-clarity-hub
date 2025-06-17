@@ -10,11 +10,10 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Building, Plus, Settings, Crown } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const QuickStudioManagement = () => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [isBulkOpen, setIsBulkOpen] = useState(false);
-  const [isSubscriptionOpen, setIsSubscriptionOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [tierCounts, setTierCounts] = useState({
     starter: 0,
@@ -26,6 +25,7 @@ const QuickStudioManagement = () => {
     subscription_tier: 'starter'
   });
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchTierCounts();
@@ -92,20 +92,19 @@ const QuickStudioManagement = () => {
     }
   };
 
-  const handleBulkAction = () => {
-    toast({
-      title: "Bulk Actions",
-      description: "Bulk actions panel would open here - feature coming soon!"
-    });
-    setIsBulkOpen(false);
+  const handleBulkActions = () => {
+    // Navigate to studios page for bulk actions
+    navigate('/studios');
   };
 
-  const handleSubscriptionManagement = () => {
-    toast({
-      title: "Subscription Management",
-      description: "Subscription management panel would open here - feature coming soon!"
-    });
-    setIsSubscriptionOpen(false);
+  const handleManageSubscriptions = () => {
+    // Navigate to studios page to manage subscriptions
+    navigate('/studios');
+  };
+
+  const handleManageTier = (tier: string) => {
+    // Navigate to studios page with tier filter
+    navigate(`/studios?tier=${tier}`);
   };
 
   const getTierInfo = (tier: string) => {
@@ -182,76 +181,24 @@ const QuickStudioManagement = () => {
               </DialogContent>
             </Dialog>
 
-            <Dialog open={isBulkOpen} onOpenChange={setIsBulkOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline" className="w-full">
-                  <Settings className="h-4 w-4 mr-2" />
-                  Bulk Actions
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Bulk Actions</DialogTitle>
-                  <DialogDescription>
-                    Perform actions on multiple studios at once
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <p className="text-sm text-gray-600">
-                    This feature is coming soon! You'll be able to:
-                  </p>
-                  <ul className="text-sm text-gray-600 list-disc list-inside space-y-1">
-                    <li>Bulk upgrade/downgrade subscriptions</li>
-                    <li>Send notifications to multiple studios</li>
-                    <li>Export studio data</li>
-                    <li>Apply settings to multiple studios</li>
-                  </ul>
-                  <Button onClick={handleBulkAction} className="w-full">
-                    Got it
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
+            <Button variant="outline" className="w-full" onClick={handleBulkActions}>
+              <Settings className="h-4 w-4 mr-2" />
+              Bulk Actions
+            </Button>
 
-            <Dialog open={isSubscriptionOpen} onOpenChange={setIsSubscriptionOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline" className="w-full">
-                  <Crown className="h-4 w-4 mr-2" />
-                  Manage Subscriptions
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Subscription Management</DialogTitle>
-                  <DialogDescription>
-                    Manage studio subscriptions and billing
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <p className="text-sm text-gray-600">
-                    This feature is coming soon! You'll be able to:
-                  </p>
-                  <ul className="text-sm text-gray-600 list-disc list-inside space-y-1">
-                    <li>View subscription statuses</li>
-                    <li>Process billing changes</li>
-                    <li>Handle cancellations and upgrades</li>
-                    <li>Generate billing reports</li>
-                  </ul>
-                  <Button onClick={handleSubscriptionManagement} className="w-full">
-                    Got it
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
+            <Button variant="outline" className="w-full" onClick={handleManageSubscriptions}>
+              <Crown className="h-4 w-4 mr-2" />
+              Manage Subscriptions
+            </Button>
           </div>
 
           {/* Subscription Tier Overview with Counts */}
           <div className="space-y-3">
             <h4 className="font-medium text-sm text-gray-700">Subscription Tiers</h4>
-            {['starter', 'professional', 'enterprise'].map((tier) => {
+            {(['starter', 'professional', 'enterprise'] as const).map((tier) => {
               const tierInfo = getTierInfo(tier);
               const Icon = tierInfo.icon;
-              const count = tierCounts[tier as keyof typeof tierCounts];
+              const count = tierCounts[tier];
               
               return (
                 <div key={tier} className="flex items-center justify-between p-3 border rounded-lg">
@@ -271,7 +218,7 @@ const QuickStudioManagement = () => {
                       </p>
                     </div>
                   </div>
-                  <Button variant="ghost" size="sm">
+                  <Button variant="ghost" size="sm" onClick={() => handleManageTier(tier)}>
                     Manage
                   </Button>
                 </div>
