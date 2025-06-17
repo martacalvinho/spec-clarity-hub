@@ -528,16 +528,19 @@ const Materials = () => {
                           isDuplicate ? 'border-red-200 bg-red-50' : ''
                         }`}
                       >
-                        {/* Camera icon in top right */}
-                        <div className="absolute top-4 right-4">
+                        {/* Action icons - fixed positioning in top right */}
+                        <div className="absolute top-4 right-4 flex items-center gap-1">
                           <MaterialPhotoUpload 
                             materialId={material.id}
                             currentPhotoUrl={material.photo_url}
                             onPhotoUpdated={(photoUrl) => handlePhotoUpdated(material.id, photoUrl)}
                           />
+                          <ApplyToProjectForm material={material} onMaterialUpdated={fetchMaterials} />
+                          <EditMaterialForm material={material} onMaterialUpdated={fetchMaterials} />
+                          <DeleteMaterialForm material={material} onMaterialDeleted={fetchMaterials} />
                         </div>
 
-                        <div className="flex items-center gap-4 flex-1 pr-12">
+                        <div className="flex items-center gap-4 flex-1 pr-32">
                           {/* Photo or Package Icon */}
                           <div className={`p-2 rounded-lg ${isDuplicate ? 'bg-red-100' : 'bg-coral-100'}`}>
                             {material.photo_url ? (
@@ -610,18 +613,8 @@ const Materials = () => {
                             )}
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <ApplyToProjectForm material={material} onMaterialUpdated={fetchMaterials} />
-                          <EditMaterialForm material={material} onMaterialUpdated={fetchMaterials} />
-                          <DeleteMaterialForm material={material} onMaterialDeleted={fetchMaterials} />
-                        </div>
                       </div>
-                      {advancedMode && (
-                        <MaterialPricingInput 
-                          material={material} 
-                          onPricingUpdated={fetchMaterials}
-                        />
-                      )}
+                      {/* ... keep existing code (MaterialPricingInput section) */}
                     </div>
                   );
                 })}

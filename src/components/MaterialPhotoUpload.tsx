@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Camera } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -79,23 +80,32 @@ const MaterialPhotoUpload = ({ materialId, currentPhotoUrl, onPhotoUpdated }: Ma
   };
 
   return (
-    <div className="relative">
-      <Input
-        type="file"
-        accept="image/*"
-        onChange={handleFileUpload}
-        disabled={uploading}
-        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-      />
-      <Button
-        variant="ghost"
-        size="sm"
-        disabled={uploading}
-        className="pointer-events-none p-2 h-8 w-8"
-      >
-        <Camera className="h-4 w-4" />
-      </Button>
-    </div>
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className="relative">
+            <Input
+              type="file"
+              accept="image/*"
+              onChange={handleFileUpload}
+              disabled={uploading}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+            />
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={uploading}
+              className="pointer-events-none p-2 h-8 w-8"
+            >
+              <Camera className="h-4 w-4" />
+            </Button>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>{currentPhotoUrl ? 'Change photo' : 'Add photo'}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 };
 
