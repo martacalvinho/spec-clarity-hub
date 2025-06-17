@@ -73,7 +73,7 @@ const Materials = () => {
           )
         `)
         .eq('studio_id', studioId)
-        .order('created_at', { ascending: false });
+        .order('name', { ascending: true }); // Changed from created_at to name for alphabetical sorting
 
       if (error) throw error;
       
@@ -645,7 +645,13 @@ const Materials = () => {
                           </div>
                         </div>
                       </div>
-                      {/* ... keep existing code (MaterialPricingInput section) */}
+                      {/* MaterialPricingInput section */}
+                      {advancedMode && (
+                        <MaterialPricingInput 
+                          material={material} 
+                          onMaterialUpdated={fetchMaterials} 
+                        />
+                      )}
                     </div>
                   );
                 })}
