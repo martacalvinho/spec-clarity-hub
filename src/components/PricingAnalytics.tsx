@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -93,48 +94,58 @@ const PricingAnalytics = ({ type, entityId, entityName, onClose }: PricingAnalyt
     }
 
     const totalMaterials = materialsWithPricing.length;
+    let totalMaterialValue = 0;
     let totalPriceSum = 0;
     const categoryMap = new Map();
 
     materialsWithPricing.forEach(material => {
-      let materialPrice = 0;
+      let materialValue = 0;
+      let unitPrice = 0;
 
-      // For manufacturer view, use the unit price directly
-      if (material.unit_type === 'sqft' && material.price_per_sqft) {
-        materialPrice = material.price_per_sqft;
-      } else if (material.unit_type === 'unit' && material.price_per_unit) {
-        materialPrice = material.price_per_unit;
+      // Calculate total material value (price × quantity/area)
+      if (material.unit_type === 'sqft' && material.price_per_sqft && material.total_area) {
+        materialValue = material.price_per_sqft * material.total_area;
+        unitPrice = material.price_per_sqft;
+      } else if (material.unit_type === 'unit' && material.price_per_unit && material.total_units) {
+        materialValue = material.price_per_unit * material.total_units;
+        unitPrice = material.price_per_unit;
       } else if (material.price_per_sqft) {
-        materialPrice = material.price_per_sqft;
+        // Fallback to just the unit price if no quantity is specified
+        unitPrice = material.price_per_sqft;
+        materialValue = material.price_per_sqft;
       } else if (material.price_per_unit) {
-        materialPrice = material.price_per_unit;
+        unitPrice = material.price_per_unit;
+        materialValue = material.price_per_unit;
       }
 
-      totalPriceSum += materialPrice;
+      totalMaterialValue += materialValue;
+      totalPriceSum += unitPrice;
 
       if (!categoryMap.has(material.category)) {
         categoryMap.set(material.category, {
           category: material.category,
+          totalValue: 0,
           totalPrice: 0,
           count: 0
         });
       }
       const categoryData = categoryMap.get(material.category);
-      categoryData.totalPrice += materialPrice;
+      categoryData.totalValue += materialValue;
+      categoryData.totalPrice += unitPrice;
       categoryData.count += 1;
     });
 
     const categoryBreakdown = Array.from(categoryMap.values()).map(cat => ({
       category: cat.category,
       averagePrice: cat.count > 0 ? cat.totalPrice / cat.count : 0,
-      totalSpend: cat.totalPrice,
+      totalSpend: cat.totalValue,
       materialCount: cat.count
     }));
 
     return {
       averagePrice: totalMaterials > 0 ? totalPriceSum / totalMaterials : 0,
       totalMaterials,
-      totalSpend: totalPriceSum,
+      totalSpend: totalMaterialValue,
       pricePerSqft: 0, // Not applicable for manufacturer view
       categoryBreakdown,
       hasPricingData: true
@@ -144,12 +155,13 @@ const PricingAnalytics = ({ type, entityId, entityName, onClose }: PricingAnalyt
   const fetchClientPricing = async (): Promise<PricingData> => {
     console.log('Fetching client pricing for client ID:', entityId);
     
+    // First, let's get all materials used in client projects with their base pricing
     const { data: projMaterials, error } = await supabase
       .from('proj_materials')
       .select(`
         quantity, cost_per_sqft, cost_per_unit, total_cost, square_feet,
-        materials(id, category, price_per_sqft, price_per_unit, unit_type),
-        projects!inner(id, client_id)
+        materials(id, name, category, price_per_sqft, price_per_unit, unit_type, total_area, total_units),
+        projects!inner(id, client_id, name)
       `)
       .eq('projects.client_id', entityId)
       .eq('studio_id', studioId);
@@ -172,34 +184,45 @@ const PricingAnalytics = ({ type, entityId, entityName, onClose }: PricingAnalyt
       if (!material) return;
 
       let materialCost = 0;
+      let sqftUsed = 0;
       
-      // Priority: saved project cost > calculated from material pricing
+      // Try to get cost from project-specific data first, then fall back to material base pricing
       if (pm.total_cost && pm.total_cost > 0) {
         materialCost = pm.total_cost;
+        sqftUsed = pm.square_feet || 0;
         hasPricingData = true;
         console.log(`Using total_cost: ${materialCost} for material ${material.id}`);
-      } else if (pm.cost_per_sqft && pm.square_feet) {
+      } else if (pm.cost_per_sqft && pm.square_feet && pm.square_feet > 0) {
         materialCost = pm.cost_per_sqft * pm.square_feet;
+        sqftUsed = pm.square_feet;
         hasPricingData = true;
         console.log(`Using cost_per_sqft * square_feet: ${materialCost} for material ${material.id}`);
-      } else if (pm.cost_per_unit && pm.quantity) {
+      } else if (pm.cost_per_unit && pm.quantity && pm.quantity > 0) {
         materialCost = pm.cost_per_unit * pm.quantity;
         hasPricingData = true;
         console.log(`Using cost_per_unit * quantity: ${materialCost} for material ${material.id}`);
-      } else if (material.price_per_sqft && pm.square_feet) {
-        materialCost = material.price_per_sqft * pm.square_feet;
-        hasPricingData = true;
-        console.log(`Using material.price_per_sqft * square_feet: ${materialCost} for material ${material.id}`);
-      } else if (material.price_per_unit && pm.quantity) {
-        materialCost = material.price_per_unit * pm.quantity;
-        hasPricingData = true;
-        console.log(`Using material.price_per_unit * quantity: ${materialCost} for material ${material.id}`);
+      } else if (material.price_per_sqft && material.price_per_sqft > 0) {
+        // Use material base pricing with project quantities if available, otherwise use material totals
+        const areaToUse = pm.square_feet && pm.square_feet > 0 ? pm.square_feet : (material.total_area || 0);
+        if (areaToUse > 0) {
+          materialCost = material.price_per_sqft * areaToUse;
+          sqftUsed = areaToUse;
+          hasPricingData = true;
+          console.log(`Using material.price_per_sqft * area: ${materialCost} for material ${material.id}`);
+        }
+      } else if (material.price_per_unit && material.price_per_unit > 0) {
+        const quantityToUse = pm.quantity && pm.quantity > 0 ? pm.quantity : (material.total_units || 0);
+        if (quantityToUse > 0) {
+          materialCost = material.price_per_unit * quantityToUse;
+          hasPricingData = true;
+          console.log(`Using material.price_per_unit * quantity: ${materialCost} for material ${material.id}`);
+        }
       }
 
       if (materialCost > 0) {
         totalSpend += materialCost;
         totalMaterials += 1;
-        totalSqft += pm.square_feet || 0;
+        totalSqft += sqftUsed;
 
         const category = material.category || 'Unknown';
         if (!categoryMap.has(category)) {
@@ -220,7 +243,7 @@ const PricingAnalytics = ({ type, entityId, entityName, onClose }: PricingAnalyt
     if (!hasPricingData) {
       return {
         averagePrice: 0,
-        totalMaterials: 0,
+        totalMaterials: projMaterials?.length || 0,
         totalSpend: 0,
         pricePerSqft: 0,
         categoryBreakdown: [],
@@ -235,7 +258,7 @@ const PricingAnalytics = ({ type, entityId, entityName, onClose }: PricingAnalyt
 
     return {
       averagePrice: totalMaterials > 0 ? totalSpend / totalMaterials : 0,
-      totalMaterials,
+      totalMaterials: projMaterials?.length || 0,
       totalSpend,
       pricePerSqft: totalSqft > 0 ? totalSpend / totalSqft : 0,
       categoryBreakdown,
@@ -250,7 +273,7 @@ const PricingAnalytics = ({ type, entityId, entityName, onClose }: PricingAnalyt
       .from('proj_materials')
       .select(`
         quantity, cost_per_sqft, cost_per_unit, total_cost, square_feet,
-        materials(id, category, name, price_per_sqft, price_per_unit, unit_type)
+        materials(id, category, name, price_per_sqft, price_per_unit, unit_type, total_area, total_units)
       `)
       .eq('project_id', entityId)
       .eq('studio_id', studioId);
@@ -273,34 +296,45 @@ const PricingAnalytics = ({ type, entityId, entityName, onClose }: PricingAnalyt
       if (!material) return;
 
       let materialCost = 0;
+      let sqftUsed = 0;
       
-      // Priority: saved project cost > calculated from material pricing
+      // Try to get cost from project-specific data first, then fall back to material base pricing
       if (pm.total_cost && pm.total_cost > 0) {
         materialCost = pm.total_cost;
+        sqftUsed = pm.square_feet || 0;
         hasPricingData = true;
         console.log(`Using total_cost: ${materialCost} for material ${material.id}`);
-      } else if (pm.cost_per_sqft && pm.square_feet) {
+      } else if (pm.cost_per_sqft && pm.square_feet && pm.square_feet > 0) {
         materialCost = pm.cost_per_sqft * pm.square_feet;
+        sqftUsed = pm.square_feet;
         hasPricingData = true;
         console.log(`Using cost_per_sqft * square_feet: ${materialCost} for material ${material.id}`);
-      } else if (pm.cost_per_unit && pm.quantity) {
+      } else if (pm.cost_per_unit && pm.quantity && pm.quantity > 0) {
         materialCost = pm.cost_per_unit * pm.quantity;
         hasPricingData = true;
         console.log(`Using cost_per_unit * quantity: ${materialCost} for material ${material.id}`);
-      } else if (material.price_per_sqft && pm.square_feet) {
-        materialCost = material.price_per_sqft * pm.square_feet;
-        hasPricingData = true;
-        console.log(`Using material.price_per_sqft * square_feet: ${materialCost} for material ${material.id}`);
-      } else if (material.price_per_unit && pm.quantity) {
-        materialCost = material.price_per_unit * pm.quantity;
-        hasPricingData = true;
-        console.log(`Using material.price_per_unit * quantity: ${materialCost} for material ${material.id}`);
+      } else if (material.price_per_sqft && material.price_per_sqft > 0) {
+        // Use material base pricing with project quantities if available, otherwise use material totals
+        const areaToUse = pm.square_feet && pm.square_feet > 0 ? pm.square_feet : (material.total_area || 0);
+        if (areaToUse > 0) {
+          materialCost = material.price_per_sqft * areaToUse;
+          sqftUsed = areaToUse;
+          hasPricingData = true;
+          console.log(`Using material.price_per_sqft * area: ${materialCost} for material ${material.id}`);
+        }
+      } else if (material.price_per_unit && material.price_per_unit > 0) {
+        const quantityToUse = pm.quantity && pm.quantity > 0 ? pm.quantity : (material.total_units || 0);
+        if (quantityToUse > 0) {
+          materialCost = material.price_per_unit * quantityToUse;
+          hasPricingData = true;
+          console.log(`Using material.price_per_unit * quantity: ${materialCost} for material ${material.id}`);
+        }
       }
 
       if (materialCost > 0) {
         totalSpend += materialCost;
         materialsWithPricing += 1;
-        totalSqft += pm.square_feet || 0;
+        totalSqft += sqftUsed;
 
         const category = material.category || 'Unknown';
         if (!categoryMap.has(category)) {
@@ -353,7 +387,7 @@ const PricingAnalytics = ({ type, entityId, entityName, onClose }: PricingAnalyt
 
   const getAveragePriceLabel = () => {
     if (type === 'manufacturer') {
-      return 'Avg Material Price';
+      return 'Avg Price per Sq Ft';
     }
     return 'Avg Cost per Material';
   };
@@ -436,7 +470,7 @@ const PricingAnalytics = ({ type, entityId, entityName, onClose }: PricingAnalyt
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
-                {type === 'manufacturer' ? 'Total Material Value' : 'Total Spend'}
+                Total Material Value
               </CardTitle>
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
