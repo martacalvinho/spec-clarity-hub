@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Search, Package } from 'lucide-react';
 import AddMaterialForm from '@/components/forms/AddMaterialForm';
 import EditMaterialForm from '@/components/forms/EditMaterialForm';
+import DeleteMaterialForm from '@/components/forms/DeleteMaterialForm';
 import { Link } from 'react-router-dom';
 
 const Materials = () => {
@@ -28,7 +30,15 @@ const Materials = () => {
         .select(`
           *,
           manufacturers(name),
-          proj_materials(project_id, projects(name))
+          proj_materials(
+            project_id, 
+            projects(
+              id,
+              name,
+              client_id,
+              clients(name)
+            )
+          )
         `)
         .eq('studio_id', studioId)
         .order('created_at', { ascending: false });
@@ -81,21 +91,71 @@ const Materials = () => {
           <div className="space-y-4">
             {filteredMaterials.map((material) => {
               const projectCount = material.proj_materials?.length || 0;
+              const projects = material.proj_materials || [];
+              
               return (
                 <div key={material.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-4 flex-1">
                     <div className="p-2 bg-coral-100 rounded-lg">
                       <Package className="h-6 w-6 text-coral-600" />
                     </div>
                     <div className="flex-1">
                       <Link to={`/materials/${material.id}`} className="hover:text-coral">
-                        <h3 className="font-semibold text-lg">{material.name}</h3>
+                        <h3 className="font-semibold text-lg hover:underline">{material.name}</h3>
                       </Link>
                       <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
-                        <span>Category: {material.category}</span>
-                        <span>Manufacturer: {material.manufacturers?.name || 'None'}</span>
-                        <span>Used in {projectCount} project{projectCount !== 1 ? 's' : ''}</span>
+                        <Link 
+                          to={`/materials/category/${encodeURIComponent(material.category)}`}
+                          className="hover:text-coral hover:underline"
+                        >
+                          Category: {material.category}
+                        </Link>
+                        {material.manufacturers?.name && (
+                          <>
+                            <span>•</span>
+                            <Link 
+                              to={`/manufacturers/${material.manufacturer_id}`}
+                              className="hover:text-coral hover:underline"
+                            >
+                              Manufacturer: {material.manufacturers.name}
+                            </Link>
+                          </>
+                        )}
+                        <span>• Used in {projectCount} project{projectCount !== 1 ? 's' : ''}</span>
                       </div>
+                      
+                      {/* Projects List */}
+                      {projects.length > 0 && (
+                        <div className="mt-2 text-sm">
+                          <span className="text-gray-600 font-medium">Projects: </span>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {projects.map((projMaterial, index) => (
+                              <span key={projMaterial.project_id}>
+                                <Link 
+                                  to={`/projects/${projMaterial.projects.id}`}
+                                  className="text-blue-600 hover:text-blue-800 hover:underline"
+                                >
+                                  {projMaterial.projects.name}
+                                </Link>
+                                {projMaterial.projects.clients?.name && (
+                                  <span className="text-gray-500">
+                                    {' '}(
+                                    <Link 
+                                      to={`/clients/${projMaterial.projects.client_id}`}
+                                      className="hover:text-coral hover:underline"
+                                    >
+                                      {projMaterial.projects.clients.name}
+                                    </Link>
+                                    )
+                                  </span>
+                                )}
+                                {index < projects.length - 1 && <span className="text-gray-400">, </span>}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
                       {material.notes && (
                         <p className="text-sm text-gray-600 mt-1">{material.notes}</p>
                       )}
@@ -103,6 +163,7 @@ const Materials = () => {
                   </div>
                   <div className="flex items-center gap-2">
                     <EditMaterialForm material={material} onMaterialUpdated={fetchMaterials} />
+                    <DeleteMaterialForm material={material} onMaterialDeleted={fetchMaterials} />
                   </div>
                 </div>
               );

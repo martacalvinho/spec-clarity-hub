@@ -6,19 +6,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, Package, Tag } from 'lucide-react';
+import { ArrowLeft, Package } from 'lucide-react';
 
 const MaterialsByCategory = () => {
   const { category } = useParams();
   const { studioId } = useAuth();
   const [materials, setMaterials] = useState<any[]>([]);
-  const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (category && studioId) {
       fetchMaterialsByCategory();
-      fetchProjectsByCategory();
     }
   }, [category, studioId]);
 
@@ -29,62 +27,34 @@ const MaterialsByCategory = () => {
         .select(`
           *,
           manufacturers(name),
-          proj_materials(project_id, projects(name))
+          proj_materials(
+            project_id, 
+            projects(
+              id,
+              name,
+              client_id,
+              clients(name)
+            )
+          )
         `)
-        .eq('category', category)
         .eq('studio_id', studioId)
-        .order('created_at', { ascending: false });
+        .eq('category', decodeURIComponent(category || ''))
+        .order('name');
 
       if (error) throw error;
       setMaterials(data || []);
     } catch (error) {
       console.error('Error fetching materials by category:', error);
-    }
-  };
-
-  const fetchProjectsByCategory = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('proj_materials')
-        .select(`
-          *,
-          projects(id, name, status, type),
-          materials!inner(category)
-        `)
-        .eq('materials.category', category)
-        .eq('studio_id', studioId);
-
-      if (error) throw error;
-      
-      // Get unique projects
-      const uniqueProjects = data?.reduce((acc: any[], item) => {
-        if (!acc.find(p => p.projects.id === item.projects.id)) {
-          acc.push(item);
-        }
-        return acc;
-      }, []) || [];
-      
-      setProjects(uniqueProjects);
-    } catch (error) {
-      console.error('Error fetching projects by category:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active': return 'bg-green-100 text-green-700';
-      case 'completed': return 'bg-blue-100 text-blue-700';
-      case 'on_hold': return 'bg-yellow-100 text-yellow-700';
-      case 'cancelled': return 'bg-red-100 text-red-700';
-      default: return 'bg-gray-100 text-gray-700';
-    }
-  };
-
   if (loading) {
-    return <div className="p-6">Loading category details...</div>;
+    return <div className="p-6">Loading materials...</div>;
   }
+
+  const decodedCategory = decodeURIComponent(category || '');
 
   return (
     <div className="p-6 space-y-6">
@@ -95,94 +65,102 @@ const MaterialsByCategory = () => {
             Back to Materials
           </Button>
         </Link>
-        <h1 className="text-3xl font-bold text-gray-900">Category: {category}</h1>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div>
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Tag className="h-5 w-5" />
-                Category Stats
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <div className="text-2xl font-bold">{materials.length}</div>
-                <p className="text-sm text-gray-500">Materials in this category</p>
-              </div>
-              <div>
-                <div className="text-2xl font-bold">{projects.length}</div>
-                <p className="text-sm text-gray-500">Projects using this category</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <h1 className="text-3xl font-bold text-gray-900">Category: {decodedCategory}</h1>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Materials in {category}</CardTitle>
-          <CardDescription>All materials in this category</CardDescription>
+          <CardTitle>Materials in {decodedCategory}</CardTitle>
+          <CardDescription>
+            All materials categorized as {decodedCategory}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {materials.map((material) => (
-              <div key={material.id} className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="flex items-center gap-4">
-                  <div className="p-2 bg-coral-100 rounded-lg">
-                    <Package className="h-6 w-6 text-coral-600" />
-                  </div>
-                  <div className="flex-1">
-                    <Link to={`/materials/${material.id}`} className="hover:text-coral">
-                      <h3 className="font-semibold text-lg">{material.name}</h3>
-                    </Link>
-                    <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
-                      <span>Manufacturer: {material.manufacturers?.name || 'None'}</span>
-                      <span>Used in {material.proj_materials?.length || 0} project(s)</span>
+            {materials.map((material) => {
+              const projects = material.proj_materials || [];
+              const uniqueClients = [...new Set(projects.map(p => p.projects?.clients?.name).filter(Boolean))];
+              
+              return (
+                <div key={material.id} className="p-4 border rounded-lg hover:bg-gray-50">
+                  <div className="flex items-center gap-4">
+                    <div className="p-2 bg-coral-100 rounded-lg">
+                      <Package className="h-6 w-6 text-coral-600" />
                     </div>
-                    {material.notes && (
-                      <p className="text-sm text-gray-600 mt-1">{material.notes}</p>
-                    )}
+                    <div className="flex-1">
+                      <Link to={`/materials/${material.id}`} className="hover:text-coral">
+                        <h3 className="font-semibold text-lg hover:underline">{material.name}</h3>
+                      </Link>
+                      <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
+                        {material.subcategory && (
+                          <span>Subcategory: {material.subcategory}</span>
+                        )}
+                        {material.manufacturers?.name && (
+                          <>
+                            {material.subcategory && <span>•</span>}
+                            <Link 
+                              to={`/manufacturers/${material.manufacturer_id}`}
+                              className="hover:text-coral hover:underline"
+                            >
+                              Manufacturer: {material.manufacturers.name}
+                            </Link>
+                          </>
+                        )}
+                        <span>• Used in {projects.length} project{projects.length !== 1 ? 's' : ''}</span>
+                      </div>
+                      
+                      {/* Projects and Clients */}
+                      {projects.length > 0 && (
+                        <div className="mt-2">
+                          <div className="flex flex-wrap gap-2">
+                            <div>
+                              <span className="text-sm text-gray-600 font-medium">Projects: </span>
+                              {projects.map((projMaterial, index) => (
+                                <span key={projMaterial.project_id} className="text-sm">
+                                  <Link 
+                                    to={`/projects/${projMaterial.projects.id}`}
+                                    className="text-blue-600 hover:text-blue-800 hover:underline"
+                                  >
+                                    {projMaterial.projects.name}
+                                  </Link>
+                                  {index < projects.length - 1 && <span className="text-gray-400">, </span>}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                          {uniqueClients.length > 0 && (
+                            <div className="mt-1">
+                              <span className="text-sm text-gray-600 font-medium">Clients: </span>
+                              {uniqueClients.map((clientName, index) => {
+                                const clientProject = projects.find(p => p.projects?.clients?.name === clientName);
+                                return (
+                                  <span key={clientName} className="text-sm">
+                                    <Link 
+                                      to={`/clients/${clientProject?.projects?.client_id}`}
+                                      className="text-green-600 hover:text-green-800 hover:underline"
+                                    >
+                                      {clientName}
+                                    </Link>
+                                    {index < uniqueClients.length - 1 && <span className="text-gray-400">, </span>}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      
+                      {material.notes && (
+                        <p className="text-sm text-gray-600 mt-2">{material.notes}</p>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
             {materials.length === 0 && (
               <div className="text-center py-8 text-gray-500">
-                No materials found in this category.
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Projects Using {category} Materials</CardTitle>
-          <CardDescription>All projects that use materials from this category</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {projects.map((projMaterial) => (
-              <div key={projMaterial.id} className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="flex-1">
-                  <Link to={`/projects/${projMaterial.projects.id}`} className="hover:text-coral">
-                    <h3 className="font-semibold text-lg">{projMaterial.projects.name}</h3>
-                  </Link>
-                  <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
-                    <span>Type: {projMaterial.projects.type}</span>
-                    <Badge className={getStatusColor(projMaterial.projects.status)}>
-                      {projMaterial.projects.status}
-                    </Badge>
-                  </div>
-                </div>
-              </div>
-            ))}
-            {projects.length === 0 && (
-              <div className="text-center py-8 text-gray-500">
-                No projects found using materials from this category.
+                No materials found in the {decodedCategory} category.
               </div>
             )}
           </div>

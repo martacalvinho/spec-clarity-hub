@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useMaterialLimits } from '@/hooks/useMaterialLimits';
@@ -23,6 +22,7 @@ import UserInitials from '@/components/UserInitials';
 import { useToast } from '@/hooks/use-toast';
 import DeleteMaterialForm from '@/components/forms/DeleteMaterialForm';
 import AddConsideredMaterialForm from '@/components/forms/AddConsideredMaterialForm';
+import PDFExport from '@/components/PDFExport';
 
 const Materials = () => {
   const { studioId } = useAuth();
