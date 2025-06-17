@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { TrendingUp } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -13,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 const UpgradePlanForm = () => {
   const [open, setOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState('professional');
+  const [includeOnboarding, setIncludeOnboarding] = useState(false);
   const [additionalNotes, setAdditionalNotes] = useState('');
   const [loading, setLoading] = useState(false);
   const { user, userProfile, studioId } = useAuth();
@@ -23,17 +25,26 @@ const UpgradePlanForm = () => {
     { id: 'enterprise', name: 'Enterprise', description: '1500 materials/month + premium features' }
   ];
 
+  const getOnboardingPrice = (planId: string) => {
+    switch (planId) {
+      case 'professional': return '$499';
+      case 'enterprise': return '$999';
+      default: return '$499';
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !studioId) return;
 
     setLoading(true);
     try {
+      const onboardingText = includeOnboarding ? ` + Optional onboarding (${getOnboardingPrice(selectedPlan)})` : '';
       const { error } = await supabase
         .from('alerts')
         .insert({
           studio_id: studioId,
-          message: `${userProfile?.studios?.name || 'Studio'} requests upgrade to ${selectedPlan} plan. Additional notes: ${additionalNotes || 'None'}`,
+          message: `${userProfile?.studios?.name || 'Studio'} requests upgrade to ${selectedPlan} plan${onboardingText}. Additional notes: ${additionalNotes || 'None'}`,
           severity: 'medium',
           status: 'active'
         });
@@ -46,6 +57,7 @@ const UpgradePlanForm = () => {
       });
 
       setSelectedPlan('professional');
+      setIncludeOnboarding(false);
       setAdditionalNotes('');
       setOpen(false);
     } catch (error) {
@@ -92,6 +104,18 @@ const UpgradePlanForm = () => {
               ))}
             </RadioGroup>
           </div>
+          
+          <div className="flex items-center space-x-2">
+            <Checkbox 
+              id="onboarding" 
+              checked={includeOnboarding}
+              onCheckedChange={setIncludeOnboarding}
+            />
+            <Label htmlFor="onboarding" className="text-sm">
+              Include optional onboarding service ({getOnboardingPrice(selectedPlan)} one-time)
+            </Label>
+          </div>
+          
           <div>
             <Label htmlFor="notes">Additional Notes (optional)</Label>
             <Textarea

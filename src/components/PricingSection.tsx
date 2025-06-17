@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -43,21 +44,21 @@ const PricingSection = () => {
       name: "Starter",
       description: "Includes setup of up to 100 materials",
       price: "$99",
-      period: "one-time onboarding",
+      period: "one-time optional onboarding",
       slug: "starter"
     },
     {
       name: "Studio",
       description: "Includes setup of up to 500 materials",
       price: "$499",
-      period: "one-time onboarding",
+      period: "one-time optional onboarding",
       slug: "studio"
     },
     {
       name: "Growth",
       description: "Includes setup of up to 1,500 materials",
       price: "$999",
-      period: "one-time onboarding",
+      period: "one-time optional onboarding",
       slug: "growth"
     }
   ];
@@ -78,7 +79,7 @@ const PricingSection = () => {
         <Tabs defaultValue="monthly" className="w-full max-w-6xl mx-auto">
           <TabsList className="grid w-full grid-cols-3 max-w-lg mx-auto mb-12">
             <TabsTrigger value="monthly">Monthly Pricing</TabsTrigger>
-            <TabsTrigger value="onboarding">Onboarding Fee</TabsTrigger>
+            <TabsTrigger value="onboarding">Optional Onboarding</TabsTrigger>
             <TabsTrigger value="calculator">Calculator</TabsTrigger>
           </TabsList>
           
