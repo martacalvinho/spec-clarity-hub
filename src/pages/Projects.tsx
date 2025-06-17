@@ -2,23 +2,31 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
-import { Search } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import AddProjectForm from '@/components/forms/AddProjectForm';
 import EditProjectForm from '@/components/forms/EditProjectForm';
+import ProjectFilters from '@/components/ProjectFilters';
 
 const Projects = () => {
   const { studioId } = useAuth();
   const [projects, setProjects] = useState<any[]>([]);
+  const [clients, setClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [filters, setFilters] = useState({
+    search: '',
+    type: 'all',
+    client: 'all',
+    status: 'all',
+    year: 'all',
+    dateType: 'start'
+  });
 
   useEffect(() => {
     if (studioId) {
       fetchProjects();
+      fetchClients();
     }
   }, [studioId]);
 
@@ -40,10 +48,57 @@ const Projects = () => {
     }
   };
 
-  const filteredProjects = projects.filter(project =>
-    project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    project.type.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const fetchClients = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('clients')
+        .select('id, name')
+        .eq('studio_id', studioId)
+        .order('name');
+
+      if (error) throw error;
+      setClients(data || []);
+    } catch (error) {
+      console.error('Error fetching clients:', error);
+    }
+  };
+
+  const getProjectYear = (project: any, dateType: string) => {
+    const dateField = dateType === 'start' ? project.start_date : project.end_date;
+    return dateField ? new Date(dateField).getFullYear().toString() : null;
+  };
+
+  const filteredProjects = projects.filter(project => {
+    // Search filter
+    if (filters.search && !project.name.toLowerCase().includes(filters.search.toLowerCase())) {
+      return false;
+    }
+
+    // Type filter
+    if (filters.type !== 'all' && project.type !== filters.type) {
+      return false;
+    }
+
+    // Client filter
+    if (filters.client !== 'all' && project.client_id !== filters.client) {
+      return false;
+    }
+
+    // Status filter
+    if (filters.status !== 'all' && project.status !== filters.status) {
+      return false;
+    }
+
+    // Year filter
+    if (filters.year !== 'all') {
+      const projectYear = getProjectYear(project, filters.dateType);
+      if (projectYear !== filters.year) {
+        return false;
+      }
+    }
+
+    return true;
+  });
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -73,16 +128,11 @@ const Projects = () => {
               <CardTitle>All Projects</CardTitle>
               <CardDescription>Manage your design projects</CardDescription>
             </div>
-            <div className="relative w-64">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="Search projects..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
           </div>
+          <ProjectFilters 
+            onFiltersChange={setFilters}
+            clients={clients}
+          />
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
@@ -112,7 +162,10 @@ const Projects = () => {
             ))}
             {filteredProjects.length === 0 && (
               <div className="text-center py-8 text-gray-500">
-                {searchTerm ? 'No projects found matching your search.' : 'No projects yet. Create your first project!'}
+                {filters.search || filters.type !== 'all' || filters.client !== 'all' || filters.status !== 'all' || filters.year !== 'all' 
+                  ? 'No projects found matching your filters.' 
+                  : 'No projects yet. Create your first project!'
+                }
               </div>
             )}
           </div>
