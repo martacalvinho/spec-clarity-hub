@@ -9,12 +9,18 @@ import { Search } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import AddProjectForm from '@/components/forms/AddProjectForm';
 import EditProjectForm from '@/components/forms/EditProjectForm';
+import ProjectFilters from '@/components/ProjectFilters';
 
 const Projects = () => {
   const { studioId } = useAuth();
   const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [filters, setFilters] = useState({
+    projectType: '',
+    startDateFrom: '',
+    startDateTo: '',
+  });
 
   useEffect(() => {
     if (studioId) {
@@ -40,10 +46,24 @@ const Projects = () => {
     }
   };
 
-  const filteredProjects = projects.filter(project =>
-    project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    project.type.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredProjects = projects.filter(project => {
+    // Search filter
+    const matchesSearch = project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      project.type.toLowerCase().includes(searchTerm.toLowerCase());
+
+    // Type filter
+    const matchesType = !filters.projectType || 
+      filters.projectType === 'all' || 
+      project.type === filters.projectType;
+
+    // Date filters
+    const matchesStartDate = (!filters.startDateFrom || !project.start_date || 
+      new Date(project.start_date) >= new Date(filters.startDateFrom)) &&
+      (!filters.startDateTo || !project.start_date || 
+      new Date(project.start_date) <= new Date(filters.startDateTo));
+
+    return matchesSearch && matchesType && matchesStartDate;
+  });
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -84,7 +104,9 @@ const Projects = () => {
             </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          <ProjectFilters onFiltersChange={setFilters} />
+          
           <div className="space-y-4">
             {filteredProjects.map((project) => (
               <div key={project.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
@@ -112,7 +134,9 @@ const Projects = () => {
             ))}
             {filteredProjects.length === 0 && (
               <div className="text-center py-8 text-gray-500">
-                {searchTerm ? 'No projects found matching your search.' : 'No projects yet. Create your first project!'}
+                {searchTerm || filters.projectType || filters.startDateFrom || filters.startDateTo 
+                  ? 'No projects found matching your filters.' 
+                  : 'No projects yet. Create your first project!'}
               </div>
             )}
           </div>
