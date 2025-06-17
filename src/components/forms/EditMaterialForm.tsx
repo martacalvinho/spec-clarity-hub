@@ -50,9 +50,9 @@ const EditMaterialForm = ({ material, onMaterialUpdated, editMode = 'full' }: Ed
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: material.name,
+      name: material.name || '',
       model: material.model || '',
-      category: material.category,
+      category: material.category || '',
       subcategory: material.subcategory || '',
       manufacturer_id: material.manufacturer_id || '',
       project_id: '',
@@ -69,10 +69,11 @@ const EditMaterialForm = ({ material, onMaterialUpdated, editMode = 'full' }: Ed
   });
 
   useEffect(() => {
+    // Reset form when material changes
     form.reset({
-      name: material.name,
+      name: material.name || '',
       model: material.model || '',
-      category: material.category,
+      category: material.category || '',
       subcategory: material.subcategory || '',
       manufacturer_id: material.manufacturer_id || '',
       project_id: currentProjectLink || '',
@@ -410,7 +411,9 @@ const EditMaterialForm = ({ material, onMaterialUpdated, editMode = 'full' }: Ed
                       </FormItem>
                     )}
                   />
+                </div>
                   
+                <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="category"
@@ -438,7 +441,9 @@ const EditMaterialForm = ({ material, onMaterialUpdated, editMode = 'full' }: Ed
                       </FormItem>
                     )}
                   />
+                </div>
 
+                <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="reference_sku"
@@ -466,31 +471,31 @@ const EditMaterialForm = ({ material, onMaterialUpdated, editMode = 'full' }: Ed
                       </FormItem>
                     )}
                   />
-
-                  <FormField
-                    control={form.control}
-                    name="cost_band"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Cost Band</FormLabel>
-                        <Select onValueChange={(value) => field.onChange(value === "none" ? "" : value)} value={field.value || "none"}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select cost band" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="none">Not specified</SelectItem>
-                            <SelectItem value="Low">Low</SelectItem>
-                            <SelectItem value="Mid">Mid</SelectItem>
-                            <SelectItem value="High">High</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
                 </div>
+
+                <FormField
+                  control={form.control}
+                  name="cost_band"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Cost Band</FormLabel>
+                      <Select onValueChange={(value) => field.onChange(value === "none" ? "" : value)} value={field.value || "none"}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select cost band" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="none">Not specified</SelectItem>
+                          <SelectItem value="Low">Low</SelectItem>
+                          <SelectItem value="Mid">Mid</SelectItem>
+                          <SelectItem value="High">High</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
                 <FormField
                   control={form.control}
