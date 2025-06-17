@@ -83,7 +83,7 @@ const MaterialPhotoUpload = ({ materialId, currentPhotoUrl, onPhotoUpdated }: Ma
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <div className="relative">
+          <div className="relative p-2 h-8 w-8 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors">
             <Input
               type="file"
               accept="image/*"
@@ -95,7 +95,7 @@ const MaterialPhotoUpload = ({ materialId, currentPhotoUrl, onPhotoUpdated }: Ma
               variant="ghost"
               size="sm"
               disabled={uploading}
-              className="pointer-events-none p-2 h-8 w-8 hover:bg-accent hover:text-accent-foreground"
+              className="pointer-events-none p-0 h-4 w-4"
             >
               <Camera className="h-4 w-4" />
             </Button>
