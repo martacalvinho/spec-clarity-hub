@@ -1,10 +1,9 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
-import { DollarSign, Calculator, Package, Settings, X } from 'lucide-react';
+import { DollarSign, Calculator, Package, Settings, X, Square, Hash } from 'lucide-react';
 
 interface PricingAnalyticsProps {
   type: 'manufacturer' | 'client' | 'project';
@@ -18,6 +17,8 @@ interface PricingData {
   totalMaterials: number;
   totalSpend: number;
   pricePerSqft: number;
+  totalSquareFeet?: number; // Added for manufacturer
+  totalUnits?: number; // Added for manufacturer
   categoryBreakdown: Array<{
     category: string;
     averagePrice: number;
@@ -88,6 +89,8 @@ const PricingAnalytics = ({ type, entityId, entityName, onClose }: PricingAnalyt
         totalMaterials: 0,
         totalSpend: 0,
         pricePerSqft: 0,
+        totalSquareFeet: 0,
+        totalUnits: 0,
         categoryBreakdown: [],
         hasPricingData: false
       };
@@ -96,6 +99,8 @@ const PricingAnalytics = ({ type, entityId, entityName, onClose }: PricingAnalyt
     const totalMaterials = materialsWithPricing.length;
     let totalMaterialValue = 0;
     let totalPriceSum = 0;
+    let totalSquareFeet = 0;
+    let totalUnits = 0;
     const categoryMap = new Map();
 
     materialsWithPricing.forEach(material => {
@@ -106,11 +111,23 @@ const PricingAnalytics = ({ type, entityId, entityName, onClose }: PricingAnalyt
       if (material.unit_type === 'sqft' && material.price_per_sqft && material.total_area) {
         materialValue = material.price_per_sqft * material.total_area;
         unitPrice = material.price_per_sqft;
+        totalSquareFeet += material.total_area;
       } else if (material.unit_type === 'unit' && material.price_per_unit && material.total_units) {
         materialValue = material.price_per_unit * material.total_units;
         unitPrice = material.price_per_unit;
+        totalUnits += material.total_units;
+      } else if (material.price_per_sqft && material.total_area) {
+        // Fallback for materials with sqft pricing
+        unitPrice = material.price_per_sqft;
+        materialValue = material.price_per_sqft * material.total_area;
+        totalSquareFeet += material.total_area;
+      } else if (material.price_per_unit && material.total_units) {
+        // Fallback for materials with unit pricing
+        unitPrice = material.price_per_unit;
+        materialValue = material.price_per_unit * material.total_units;
+        totalUnits += material.total_units;
       } else if (material.price_per_sqft) {
-        // Fallback to just the unit price if no quantity is specified
+        // Just the unit price if no quantity is specified
         unitPrice = material.price_per_sqft;
         materialValue = material.price_per_sqft;
       } else if (material.price_per_unit) {
@@ -147,6 +164,8 @@ const PricingAnalytics = ({ type, entityId, entityName, onClose }: PricingAnalyt
       totalMaterials,
       totalSpend: totalMaterialValue,
       pricePerSqft: 0, // Not applicable for manufacturer view
+      totalSquareFeet,
+      totalUnits,
       categoryBreakdown,
       hasPricingData: true
     };
@@ -385,6 +404,10 @@ const PricingAnalytics = ({ type, entityId, entityName, onClose }: PricingAnalyt
     }).format(amount);
   };
 
+  const formatNumber = (num: number) => {
+    return new Intl.NumberFormat('en-US').format(num);
+  };
+
   const getAveragePriceLabel = () => {
     if (type === 'manufacturer') {
       return 'Avg Price per Sq Ft';
@@ -479,6 +502,32 @@ const PricingAnalytics = ({ type, entityId, entityName, onClose }: PricingAnalyt
             </CardContent>
           </Card>
 
+          {/* Manufacturer-specific cards for total square feet and units */}
+          {type === 'manufacturer' && pricingData.totalSquareFeet !== undefined && pricingData.totalSquareFeet > 0 && (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Square Feet</CardTitle>
+                <Square className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatNumber(pricingData.totalSquareFeet)}</div>
+              </CardContent>
+            </Card>
+          )}
+
+          {type === 'manufacturer' && pricingData.totalUnits !== undefined && pricingData.totalUnits > 0 && (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Units</CardTitle>
+                <Hash className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatNumber(pricingData.totalUnits)}</div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Client/Project cost per sq ft card */}
           {(type === 'client' || type === 'project') && (
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
