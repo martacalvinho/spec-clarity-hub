@@ -1,11 +1,12 @@
-import { useState } from 'react';
+
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { FileText, Upload, Copy } from 'lucide-react';
+import { FileText, Upload, Copy, Plus } from 'lucide-react';
 
 interface JSONDataInputProps {
   studioId: string;
@@ -18,7 +19,6 @@ const TEMPLATE_MATERIALS = [
     model: "NATURAL",
     category: "Flooring",
     subcategory: "Hardwood",
-    manufacturer_name: "Premium Woods Co",
     tag: "Premium",
     location: "Living room",
     reference_sku: "WO-3-NAT",
@@ -30,7 +30,6 @@ const TEMPLATE_MATERIALS = [
     model: "CLASSIC",
     category: "Stone", 
     subcategory: "Marble",
-    manufacturer_name: "Stone Masters",
     tag: "Luxury",
     location: "Kitchen",
     reference_sku: "CAR-12-POL",
@@ -74,6 +73,28 @@ const JSONDataInput = ({ studioId, projectId }: JSONDataInputProps) => {
   const [jsonInput, setJsonInput] = useState('');
   const [importing, setImporting] = useState(false);
   const [dataType, setDataType] = useState<'materials' | 'manufacturers' | 'clients'>('materials');
+  const [selectedManufacturerId, setSelectedManufacturerId] = useState<string>('');
+  const [manufacturers, setManufacturers] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (studioId && dataType === 'materials') {
+      fetchManufacturers();
+    }
+  }, [studioId, dataType]);
+
+  const fetchManufacturers = async () => {
+    try {
+      const { data } = await supabase
+        .from('manufacturers')
+        .select('id, name')
+        .eq('studio_id', studioId)
+        .order('name');
+      
+      setManufacturers(data || []);
+    } catch (error) {
+      console.error('Error fetching manufacturers:', error);
+    }
+  };
 
   const getTemplate = () => {
     switch (dataType) {
@@ -141,36 +162,37 @@ const JSONDataInput = ({ studioId, projectId }: JSONDataInputProps) => {
       return;
     }
 
+    // For materials, require manufacturer selection
+    if (dataType === 'materials' && !selectedManufacturerId) {
+      toast({
+        title: "Error",
+        description: "Please select a manufacturer for these materials",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setImporting(true);
     try {
       const data = validateAndParseJSON(jsonInput);
       let importedCount = 0;
 
       if (dataType === 'materials') {
-        // Get all manufacturers for linking
-        const { data: allManufacturers } = await supabase
-          .from('manufacturers')
-          .select('id, name')
-          .eq('studio_id', studioId);
-
         const materialInserts = data
           .filter((m: any) => m.name && m.name.trim() && m.category && m.category.trim())
-          .map((m: any) => {
-            const manufacturer = allManufacturers?.find(sm => sm.name === m.manufacturer_name);
-            return {
-              name: m.name,
-              model: m.model || null,
-              category: m.category,
-              subcategory: m.subcategory || null,
-              manufacturer_id: manufacturer?.id || null,
-              tag: m.tag || null,
-              location: m.location || null,
-              reference_sku: m.reference_sku || null,
-              dimensions: m.dimensions || null,
-              notes: m.notes || null,
-              studio_id: studioId
-            };
-          });
+          .map((m: any) => ({
+            name: m.name,
+            model: m.model || null,
+            category: m.category,
+            subcategory: m.subcategory || null,
+            manufacturer_id: selectedManufacturerId, // Use selected manufacturer
+            tag: m.tag || null,
+            location: m.location || null,
+            reference_sku: m.reference_sku || null,
+            dimensions: m.dimensions || null,
+            notes: m.notes || null,
+            studio_id: studioId
+          }));
 
         let savedMaterials: any[] = [];
         if (materialInserts.length > 0) {
@@ -219,6 +241,9 @@ const JSONDataInput = ({ studioId, projectId }: JSONDataInputProps) => {
 
           if (manufacturerError) throw manufacturerError;
           importedCount = manufacturerData?.length || 0;
+          
+          // Refresh manufacturers list
+          fetchManufacturers();
         }
       } else if (dataType === 'clients') {
         const clientInserts = data
@@ -246,6 +271,7 @@ const JSONDataInput = ({ studioId, projectId }: JSONDataInputProps) => {
       });
 
       setJsonInput('');
+      setSelectedManufacturerId(''); // Reset manufacturer selection
 
     } catch (error: any) {
       console.error('Import error:', error);
@@ -265,7 +291,8 @@ const JSONDataInput = ({ studioId, projectId }: JSONDataInputProps) => {
         return (
           <div className="space-y-2 text-sm">
             <p><strong>Required fields:</strong> name and category</p>
-            <p><strong>Optional fields:</strong> model, subcategory, manufacturer_name, tag, location, reference_sku, dimensions, notes</p>
+            <p><strong>Optional fields:</strong> model, subcategory, tag, location, reference_sku, dimensions, notes</p>
+            <p className="text-orange-600 font-medium">Note: Manufacturer will be set to the selected manufacturer above. No need to include manufacturer_name in JSON.</p>
             <p className="mt-4"><strong>Available categories:</strong></p>
             <p className="text-gray-600">Flooring, Surface, Tile, Stone, Wood, Metal, Glass, Fabric, Lighting, Hardware, Other</p>
             <p className="mt-4"><strong>Common tags:</strong></p>
@@ -315,6 +342,7 @@ const JSONDataInput = ({ studioId, projectId }: JSONDataInputProps) => {
           <Select value={dataType} onValueChange={(value: 'materials' | 'manufacturers' | 'clients') => {
             setDataType(value);
             setJsonInput(''); // Clear input when switching types
+            setSelectedManufacturerId(''); // Reset manufacturer selection
           }}>
             <SelectTrigger className="w-full max-w-md">
               <SelectValue />
@@ -327,6 +355,39 @@ const JSONDataInput = ({ studioId, projectId }: JSONDataInputProps) => {
           </Select>
         </CardContent>
       </Card>
+
+      {/* Manufacturer Selection for Materials */}
+      {dataType === 'materials' && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Select Manufacturer</CardTitle>
+            <CardDescription>
+              Choose which manufacturer these materials belong to
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <Select value={selectedManufacturerId} onValueChange={setSelectedManufacturerId}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select a manufacturer..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {manufacturers.map((manufacturer) => (
+                    <SelectItem key={manufacturer.id} value={manufacturer.id}>
+                      {manufacturer.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {manufacturers.length === 0 && (
+                <p className="text-sm text-gray-500">
+                  No manufacturers found. Add manufacturers first, or import manufacturers using the dropdown above.
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid md:grid-cols-2 gap-6">
         {/* Template */}
@@ -371,7 +432,7 @@ const JSONDataInput = ({ studioId, projectId }: JSONDataInputProps) => {
               />
               <Button 
                 onClick={importData} 
-                disabled={importing || !jsonInput.trim()}
+                disabled={importing || !jsonInput.trim() || (dataType === 'materials' && !selectedManufacturerId)}
                 className="w-full bg-coral hover:bg-coral-600"
               >
                 <Upload className="h-4 w-4 mr-2" />
