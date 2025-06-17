@@ -649,7 +649,7 @@ const Materials = () => {
                       {advancedMode && (
                         <MaterialPricingInput 
                           material={material} 
-                          onMaterialUpdated={fetchMaterials} 
+                          onPricingUpdated={fetchMaterials} 
                         />
                       )}
                     </div>
