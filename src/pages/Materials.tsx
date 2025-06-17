@@ -68,12 +68,13 @@ const Materials = () => {
   const fetchMaterials = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      
+      // First try with the created_by relationship
+      let query = supabase
         .from('materials')
         .select(`
           *,
           manufacturers(name),
-          users!materials_created_by_fkey(first_name, last_name),
           proj_materials(
             project_id, 
             projects(
@@ -84,16 +85,47 @@ const Materials = () => {
           )
         `)
         .eq('studio_id', studioId)
-        .order('name', { ascending: true }); // Default alphabetical sorting
+        .order('name', { ascending: true });
 
-      if (error) throw error;
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Error fetching materials:', error);
+        throw error;
+      }
       
       const materialsData = data || [];
-      setMaterials(materialsData);
+      
+      // Fetch user information separately for created_by field
+      const materialsWithUsers = await Promise.all(
+        materialsData.map(async (material) => {
+          if (material.created_by) {
+            try {
+              const { data: userData, error: userError } = await supabase
+                .from('users')
+                .select('first_name, last_name')
+                .eq('id', material.created_by)
+                .single();
+              
+              if (!userError && userData) {
+                return {
+                  ...material,
+                  users: userData
+                };
+              }
+            } catch (userError) {
+              console.log('Could not fetch user data for material:', material.id);
+            }
+          }
+          return material;
+        })
+      );
+      
+      setMaterials(materialsWithUsers);
       
       // Extract unique categories and subcategories
-      const uniqueCategories = [...new Set(materialsData.map(m => m.category).filter(Boolean))];
-      const uniqueSubcategories = [...new Set(materialsData.map(m => m.subcategory).filter(Boolean))];
+      const uniqueCategories = [...new Set(materialsWithUsers.map(m => m.category).filter(Boolean))];
+      const uniqueSubcategories = [...new Set(materialsWithUsers.map(m => m.subcategory).filter(Boolean))];
       
       setCategories(uniqueCategories);
       setSubcategories(uniqueSubcategories);
@@ -638,48 +670,54 @@ const Materials = () => {
                               )}
                             </div>
                             
-                            {/* Projects and Added by information */}
-                            {projects.length > 0 && (
+                            {/* Projects, Clients, and Added by information */}
+                            {(projects.length > 0 || material.users) && (
                               <div className="mt-2">
                                 <div className="flex flex-wrap gap-2">
-                                  <div>
-                                    <span className="text-sm text-gray-600 font-medium">Projects: </span>
-                                    {projects.map((projMaterial: any, index: number) => (
-                                      <span key={projMaterial.project_id} className="text-sm">
-                                        <Link 
-                                          to={`/projects/${projMaterial.projects.id}`}
-                                          className="text-blue-600 hover:text-blue-800 hover:underline"
-                                        >
-                                          {projMaterial.projects.name}
-                                        </Link>
-                                        {index < projects.length - 1 && <span className="text-gray-400">, </span>}
-                                      </span>
-                                    ))}
-                                    {/* Show unique clients */}
-                                    {(() => {
-                                      const uniqueClients = [...new Set(projects.map((p: any) => p.projects?.clients?.name).filter(Boolean))];
-                                      if (uniqueClients.length > 0) {
-                                        return (
-                                          <>
-                                            <span className="text-gray-600 font-medium"> Client: </span>
-                                            {uniqueClients.map((clientName: string, index: number) => (
-                                              <span key={clientName} className="text-sm">
-                                                <span className="text-green-600">{clientName}</span>
-                                                {index < uniqueClients.length - 1 && <span className="text-gray-400">, </span>}
-                                              </span>
-                                            ))}
-                                          </>
-                                        );
-                                      }
-                                      return null;
-                                    })()}
+                                  <div className="text-sm text-gray-600">
+                                    {projects.length > 0 && (
+                                      <>
+                                        <span className="font-medium">Projects: </span>
+                                        {projects.map((projMaterial: any, index: number) => (
+                                          <span key={projMaterial.project_id}>
+                                            <Link 
+                                              to={`/projects/${projMaterial.projects.id}`}
+                                              className="text-blue-600 hover:text-blue-800 hover:underline"
+                                            >
+                                              {projMaterial.projects.name}
+                                            </Link>
+                                            {index < projects.length - 1 && <span className="text-gray-400">, </span>}
+                                          </span>
+                                        ))}
+                                        
+                                        {/* Show unique clients */}
+                                        {(() => {
+                                          const uniqueClients = [...new Set(projects.map((p: any) => p.projects?.clients?.name).filter(Boolean))];
+                                          if (uniqueClients.length > 0) {
+                                            return (
+                                              <>
+                                                <span className="font-medium"> Client: </span>
+                                                {uniqueClients.map((clientName: string, index: number) => (
+                                                  <span key={clientName}>
+                                                    <span className="text-green-600">{clientName}</span>
+                                                    {index < uniqueClients.length - 1 && <span className="text-gray-400">, </span>}
+                                                  </span>
+                                                ))}
+                                              </>
+                                            );
+                                          }
+                                          return null;
+                                        })()}
+                                        
+                                        {material.users && <span> </span>}
+                                      </>
+                                    )}
+                                    
                                     {/* Added by information */}
                                     {material.users && (
                                       <>
-                                        <span className="text-gray-600 font-medium"> Added by: </span>
-                                        <span className="text-sm text-gray-600">
-                                          {material.users.first_name} {material.users.last_name}
-                                        </span>
+                                        <span className="font-medium">Added by: </span>
+                                        <span>{material.users.first_name} {material.users.last_name}</span>
                                       </>
                                     )}
                                   </div>
