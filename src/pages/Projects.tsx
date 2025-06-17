@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -52,14 +53,14 @@ const Projects = () => {
     const matchesSearch = project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       project.type.toLowerCase().includes(searchTerm.toLowerCase());
 
-    // Type filter - only apply if a specific type is selected (not empty)
-    const matchesType = !filters.projectType || project.type === filters.projectType;
+    // Type filter - only apply if a specific type is selected and it's not empty or "all"
+    const matchesType = !filters.projectType || filters.projectType === '' || project.type === filters.projectType;
 
-    // Client filter - only apply if a specific client is selected (not empty)
-    const matchesClient = !filters.clientId || project.client_id === filters.clientId;
+    // Client filter - only apply if a specific client is selected and it's not empty or "no-client"
+    const matchesClient = !filters.clientId || filters.clientId === '' || filters.clientId === 'no-client' || project.client_id === filters.clientId;
 
-    // Status filter - only apply if a specific status is selected (not empty)
-    const matchesStatus = !filters.status || project.status === filters.status;
+    // Status filter - only apply if a specific status is selected and it's not empty or "all"
+    const matchesStatus = !filters.status || filters.status === '' || project.status === filters.status;
 
     // Date filter - only apply if a date is selected (not empty)
     let matchesDate = true;
@@ -77,6 +78,18 @@ const Projects = () => {
                      (endDate && endDate.toDateString() === filterDate.toDateString());
       }
     }
+
+    console.log('Project:', project.name, {
+      matchesSearch,
+      matchesType,
+      matchesClient,
+      matchesStatus,
+      matchesDate,
+      filters,
+      projectType: project.type,
+      projectClientId: project.client_id,
+      projectStatus: project.status
+    });
 
     return matchesSearch && matchesType && matchesClient && matchesStatus && matchesDate;
   });
