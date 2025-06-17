@@ -16,6 +16,7 @@ const MaterialDetails = () => {
   const { studioId } = useAuth();
   const [material, setMaterial] = useState<any>(null);
   const [projects, setProjects] = useState<any[]>([]);
+  const [relatedMaterials, setRelatedMaterials] = useState<any[]>([]);
   const [createdByUser, setCreatedByUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -50,8 +51,56 @@ const MaterialDetails = () => {
           setCreatedByUser(userData);
         }
       }
+
+      // Fetch related materials after we have the current material data
+      if (data) {
+        await fetchRelatedMaterials(data);
+      }
     } catch (error) {
       console.error('Error fetching material:', error);
+    }
+  };
+
+  const fetchRelatedMaterials = async (currentMaterial: any) => {
+    try {
+      // Get similar materials based on category and manufacturer
+      const { data: similarMaterials, error } = await supabase
+        .from('materials')
+        .select('id, name, category, photo_url, thumbnail_url, manufacturers(name)')
+        .eq('studio_id', studioId)
+        .neq('id', id)
+        .or(`category.eq.${currentMaterial.category},manufacturer_id.eq.${currentMaterial.manufacturer_id}`)
+        .limit(3);
+
+      if (error) throw error;
+
+      // Also get similar materials from considered materials
+      const { data: consideredMaterials, error: consideredError } = await supabase
+        .from('considered_materials')
+        .select('id, material_name, category, photo_url, manufacturer_id, manufacturers(name)')
+        .eq('studio_id', studioId)
+        .eq('category', currentMaterial.category)
+        .limit(2);
+
+      if (consideredError) throw consideredError;
+
+      // Combine and deduplicate
+      const combined = [
+        ...(similarMaterials || []),
+        ...(consideredMaterials || []).map(item => ({
+          id: item.id,
+          name: item.material_name,
+          category: item.category,
+          photo_url: item.photo_url,
+          thumbnail_url: null,
+          manufacturers: item.manufacturers,
+          isConsidered: true
+        }))
+      ].slice(0, 3);
+
+      setRelatedMaterials(combined);
+    } catch (error) {
+      console.error('Error fetching related materials:', error);
     }
   };
 
@@ -240,6 +289,53 @@ const MaterialDetails = () => {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Related Materials Section */}
+            {relatedMaterials.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Package className="h-5 w-5" />
+                    Related Materials
+                  </CardTitle>
+                  <CardDescription>Similar materials in your library</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {relatedMaterials.map((relatedMaterial) => (
+                      <div key={relatedMaterial.id} className="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50 transition-colors">
+                        <div className="flex-shrink-0">
+                          {relatedMaterial.photo_url || relatedMaterial.thumbnail_url ? (
+                            <img 
+                              src={relatedMaterial.thumbnail_url || relatedMaterial.photo_url} 
+                              alt={relatedMaterial.name}
+                              className="h-10 w-10 object-cover rounded border"
+                            />
+                          ) : (
+                            <div className="h-10 w-10 bg-coral-100 rounded flex items-center justify-center">
+                              <Package className="h-5 w-5 text-coral-600" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          {relatedMaterial.isConsidered ? (
+                            <div>
+                              <p className="font-medium text-sm truncate">{relatedMaterial.name}</p>
+                              <p className="text-xs text-gray-500">From Outtakes</p>
+                            </div>
+                          ) : (
+                            <Link to={`/materials/${relatedMaterial.id}`} className="hover:text-coral">
+                              <p className="font-medium text-sm truncate hover:underline">{relatedMaterial.name}</p>
+                              <p className="text-xs text-gray-500">{relatedMaterial.manufacturers?.name || 'No manufacturer'}</p>
+                            </Link>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           <div className="space-y-6">
@@ -386,11 +482,13 @@ const MaterialDetails = () => {
                       {projMaterial.quantity && (
                         <span>Qty: {projMaterial.quantity} {projMaterial.unit || ''}</span>
                       )}
+                    </div>
+                    <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
                       {projMaterial.location && (
                         <span>Location: {projMaterial.location}</span>
                       )}
                       {projMaterial.tag && (
-                        <span>Tag: {projMaterial.tag}</span>
+                        <span>• Tag: {projMaterial.tag}</span>
                       )}
                     </div>
                     {projMaterial.notes && (
