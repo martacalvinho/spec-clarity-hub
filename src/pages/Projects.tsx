@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -53,16 +52,16 @@ const Projects = () => {
     const matchesSearch = project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       project.type.toLowerCase().includes(searchTerm.toLowerCase());
 
-    // Type filter
+    // Type filter - only apply if a specific type is selected (not empty)
     const matchesType = !filters.projectType || project.type === filters.projectType;
 
-    // Client filter
+    // Client filter - only apply if a specific client is selected (not empty)
     const matchesClient = !filters.clientId || project.client_id === filters.clientId;
 
-    // Status filter
+    // Status filter - only apply if a specific status is selected (not empty)
     const matchesStatus = !filters.status || project.status === filters.status;
 
-    // Date filter
+    // Date filter - only apply if a date is selected (not empty)
     let matchesDate = true;
     if (filters.filterDate) {
       const filterDate = new Date(filters.filterDate);
