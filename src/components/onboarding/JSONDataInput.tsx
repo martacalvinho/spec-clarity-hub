@@ -95,6 +95,21 @@ const JSONDataInput = ({ studioId, projectId }: JSONDataInputProps) => {
     }
   };
 
+  const checkForExistingMaterials = async (materialNames: string[]) => {
+    try {
+      const { data: existingMaterials } = await supabase
+        .from('materials')
+        .select('name')
+        .eq('studio_id', studioId)
+        .in('name', materialNames);
+
+      return existingMaterials?.map(m => m.name) || [];
+    } catch (error) {
+      console.error('Error checking existing materials:', error);
+      return [];
+    }
+  };
+
   const getTemplate = () => {
     switch (dataType) {
       case 'materials':
@@ -177,6 +192,20 @@ const JSONDataInput = ({ studioId, projectId }: JSONDataInputProps) => {
       let importedCount = 0;
 
       if (dataType === 'materials') {
+        // Check for existing materials before attempting import
+        const materialNames = data.map((m: any) => m.name).filter(Boolean);
+        const existingNames = await checkForExistingMaterials(materialNames);
+        
+        if (existingNames.length > 0) {
+          toast({
+            title: "Import failed",
+            description: `The following materials already exist in your studio: ${existingNames.join(', ')}. Please use different names or update the existing materials instead.`,
+            variant: "destructive",
+          });
+          setImporting(false);
+          return;
+        }
+
         const materialInserts = data
           .filter((m: any) => m.name && m.name.trim() && m.category && m.category.trim())
           .map((m: any) => ({
@@ -184,7 +213,7 @@ const JSONDataInput = ({ studioId, projectId }: JSONDataInputProps) => {
             model: m.model || null,
             category: m.category,
             subcategory: m.subcategory || null,
-            manufacturer_id: selectedManufacturerId === 'none' ? null : selectedManufacturerId, // Use null if NONE is selected
+            manufacturer_id: selectedManufacturerId === 'none' ? null : selectedManufacturerId,
             tag: m.tag || null,
             location: m.location || null,
             reference_sku: m.reference_sku || null,
@@ -195,28 +224,80 @@ const JSONDataInput = ({ studioId, projectId }: JSONDataInputProps) => {
 
         let savedMaterials: any[] = [];
         if (materialInserts.length > 0) {
-          const { data: materialData, error: materialError } = await supabase
-            .from('materials')
-            .insert(materialInserts)
-            .select();
+          try {
+            const { data: materialData, error: materialError } = await supabase
+              .from('materials')
+              .insert(materialInserts)
+              .select();
 
-          if (materialError) throw materialError;
-          savedMaterials = materialData || [];
-          importedCount = savedMaterials.length;
+            if (materialError) {
+              // Enhanced error handling for duplicate key violations
+              if (materialError.code === '23505' && materialError.message.includes('materials_studio_id_name_key')) {
+                // Try to identify which specific material caused the issue
+                const failedMaterial = materialInserts.find(m => 
+                  materialError.message.includes(m.name) || 
+                  // If the error doesn't contain the name, we'll try inserting one by one to find the culprit
+                  true
+                );
+                
+                toast({
+                  title: "Import failed - Duplicate material name",
+                  description: `A material with this name already exists in your studio. Please check your existing materials or use a different name.`,
+                  variant: "destructive",
+                });
+                setImporting(false);
+                return;
+              }
+              throw materialError;
+            }
 
-          // If a project is selected, link materials to the project
-          if (projectId && savedMaterials.length > 0) {
-            const projMaterialInserts = savedMaterials.map(material => ({
-              project_id: projectId,
-              material_id: material.id,
-              studio_id: studioId
-            }));
+            savedMaterials = materialData || [];
+            importedCount = savedMaterials.length;
 
-            const { error: projMaterialError } = await supabase
-              .from('proj_materials')
-              .insert(projMaterialInserts);
+            // If a project is selected, link materials to the project
+            if (projectId && savedMaterials.length > 0) {
+              const projMaterialInserts = savedMaterials.map(material => ({
+                project_id: projectId,
+                material_id: material.id,
+                studio_id: studioId
+              }));
 
-            if (projMaterialError) throw projMaterialError;
+              const { error: projMaterialError } = await supabase
+                .from('proj_materials')
+                .insert(projMaterialInserts);
+
+              if (projMaterialError) throw projMaterialError;
+            }
+          } catch (insertError: any) {
+            console.error('Material insert error:', insertError);
+            
+            // Try to insert materials one by one to identify the problematic one
+            if (insertError.code === '23505') {
+              let problematicMaterial = null;
+              
+              for (const material of materialInserts) {
+                try {
+                  await supabase.from('materials').insert([material]);
+                } catch (singleError: any) {
+                  if (singleError.code === '23505') {
+                    problematicMaterial = material.name;
+                    break;
+                  }
+                }
+              }
+              
+              toast({
+                title: "Import failed - Duplicate material",
+                description: problematicMaterial 
+                  ? `Material "${problematicMaterial}" already exists in your studio. Please use a different name.`
+                  : "One or more materials already exist in your studio. Please check for duplicates.",
+                variant: "destructive",
+              });
+              setImporting(false);
+              return;
+            }
+            
+            throw insertError;
           }
         }
       } else if (dataType === 'manufacturers') {
@@ -274,9 +355,20 @@ const JSONDataInput = ({ studioId, projectId }: JSONDataInputProps) => {
 
     } catch (error: any) {
       console.error('Import error:', error);
+      
+      let errorMessage = "Failed to import data. Please check your JSON format.";
+      
+      if (error.code === '23505') {
+        if (error.message.includes('materials_studio_id_name_key')) {
+          errorMessage = "One or more materials already exist in your studio. Material names must be unique within your studio.";
+        } else {
+          errorMessage = `Duplicate entry detected: ${error.message}`;
+        }
+      }
+      
       toast({
         title: "Import failed",
-        description: error.message || "Failed to import data. Please check your JSON format.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
