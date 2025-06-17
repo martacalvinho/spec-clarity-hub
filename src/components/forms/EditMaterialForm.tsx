@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -174,7 +175,7 @@ const EditMaterialForm = ({ material, onMaterialUpdated, editMode = 'full' }: Ed
 
         if (materialError) throw materialError;
       } else {
-        // Update the material including all main fields
+        // Update the material including all main fields INCLUDING MODEL
         const { error: materialError } = await supabase
           .from('materials')
           .update({
