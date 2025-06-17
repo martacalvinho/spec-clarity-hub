@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, Edit, Package } from 'lucide-react';
+import { ArrowLeft, Edit, Package, ExternalLink, Download, Calendar, User } from 'lucide-react';
 import EditMaterialForm from '@/components/forms/EditMaterialForm';
 import ApplyToProjectForm from '@/components/forms/ApplyToProjectForm';
 
@@ -16,6 +16,7 @@ const MaterialDetails = () => {
   const { studioId } = useAuth();
   const [material, setMaterial] = useState<any>(null);
   const [projects, setProjects] = useState<any[]>([]);
+  const [createdByUser, setCreatedByUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -36,6 +37,19 @@ const MaterialDetails = () => {
 
       if (error) throw error;
       setMaterial(data);
+
+      // Fetch created by user info if available
+      if (data.created_by) {
+        const { data: userData } = await supabase
+          .from('users')
+          .select('first_name, last_name, email')
+          .eq('id', data.created_by)
+          .single();
+        
+        if (userData) {
+          setCreatedByUser(userData);
+        }
+      }
     } catch (error) {
       console.error('Error fetching material:', error);
     }
@@ -73,6 +87,15 @@ const MaterialDetails = () => {
     }
   };
 
+  const getCostBandColor = (band: string) => {
+    switch (band?.toLowerCase()) {
+      case 'low': return 'bg-green-100 text-green-700';
+      case 'mid': return 'bg-yellow-100 text-yellow-700';
+      case 'high': return 'bg-red-100 text-red-700';
+      default: return 'bg-gray-100 text-gray-700';
+    }
+  };
+
   if (loading || !material) {
     return <div className="p-6">Loading material details...</div>;
   }
@@ -87,16 +110,53 @@ const MaterialDetails = () => {
               Back to Materials
             </Button>
           </Link>
-          <h1 className="text-3xl font-bold text-gray-900">Material: {material.name}</h1>
+        </div>
+
+        {/* Visual Header */}
+        <div className="flex items-start gap-6 bg-white p-6 rounded-lg border">
+          <div className="flex-shrink-0">
+            {material.photo_url || material.thumbnail_url ? (
+              <img 
+                src={material.thumbnail_url || material.photo_url} 
+                alt={material.name}
+                className="h-24 w-24 object-cover rounded-lg border"
+              />
+            ) : (
+              <div className="h-24 w-24 bg-coral-100 rounded-lg flex items-center justify-center">
+                <Package className="h-8 w-8 text-coral-600" />
+              </div>
+            )}
+          </div>
+          <div className="flex-1">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">{material.name}</h1>
+            {material.reference_sku && (
+              <p className="text-lg text-gray-600 mb-2">SKU: {material.reference_sku}</p>
+            )}
+            <div className="flex flex-wrap gap-2">
+              <Badge variant="outline">{material.category}</Badge>
+              {material.subcategory && (
+                <Badge variant="outline">{material.subcategory}</Badge>
+              )}
+              {material.tag && (
+                <Badge variant="outline" className="bg-coral-50 text-coral-700">{material.tag}</Badge>
+              )}
+              {material.cost_band && (
+                <Badge className={getCostBandColor(material.cost_band)}>
+                  {material.cost_band} Cost
+                </Badge>
+              )}
+            </div>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 space-y-6">
+            {/* Core Details */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Package className="h-5 w-5" />
-                  Material Details
+                  Material Specifications
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -107,6 +167,12 @@ const MaterialDetails = () => {
                       <p className="text-lg hover:underline cursor-pointer">{material.category}</p>
                     </Link>
                   </div>
+                  {material.subcategory && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">Subcategory</label>
+                      <p className="text-lg">{material.subcategory}</p>
+                    </div>
+                  )}
                   <div>
                     <label className="text-sm font-medium text-gray-500">Manufacturer</label>
                     {material.manufacturer_id ? (
@@ -117,22 +183,98 @@ const MaterialDetails = () => {
                       <p className="text-lg">Not specified</p>
                     )}
                   </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">Created</label>
-                    <p className="text-lg">{new Date(material.created_at).toLocaleDateString()}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">Last Updated</label>
-                    <p className="text-lg">{new Date(material.updated_at).toLocaleDateString()}</p>
-                  </div>
+                  {material.dimensions && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">Dimensions</label>
+                      <p className="text-lg">{material.dimensions}</p>
+                    </div>
+                  )}
+                  {material.finish_color && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">Finish/Color</label>
+                      <p className="text-lg">{material.finish_color}</p>
+                    </div>
+                  )}
+                  {material.fire_rating && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">Fire Rating</label>
+                      <p className="text-lg">{material.fire_rating}</p>
+                    </div>
+                  )}
+                  {material.location && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">Location</label>
+                      <p className="text-lg">{material.location}</p>
+                    </div>
+                  )}
+                  {material.certifications && (
+                    <div className="col-span-2">
+                      <label className="text-sm font-medium text-gray-500">Certifications</label>
+                      <p className="text-lg">{material.certifications}</p>
+                    </div>
+                  )}
                 </div>
+
+                {/* Pricing Information */}
+                {(material.price_per_unit || material.price_per_sqft) && (
+                  <div className="border-t pt-4">
+                    <h4 className="text-lg font-semibold mb-3">Pricing Information</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      {material.price_per_unit && (
+                        <div>
+                          <label className="text-sm font-medium text-gray-500">Price per Unit</label>
+                          <p className="text-lg">${material.price_per_unit}</p>
+                        </div>
+                      )}
+                      {material.price_per_sqft && (
+                        <div>
+                          <label className="text-sm font-medium text-gray-500">Price per Sq Ft</label>
+                          <p className="text-lg">${material.price_per_sqft}</p>
+                        </div>
+                      )}
+                      {material.unit_type && (
+                        <div>
+                          <label className="text-sm font-medium text-gray-500">Unit Type</label>
+                          <p className="text-lg">{material.unit_type}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* External Links */}
+                {(material.product_url || material.product_sheet_url) && (
+                  <div className="border-t pt-4">
+                    <h4 className="text-lg font-semibold mb-3">Resources</h4>
+                    <div className="flex gap-3">
+                      {material.product_url && (
+                        <Button variant="outline" size="sm" asChild>
+                          <a href={material.product_url} target="_blank" rel="noopener noreferrer">
+                            <ExternalLink className="h-4 w-4 mr-2" />
+                            Product Page
+                          </a>
+                        </Button>
+                      )}
+                      {material.product_sheet_url && (
+                        <Button variant="outline" size="sm" asChild>
+                          <a href={material.product_sheet_url} target="_blank" rel="noopener noreferrer">
+                            <Download className="h-4 w-4 mr-2" />
+                            Product Sheet
+                          </a>
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {material.notes && (
-                  <div>
+                  <div className="border-t pt-4">
                     <label className="text-sm font-medium text-gray-500">Notes</label>
                     <p className="text-gray-700 mt-1">{material.notes}</p>
                   </div>
                 )}
-                <div className="flex gap-2">
+
+                <div className="flex gap-2 pt-4">
                   <EditMaterialForm material={material} onMaterialUpdated={handleMaterialUpdated} />
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -152,7 +294,8 @@ const MaterialDetails = () => {
             </Card>
           </div>
 
-          <div>
+          <div className="space-y-6">
+            {/* Usage Stats */}
             <Card>
               <CardHeader>
                 <CardTitle>Usage Stats</CardTitle>
@@ -164,9 +307,52 @@ const MaterialDetails = () => {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Activity Log */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  Activity
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="text-sm">
+                  <div className="flex items-center gap-2 text-gray-600">
+                    <Calendar className="h-3 w-3" />
+                    <span>Created on {new Date(material.created_at).toLocaleDateString()}</span>
+                  </div>
+                </div>
+                {createdByUser && (
+                  <div className="text-sm">
+                    <div className="flex items-center gap-2 text-gray-600">
+                      <User className="h-3 w-3" />
+                      <span>
+                        Added by {createdByUser.first_name} {createdByUser.last_name}
+                      </span>
+                    </div>
+                  </div>
+                )}
+                <div className="text-sm">
+                  <div className="flex items-center gap-2 text-gray-600">
+                    <Edit className="h-3 w-3" />
+                    <span>Last updated {new Date(material.updated_at).toLocaleDateString()}</span>
+                  </div>
+                </div>
+                {projects.length > 0 && (
+                  <div className="text-sm">
+                    <div className="flex items-center gap-2 text-gray-600">
+                      <Package className="h-3 w-3" />
+                      <span>Used in {projects.length} project{projects.length !== 1 ? 's' : ''}</span>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
         </div>
 
+        {/* Projects Using This Material */}
         <Card>
           <CardHeader>
             <CardTitle>Projects Using This Material</CardTitle>

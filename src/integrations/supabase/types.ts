@@ -597,9 +597,13 @@ export type Database = {
       materials: {
         Row: {
           category: string
+          certifications: string | null
+          cost_band: string | null
           created_at: string
           created_by: string | null
           dimensions: string | null
+          finish_color: string | null
+          fire_rating: string | null
           id: string
           last_price_update: string | null
           location: string | null
@@ -609,10 +613,13 @@ export type Database = {
           photo_url: string | null
           price_per_sqft: number | null
           price_per_unit: number | null
+          product_sheet_url: string | null
+          product_url: string | null
           reference_sku: string | null
           studio_id: string
           subcategory: string | null
           tag: string | null
+          thumbnail_url: string | null
           total_area: number | null
           total_units: number | null
           unit_type: string | null
@@ -620,9 +627,13 @@ export type Database = {
         }
         Insert: {
           category: string
+          certifications?: string | null
+          cost_band?: string | null
           created_at?: string
           created_by?: string | null
           dimensions?: string | null
+          finish_color?: string | null
+          fire_rating?: string | null
           id?: string
           last_price_update?: string | null
           location?: string | null
@@ -632,10 +643,13 @@ export type Database = {
           photo_url?: string | null
           price_per_sqft?: number | null
           price_per_unit?: number | null
+          product_sheet_url?: string | null
+          product_url?: string | null
           reference_sku?: string | null
           studio_id: string
           subcategory?: string | null
           tag?: string | null
+          thumbnail_url?: string | null
           total_area?: number | null
           total_units?: number | null
           unit_type?: string | null
@@ -643,9 +657,13 @@ export type Database = {
         }
         Update: {
           category?: string
+          certifications?: string | null
+          cost_band?: string | null
           created_at?: string
           created_by?: string | null
           dimensions?: string | null
+          finish_color?: string | null
+          fire_rating?: string | null
           id?: string
           last_price_update?: string | null
           location?: string | null
@@ -655,10 +673,13 @@ export type Database = {
           photo_url?: string | null
           price_per_sqft?: number | null
           price_per_unit?: number | null
+          product_sheet_url?: string | null
+          product_url?: string | null
           reference_sku?: string | null
           studio_id?: string
           subcategory?: string | null
           tag?: string | null
+          thumbnail_url?: string | null
           total_area?: number | null
           total_units?: number | null
           unit_type?: string | null
