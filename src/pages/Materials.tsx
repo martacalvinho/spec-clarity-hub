@@ -34,6 +34,7 @@ const Materials = () => {
   const [checkingDuplicates, setCheckingDuplicates] = useState(false);
   const [duplicates, setDuplicates] = useState<any[]>([]);
   const [showDuplicatesOnly, setShowDuplicatesOnly] = useState(false);
+  const [showPDFUpload, setShowPDFUpload] = useState(false);
   const [advancedMode, setAdvancedMode] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [projectFilter, setProjectFilter] = useState('');
@@ -347,6 +348,23 @@ const Materials = () => {
             </p>
           )}
           <Button
+            onClick={() => setShowPDFUpload(!showPDFUpload)}
+            variant="outline"
+            className="flex items-center gap-2"
+          >
+            <Upload className="h-4 w-4" />
+            Upload PDF
+          </Button>
+          <Button
+            onClick={checkForDuplicates}
+            disabled={checkingDuplicates || materials.length === 0}
+            variant="outline"
+            className="flex items-center gap-2"
+          >
+            <AlertTriangle className="h-4 w-4" />
+            {checkingDuplicates ? 'Checking...' : 'Check Duplicates'}
+          </Button>
+          <Button
             onClick={() => setAdvancedMode(!advancedMode)}
             variant={advancedMode ? "default" : "outline"}
             className="flex items-center gap-2"
@@ -360,17 +378,108 @@ const Materials = () => {
 
       <MaterialStatsCards />
 
+      {/* PDF Upload Section */}
+      {showPDFUpload && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Upload className="h-5 w-5" />
+                  Upload Material Schedule PDF
+                </CardTitle>
+                <CardDescription>
+                  Upload a PDF material schedule and let our AI automatically extract all materials, 
+                  manufacturers, and specifications. Review and approve before importing.
+                </CardDescription>
+              </div>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setShowPDFUpload(false)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="bg-blue-50 p-6 rounded-lg">
+              <Upload className="h-12 w-12 text-blue-600 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2 text-center">AI-Powered PDF Extraction</h3>
+              <p className="text-gray-600 mb-4 text-center">
+                Upload a PDF material schedule and let our AI automatically extract all materials, 
+                manufacturers, and specifications. Review and approve before importing.
+              </p>
+              <PDFMaterialExtractorForm />
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Duplicates Section */}
+      {(showDuplicatesOnly || duplicates.length > 0) && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5" />
+                  Duplicate Materials Found
+                </CardTitle>
+                <CardDescription>
+                  Materials with duplicate reference SKUs
+                </CardDescription>
+              </div>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={clearDuplicateFilter}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {filteredMaterials.filter(material => 
+                duplicates.some(dup => dup.id === material.id)
+              ).map((material) => {
+                const duplicateInfo = duplicates.find(dup => dup.id === material.id);
+                return (
+                  <div key={material.id} className="p-4 border border-red-200 bg-red-50 rounded-lg">
+                    <div className="flex items-center gap-4">
+                      <div className="p-2 bg-red-100 rounded-lg">
+                        {material.photo_url ? (
+                          <img 
+                            src={material.photo_url} 
+                            alt={material.name}
+                            className="h-12 w-12 object-cover rounded"
+                          />
+                        ) : (
+                          <Package className="h-6 w-6 text-red-600" />
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-lg">{material.name}</h3>
+                        <div className="text-sm text-gray-600">
+                          SKU: {material.reference_sku}
+                          <span className="ml-2 text-red-600 font-medium">
+                            (Found {duplicateInfo?.duplicateCount} materials with this SKU)
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Tabs defaultValue="materials" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="materials">All Materials</TabsTrigger>
-          <TabsTrigger value="upload" className="flex items-center gap-2">
-            <Upload className="h-4 w-4" />
-            Upload PDF
-          </TabsTrigger>
-          <TabsTrigger value="duplicates" className="flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4" />
-            Check for Duplicates
-          </TabsTrigger>
           <TabsTrigger value="not-used">Outtakes</TabsTrigger>
         </TabsList>
         
@@ -861,96 +970,6 @@ const Materials = () => {
                       ? 'No materials found matching your search or filters.' 
                       : 'No materials yet. Create your first material!'
                     }
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="upload">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Upload className="h-5 w-5" />
-                Upload Material Schedule PDF
-              </CardTitle>
-              <CardDescription>
-                Upload a PDF material schedule and let our AI automatically extract all materials, 
-                manufacturers, and specifications. Review and approve before importing.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center space-y-4">
-                <div className="bg-blue-50 p-6 rounded-lg">
-                  <Upload className="h-12 w-12 text-blue-600 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">AI-Powered PDF Extraction</h3>
-                  <p className="text-gray-600 mb-4">
-                    Upload a PDF material schedule and let our AI automatically extract all materials, 
-                    manufacturers, and specifications. Review and approve before importing.
-                  </p>
-                  <PDFMaterialExtractorForm />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="duplicates">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5" />
-                Duplicate Detection
-              </CardTitle>
-              <CardDescription>
-                Check for materials with duplicate reference SKUs
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <Button
-                  onClick={checkForDuplicates}
-                  disabled={checkingDuplicates || materials.length === 0}
-                  className="flex items-center gap-2"
-                >
-                  <AlertTriangle className="h-4 w-4" />
-                  {checkingDuplicates ? 'Checking...' : 'Check for Duplicates'}
-                </Button>
-                
-                {duplicates.length > 0 && (
-                  <div className="space-y-4">
-                    {filteredMaterials.filter(material => 
-                      duplicates.some(dup => dup.id === material.id)
-                    ).map((material) => {
-                      const duplicateInfo = duplicates.find(dup => dup.id === material.id);
-                      return (
-                        <div key={material.id} className="p-4 border border-red-200 bg-red-50 rounded-lg">
-                          <div className="flex items-center gap-4">
-                            <div className="p-2 bg-red-100 rounded-lg">
-                              {material.photo_url ? (
-                                <img 
-                                  src={material.photo_url} 
-                                  alt={material.name}
-                                  className="h-12 w-12 object-cover rounded"
-                                />
-                              ) : (
-                                <Package className="h-6 w-6 text-red-600" />
-                              )}
-                            </div>
-                            <div className="flex-1">
-                              <h3 className="font-semibold text-lg">{material.name}</h3>
-                              <div className="text-sm text-gray-600">
-                                SKU: {material.reference_sku}
-                                <span className="ml-2 text-red-600 font-medium">
-                                  (Found {duplicateInfo?.duplicateCount} materials with this SKU)
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
                   </div>
                 )}
               </div>
