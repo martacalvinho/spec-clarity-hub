@@ -6,7 +6,7 @@ const FAQSection = () => {
   const faqs = [
     {
       question: "How does Treqy work?",
-      answer: "Simply upload your specification PDFs, and Treqy automatically extracts and organizes all material information. You can then search, filter, and track usage across all your projects."
+      answer: "You can either upload your specification PDFs and the Treqy team will extract and organize all your material information for you - or manually add materials yourself. Then, easily search, filter, and track usage across all your projects."
     },
     {
       question: "What file formats does Treqy support?",
@@ -14,15 +14,15 @@ const FAQSection = () => {
     },
     {
       question: "How quickly can I get started?",
-      answer: "You can start using Treqy immediately after signing up. Simply upload your first specification PDF and begin searching your materials within minutes."
+      answer: "After signing up, you can send us your first spec PDF to onboard - or jump in and start building your own searchable material library. "
     },
     {
       question: "Is my data secure?",
       answer: "Yes, we take data security seriously. All your specifications and material data are encrypted and stored securely. We never share your information with third parties."
     },
     {
-      question: "Can I export my data?",
-      answer: "Yes, you can export your material database at any time in various formats including CSV and PDF for your records or to share with your team."
+      question: "How does the optional onboarding work?",
+      answer: ""You can send us as many past projects as you'd like, and we'll upload all the materials you've specified for them. The more historical data you provide, the more valuable Treqy becomes for your team."
     },
     {
       question: "Do you offer team collaboration features?",
