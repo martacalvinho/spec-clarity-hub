@@ -1,6 +1,5 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -74,9 +73,9 @@ serve(async (req) => {
     const base64 = btoa(String.fromCharCode.apply(null, Array.from(uint8Array)))
     console.log('File converted to base64, length:', base64.length)
 
-    console.log('Making request to OpenRouter...')
+    console.log('Making request to OpenRouter with Gemini 2.5 Flash...')
 
-    // Call Gemini 2.0 Flash Experimental through OpenRouter for material extraction
+    // Call Gemini 2.5 Flash through OpenRouter for material extraction
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -86,7 +85,7 @@ serve(async (req) => {
         'X-Title': 'Treqy Material Library',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.0-flash-exp:free',
+        model: 'google/gemini-2.5-flash',
         messages: [
           {
             role: 'user',
@@ -145,15 +144,18 @@ Return the data in this exact format:
     })
 
     console.log('OpenRouter response status:', response.status)
+    console.log('OpenRouter response headers:', Object.fromEntries(response.headers.entries()))
 
     if (!response.ok) {
       const errorText = await response.text()
       console.error('OpenRouter API error:', errorText)
+      console.error('Request was made with model: google/gemini-2.5-flash')
       return new Response(
         JSON.stringify({ 
           error: 'Failed to process PDF with AI', 
           details: errorText,
-          status: response.status 
+          status: response.status,
+          model: 'google/gemini-2.5-flash'
         }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
@@ -162,7 +164,8 @@ Return the data in this exact format:
     const aiResponse = await response.json()
     console.log('AI response received:', { 
       hasChoices: !!aiResponse.choices, 
-      choicesLength: aiResponse.choices?.length 
+      choicesLength: aiResponse.choices?.length,
+      model: aiResponse.model || 'unknown'
     })
     
     const extractedText = aiResponse.choices[0].message.content
