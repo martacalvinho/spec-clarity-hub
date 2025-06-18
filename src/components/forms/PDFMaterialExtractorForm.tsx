@@ -3,10 +3,8 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -63,21 +61,39 @@ const PDFMaterialExtractorForm = ({ onMaterialsAdded }: PDFMaterialExtractorForm
 
     setSubmitting(true);
     try {
-      // Store the submission in the database
-      const { error: submissionError } = await supabase
-        .from('pdf_submissions')
-        .insert({
-          studio_id: studioId,
-          project_id: projectId && projectId !== 'none' ? projectId : null,
-          client_id: clientId && clientId !== 'none' ? clientId : null,
-          status: 'pending',
-          notes: notes,
-          file_name: file.name,
-          file_size: file.size,
-        });
+      // Store the submission in the database using raw SQL since types aren't updated yet
+      const { error: submissionError } = await supabase.rpc('exec_sql', {
+        sql: `
+          INSERT INTO pdf_submissions (studio_id, project_id, client_id, status, notes, file_name, file_size)
+          VALUES ($1, $2, $3, 'pending', $4, $5, $6)
+        `,
+        params: [
+          studioId,
+          projectId && projectId !== 'none' ? projectId : null,
+          clientId && clientId !== 'none' ? clientId : null,
+          notes,
+          file.name,
+          file.size
+        ]
+      });
 
       if (submissionError) {
-        throw new Error(submissionError.message || 'Failed to submit PDF for processing');
+        // Fallback to direct insert since rpc might not exist
+        const { error: directError } = await supabase
+          .from('pdf_submissions' as any)
+          .insert({
+            studio_id: studioId,
+            project_id: projectId && projectId !== 'none' ? projectId : null,
+            client_id: clientId && clientId !== 'none' ? clientId : null,
+            status: 'pending',
+            notes: notes,
+            file_name: file.name,
+            file_size: file.size,
+          });
+
+        if (directError) {
+          throw new Error(directError.message || 'Failed to submit PDF for processing');
+        }
       }
 
       toast({
@@ -86,7 +102,8 @@ const PDFMaterialExtractorForm = ({ onMaterialsAdded }: PDFMaterialExtractorForm
       });
 
       setStep('submitted');
-    } catch (error) {
+      onMaterialsAdded?.();
+    } catch (error: any) {
       console.error('Error submitting PDF:', error);
       toast({
         title: "Submission failed",
