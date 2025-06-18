@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, Package, X, Filter, AlertTriangle, Settings, Camera, Upload } from 'lucide-react';
+import { Search, Package, X, Filter, AlertTriangle, Settings, Upload } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import AddMaterialForm from '@/components/forms/AddMaterialForm';
 import EditMaterialForm from '@/components/forms/EditMaterialForm';
@@ -964,21 +964,23 @@ const Materials = () => {
                     Upload Material Schedule PDF
                   </CardTitle>
                   <CardDescription>
-                    Upload a PDF material schedule for review by the Treqy team. Materials will be extracted and require your approval before being added to your library.
+                    Upload a PDF material schedule for processing by the Treqy team. Materials will be extracted and require your approval before being added to your library.
                   </CardDescription>
                 </div>
               </div>
             </CardHeader>
             <CardContent>
-              <div className="bg-blue-50 p-6 rounded-lg">
+              <div className="bg-blue-50 p-6 rounded-lg text-center">
                 <Upload className="h-12 w-12 text-blue-600 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-900 mb-2 text-center">PDF Material Schedule Extraction</h3>
-                <p className="text-gray-600 mb-4 text-center">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">PDF Material Schedule Extraction</h3>
+                <p className="text-gray-600 mb-4">
                   Upload a PDF material schedule and our team will extract all materials, 
                   manufacturers, and specifications. You'll be able to review and approve 
                   each material before it's added to your library.
                 </p>
-                <PDFMaterialExtractorForm onMaterialsAdded={fetchMaterials} />
+                <div className="max-w-md mx-auto">
+                  <PDFMaterialExtractorForm onMaterialsAdded={fetchMaterials} />
+                </div>
               </div>
             </CardContent>
           </Card>
