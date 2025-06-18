@@ -967,6 +967,30 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calculate_similarity: {
+        Args: { text1: string; text2: string }
+        Returns: number
+      }
+      find_similar_materials: {
+        Args: {
+          studio_id_param: string
+          material_name_param: string
+          category_param: string
+          manufacturer_id_param?: string
+          similarity_threshold?: number
+        }
+        Returns: {
+          id: string
+          name: string
+          category: string
+          subcategory: string
+          manufacturer_name: string
+          manufacturer_id: string
+          reference_sku: string
+          dimensions: string
+          similarity_score: number
+        }[]
+      }
       get_user_role: {
         Args: Record<PropertyKey, never>
         Returns: Database["public"]["Enums"]["user_role"]

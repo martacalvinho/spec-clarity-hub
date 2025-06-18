@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { FileText, Upload, Copy, Plus } from 'lucide-react';
+import DuplicateMaterialDetector from './DuplicateMaterialDetector';
 
 interface JSONDataInputProps {
   studioId: string;
@@ -74,6 +75,8 @@ const JSONDataInput = ({ studioId, projectId }: JSONDataInputProps) => {
   const [dataType, setDataType] = useState<'materials' | 'manufacturers' | 'clients'>('materials');
   const [selectedManufacturerId, setSelectedManufacturerId] = useState<string>('');
   const [manufacturers, setManufacturers] = useState<any[]>([]);
+  const [showDuplicateDetector, setShowDuplicateDetector] = useState(false);
+  const [materialsToCheck, setMaterialsToCheck] = useState<any[]>([]);
 
   useEffect(() => {
     if (studioId && dataType === 'materials') {
@@ -166,6 +169,89 @@ const JSONDataInput = ({ studioId, projectId }: JSONDataInputProps) => {
     }
   };
 
+  const handleDuplicateResolution = async (results: any[]) => {
+    setImporting(true);
+    let importedCount = 0;
+    let linkedCount = 0;
+
+    try {
+      for (const result of results) {
+        if (result.action === 'create') {
+          // Create new material
+          const materialInsert = {
+            name: result.materialToImport.name,
+            model: result.materialToImport.model || null,
+            category: result.materialToImport.category,
+            subcategory: result.materialToImport.subcategory || null,
+            manufacturer_id: selectedManufacturerId === 'none' ? null : selectedManufacturerId,
+            tag: result.materialToImport.tag || null,
+            location: result.materialToImport.location || null,
+            reference_sku: result.materialToImport.reference_sku || null,
+            dimensions: result.materialToImport.dimensions || null,
+            notes: result.materialToImport.notes || null,
+            studio_id: studioId
+          };
+
+          const { data: materialData, error: materialError } = await supabase
+            .from('materials')
+            .insert([materialInsert])
+            .select();
+
+          if (materialError) throw materialError;
+
+          if (projectId && materialData && materialData.length > 0) {
+            const { error: projMaterialError } = await supabase
+              .from('proj_materials')
+              .insert([{
+                project_id: projectId,
+                material_id: materialData[0].id,
+                studio_id: studioId
+              }]);
+
+            if (projMaterialError) throw projMaterialError;
+          }
+
+          importedCount++;
+        } else if (result.action === 'link' && result.selectedExistingId) {
+          // Link existing material to project
+          if (projectId) {
+            const { error: projMaterialError } = await supabase
+              .from('proj_materials')
+              .insert([{
+                project_id: projectId,
+                material_id: result.selectedExistingId,
+                studio_id: studioId
+              }]);
+
+            if (projMaterialError) throw projMaterialError;
+          }
+
+          linkedCount++;
+        }
+      }
+
+      toast({
+        title: "Import successful",
+        description: `Created ${importedCount} new materials and linked ${linkedCount} existing materials${projectId ? ' to project' : ''}`,
+      });
+
+      setJsonInput('');
+      setSelectedManufacturerId('');
+      setShowDuplicateDetector(false);
+      setMaterialsToCheck([]);
+
+    } catch (error: any) {
+      console.error('Import error:', error);
+      toast({
+        title: "Import failed",
+        description: error.message || "Failed to import materials",
+        variant: "destructive",
+      });
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const importData = async () => {
     if (!jsonInput.trim()) {
       toast({
@@ -176,7 +262,6 @@ const JSONDataInput = ({ studioId, projectId }: JSONDataInputProps) => {
       return;
     }
 
-    // For materials, require manufacturer selection
     if (dataType === 'materials' && !selectedManufacturerId) {
       toast({
         title: "Error",
@@ -186,121 +271,32 @@ const JSONDataInput = ({ studioId, projectId }: JSONDataInputProps) => {
       return;
     }
 
-    setImporting(true);
     try {
       const data = validateAndParseJSON(jsonInput);
-      let importedCount = 0;
 
       if (dataType === 'materials') {
-        // Check for existing materials before attempting import
-        const materialNames = data.map((m: any) => m.name).filter(Boolean);
-        const existingNames = await checkForExistingMaterials(materialNames);
+        // For materials, start duplicate detection process
+        const validMaterials = data.filter((m: any) => m.name && m.name.trim() && m.category && m.category.trim());
         
-        if (existingNames.length > 0) {
+        if (validMaterials.length === 0) {
           toast({
-            title: "Import failed",
-            description: `The following materials already exist in your studio: ${existingNames.join(', ')}. Please use different names or update the existing materials instead.`,
+            title: "Error",
+            description: "No valid materials found in the JSON data",
             variant: "destructive",
           });
-          setImporting(false);
           return;
         }
 
-        const materialInserts = data
-          .filter((m: any) => m.name && m.name.trim() && m.category && m.category.trim())
-          .map((m: any) => ({
-            name: m.name,
-            model: m.model || null,
-            category: m.category,
-            subcategory: m.subcategory || null,
-            manufacturer_id: selectedManufacturerId === 'none' ? null : selectedManufacturerId,
-            tag: m.tag || null,
-            location: m.location || null,
-            reference_sku: m.reference_sku || null,
-            dimensions: m.dimensions || null,
-            notes: m.notes || null,
-            studio_id: studioId
-          }));
+        setMaterialsToCheck(validMaterials);
+        setShowDuplicateDetector(true);
+        return;
+      }
 
-        let savedMaterials: any[] = [];
-        if (materialInserts.length > 0) {
-          try {
-            const { data: materialData, error: materialError } = await supabase
-              .from('materials')
-              .insert(materialInserts)
-              .select();
+      // For non-materials, proceed with original import logic
+      setImporting(true);
+      let importedCount = 0;
 
-            if (materialError) {
-              // Enhanced error handling for duplicate key violations
-              if (materialError.code === '23505' && materialError.message.includes('materials_studio_id_name_key')) {
-                // Try to identify which specific material caused the issue
-                const failedMaterial = materialInserts.find(m => 
-                  materialError.message.includes(m.name) || 
-                  // If the error doesn't contain the name, we'll try inserting one by one to find the culprit
-                  true
-                );
-                
-                toast({
-                  title: "Import failed - Duplicate material name",
-                  description: `A material with this name already exists in your studio. Please check your existing materials or use a different name.`,
-                  variant: "destructive",
-                });
-                setImporting(false);
-                return;
-              }
-              throw materialError;
-            }
-
-            savedMaterials = materialData || [];
-            importedCount = savedMaterials.length;
-
-            // If a project is selected, link materials to the project
-            if (projectId && savedMaterials.length > 0) {
-              const projMaterialInserts = savedMaterials.map(material => ({
-                project_id: projectId,
-                material_id: material.id,
-                studio_id: studioId
-              }));
-
-              const { error: projMaterialError } = await supabase
-                .from('proj_materials')
-                .insert(projMaterialInserts);
-
-              if (projMaterialError) throw projMaterialError;
-            }
-          } catch (insertError: any) {
-            console.error('Material insert error:', insertError);
-            
-            // Try to insert materials one by one to identify the problematic one
-            if (insertError.code === '23505') {
-              let problematicMaterial = null;
-              
-              for (const material of materialInserts) {
-                try {
-                  await supabase.from('materials').insert([material]);
-                } catch (singleError: any) {
-                  if (singleError.code === '23505') {
-                    problematicMaterial = material.name;
-                    break;
-                  }
-                }
-              }
-              
-              toast({
-                title: "Import failed - Duplicate material",
-                description: problematicMaterial 
-                  ? `Material "${problematicMaterial}" already exists in your studio. Please use a different name.`
-                  : "One or more materials already exist in your studio. Please check for duplicates.",
-                variant: "destructive",
-              });
-              setImporting(false);
-              return;
-            }
-            
-            throw insertError;
-          }
-        }
-      } else if (dataType === 'manufacturers') {
+      if (dataType === 'manufacturers') {
         const manufacturerInserts = data
           .filter((m: any) => m.name && m.name.trim())
           .map((m: any) => ({
@@ -322,7 +318,6 @@ const JSONDataInput = ({ studioId, projectId }: JSONDataInputProps) => {
           if (manufacturerError) throw manufacturerError;
           importedCount = manufacturerData?.length || 0;
           
-          // Refresh manufacturers list
           fetchManufacturers();
         }
       } else if (dataType === 'clients') {
@@ -347,28 +342,16 @@ const JSONDataInput = ({ studioId, projectId }: JSONDataInputProps) => {
 
       toast({
         title: "Import successful",
-        description: `Imported ${importedCount} ${dataType}${projectId && dataType === 'materials' ? ' and linked to project' : ''}`,
+        description: `Imported ${importedCount} ${dataType}`,
       });
 
       setJsonInput('');
-      setSelectedManufacturerId(''); // Reset manufacturer selection
 
     } catch (error: any) {
       console.error('Import error:', error);
-      
-      let errorMessage = "Failed to import data. Please check your JSON format.";
-      
-      if (error.code === '23505') {
-        if (error.message.includes('materials_studio_id_name_key')) {
-          errorMessage = "One or more materials already exist in your studio. Material names must be unique within your studio.";
-        } else {
-          errorMessage = `Duplicate entry detected: ${error.message}`;
-        }
-      }
-      
       toast({
         title: "Import failed",
-        description: errorMessage,
+        description: error.message || "Failed to import data. Please check your JSON format.",
         variant: "destructive",
       });
     } finally {
@@ -409,6 +392,20 @@ const JSONDataInput = ({ studioId, projectId }: JSONDataInputProps) => {
     }
   };
 
+  if (showDuplicateDetector) {
+    return (
+      <DuplicateMaterialDetector
+        materialsToImport={materialsToCheck}
+        studioId={studioId}
+        onResolutionComplete={handleDuplicateResolution}
+        onCancel={() => {
+          setShowDuplicateDetector(false);
+          setMaterialsToCheck([]);
+        }}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
       {projectId && (
@@ -432,8 +429,8 @@ const JSONDataInput = ({ studioId, projectId }: JSONDataInputProps) => {
         <CardContent>
           <Select value={dataType} onValueChange={(value: 'materials' | 'manufacturers' | 'clients') => {
             setDataType(value);
-            setJsonInput(''); // Clear input when switching types
-            setSelectedManufacturerId(''); // Reset manufacturer selection
+            setJsonInput('');
+            setSelectedManufacturerId('');
           }}>
             <SelectTrigger className="w-full max-w-md">
               <SelectValue />
@@ -512,6 +509,11 @@ const JSONDataInput = ({ studioId, projectId }: JSONDataInputProps) => {
             <CardTitle>JSON Data Input</CardTitle>
             <CardDescription>
               Paste your {dataType} JSON data here following the template format
+              {dataType === 'materials' && (
+                <span className="block mt-2 text-sm font-medium text-orange-600">
+                  ⚠️ Smart duplicate detection enabled - we'll check for similar materials before importing
+                </span>
+              )}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -528,7 +530,7 @@ const JSONDataInput = ({ studioId, projectId }: JSONDataInputProps) => {
                 className="w-full bg-coral hover:bg-coral-600"
               >
                 <Upload className="h-4 w-4 mr-2" />
-                {importing ? 'Importing...' : `Import ${dataType}`}
+                {importing ? 'Processing...' : `Import ${dataType}${dataType === 'materials' ? ' (with duplicate check)' : ''}`}
               </Button>
             </div>
           </CardContent>
