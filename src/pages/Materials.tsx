@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, Package, X, Filter, AlertTriangle, Settings, Camera } from 'lucide-react';
+import { Search, Package, X, Filter, AlertTriangle, Settings, Camera, Upload } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import AddMaterialForm from '@/components/forms/AddMaterialForm';
 import EditMaterialForm from '@/components/forms/EditMaterialForm';
@@ -19,6 +19,7 @@ import MaterialStatsCards from '@/components/MaterialStatsCards';
 import MaterialPhotoUpload from '@/components/MaterialPhotoUpload';
 import ConsideredMaterialsList from '@/components/ConsideredMaterialsList';
 import UserInitials from '@/components/UserInitials';
+import PDFMaterialExtractorForm from '@/components/forms/PDFMaterialExtractorForm';
 import { useToast } from '@/hooks/use-toast';
 import DeleteMaterialForm from '@/components/forms/DeleteMaterialForm';
 import AddConsideredMaterialForm from '@/components/forms/AddConsideredMaterialForm';
@@ -360,8 +361,12 @@ const Materials = () => {
       <MaterialStatsCards />
 
       <Tabs defaultValue="materials" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="materials">All Materials</TabsTrigger>
+          <TabsTrigger value="upload" className="flex items-center gap-2">
+            <Upload className="h-4 w-4" />
+            Upload PDF
+          </TabsTrigger>
           <TabsTrigger value="duplicates" className="flex items-center gap-2">
             <AlertTriangle className="h-4 w-4" />
             Check for Duplicates
@@ -858,6 +863,34 @@ const Materials = () => {
                     }
                   </div>
                 )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="upload">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Upload className="h-5 w-5" />
+                Upload Material Schedule PDF
+              </CardTitle>
+              <CardDescription>
+                Upload a PDF material schedule and let our AI automatically extract all materials, 
+                manufacturers, and specifications. Review and approve before importing.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center space-y-4">
+                <div className="bg-blue-50 p-6 rounded-lg">
+                  <Upload className="h-12 w-12 text-blue-600 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">AI-Powered PDF Extraction</h3>
+                  <p className="text-gray-600 mb-4">
+                    Upload a PDF material schedule and let our AI automatically extract all materials, 
+                    manufacturers, and specifications. Review and approve before importing.
+                  </p>
+                  <PDFMaterialExtractorForm />
+                </div>
               </div>
             </CardContent>
           </Card>
