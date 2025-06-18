@@ -25,6 +25,7 @@ interface ManufacturerGroup {
 }
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
@@ -55,11 +56,7 @@ serve(async (req) => {
       )
     }
 
-    // Convert file to base64 for OpenRouter/Gemini
-    const arrayBuffer = await file.arrayBuffer()
-    const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)))
-    console.log('File converted to base64, length:', base64.length)
-    
+    // Get OpenRouter API key
     const openRouterApiKey = Deno.env.get('OPENROUTER_API_KEY')
     if (!openRouterApiKey) {
       console.error('OpenRouter API key not found in environment')
@@ -69,7 +66,15 @@ serve(async (req) => {
       )
     }
 
-    console.log('OpenRouter API key found, making request...')
+    console.log('OpenRouter API key found, processing file...')
+
+    // Convert file to base64 for OpenRouter/Gemini
+    const arrayBuffer = await file.arrayBuffer()
+    const uint8Array = new Uint8Array(arrayBuffer)
+    const base64 = btoa(String.fromCharCode.apply(null, Array.from(uint8Array)))
+    console.log('File converted to base64, length:', base64.length)
+
+    console.log('Making request to OpenRouter...')
 
     // Call Gemini 2.0 Flash Experimental through OpenRouter for material extraction
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
