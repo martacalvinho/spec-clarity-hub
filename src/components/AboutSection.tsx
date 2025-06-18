@@ -1,6 +1,14 @@
+
 import { Users, Lightbulb, Target, TrendingUp, Quote } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const AboutSection = () => {
+  const navigate = useNavigate();
+
+  const handleGetStarted = () => {
+    navigate('/get-started');
+  };
+
   return (
     <section id="about" className="py-24 bg-gradient-to-br from-gray-50 via-white to-coral-50/30">
       <div className="container mx-auto px-6">
@@ -137,10 +145,13 @@ const AboutSection = () => {
               <div className="bg-white/10 rounded-2xl p-8 backdrop-blur-sm border border-white/20">
                 <h4 className="text-2xl font-bold mb-3">Ready to Transform Your Material Knowledge?</h4>
                 <p className="text-lg text-gray-300 mb-6">Use Treqy to make smarter material decisions and unlock the potential in your project history.</p>
-                <div className="inline-flex items-center gap-2 bg-coral-500 hover:bg-coral-600 text-white px-6 py-3 rounded-lg font-semibold transition-colors duration-200">
+                <button 
+                  onClick={handleGetStarted}
+                  className="inline-flex items-center gap-2 bg-coral-500 hover:bg-coral-600 text-white px-6 py-3 rounded-lg font-semibold transition-colors duration-200 cursor-pointer"
+                >
                   Get Started Today
                   <TrendingUp className="h-5 w-5" />
-                </div>
+                </button>
               </div>
             </div>
           </div>
