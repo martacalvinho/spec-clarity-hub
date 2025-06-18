@@ -1,3 +1,4 @@
+
 import React from "react";
 import { FileText, Factory, Users } from "lucide-react";
 
@@ -198,12 +199,19 @@ const HeroMaterialCollage: React.FC = () => {
       {cards.map((card, idx) => (
         <div
           key={card.id}
-          className={`absolute ${card.x} ${card.y} shadow-xl rounded-xl p-4 ${card.bg} backdrop-blur-sm bg-opacity-70 ${card.rotate} transform transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl animate-fade-in`}
-          style={{ width: card.w ?? 220, height: card.h ?? 120, animationDelay: `${idx * 0.2}s` }}
+          className={`absolute ${card.x} ${card.y} shadow-xl rounded-xl p-4 ${card.bg} backdrop-blur-sm bg-opacity-70 ${card.rotate} transform transition-all duration-700 ease-out hover:-translate-y-2 hover:shadow-2xl hover:scale-105 animate-fade-in`}
+          style={{ 
+            width: card.w ?? 220, 
+            height: card.h ?? 120, 
+            animationDelay: `${idx * 0.3}s`,
+            animationDuration: '1.2s',
+            animationTimingFunction: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+            animationFillMode: 'both'
+          }}
         >
-          <div className="w-full h-full rounded-xl bg-white/70 backdrop-blur-sm ring-1 ring-gray-200 overflow-hidden flex flex-col">
+          <div className="w-full h-full rounded-xl bg-white/70 backdrop-blur-sm ring-1 ring-gray-200 overflow-hidden flex flex-col transition-all duration-500 ease-out hover:bg-white/90 hover:ring-coral/20 hover:shadow-inner">
               {/* accent strip */}
-              <div className={`${card.accent} h-1 w-full`} />
+              <div className={`${card.accent} h-1 w-full transition-all duration-300 ease-out hover:h-2`} />
               <div className="flex-1 overflow-hidden p-3">
                 {renderContent(card.title)}
               </div>
