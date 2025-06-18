@@ -34,7 +34,6 @@ const Materials = () => {
   const [checkingDuplicates, setCheckingDuplicates] = useState(false);
   const [duplicates, setDuplicates] = useState<any[]>([]);
   const [showDuplicatesOnly, setShowDuplicatesOnly] = useState(false);
-  const [showPDFUpload, setShowPDFUpload] = useState(false);
   const [advancedMode, setAdvancedMode] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [projectFilter, setProjectFilter] = useState('');
@@ -348,14 +347,6 @@ const Materials = () => {
             </p>
           )}
           <Button
-            onClick={() => setShowPDFUpload(!showPDFUpload)}
-            variant="outline"
-            className="flex items-center gap-2"
-          >
-            <Upload className="h-4 w-4" />
-            Upload PDF
-          </Button>
-          <Button
             onClick={checkForDuplicates}
             disabled={checkingDuplicates || materials.length === 0}
             variant="outline"
@@ -377,44 +368,6 @@ const Materials = () => {
       </div>
 
       <MaterialStatsCards />
-
-      {/* PDF Upload Section */}
-      {showPDFUpload && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Upload className="h-5 w-5" />
-                  Upload Material Schedule PDF
-                </CardTitle>
-                <CardDescription>
-                  Upload a PDF material schedule and let our AI automatically extract all materials, 
-                  manufacturers, and specifications. Review and approve before importing.
-                </CardDescription>
-              </div>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => setShowPDFUpload(false)}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="bg-blue-50 p-6 rounded-lg">
-              <Upload className="h-12 w-12 text-blue-600 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2 text-center">AI-Powered PDF Extraction</h3>
-              <p className="text-gray-600 mb-4 text-center">
-                Upload a PDF material schedule and let our AI automatically extract all materials, 
-                manufacturers, and specifications. Review and approve before importing.
-              </p>
-              <PDFMaterialExtractorForm />
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Duplicates Section */}
       {(showDuplicatesOnly || duplicates.length > 0) && (
@@ -478,9 +431,10 @@ const Materials = () => {
       )}
 
       <Tabs defaultValue="materials" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="materials">All Materials</TabsTrigger>
           <TabsTrigger value="not-used">Outtakes</TabsTrigger>
+          <TabsTrigger value="pdf-upload">PDF Upload</TabsTrigger>
         </TabsList>
         
         <TabsContent value="materials">
@@ -996,6 +950,36 @@ const Materials = () => {
             </CardHeader>
             <CardContent>
               <ConsideredMaterialsList showProjectFilter={true} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="pdf-upload">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Upload className="h-5 w-5" />
+                    Upload Material Schedule PDF
+                  </CardTitle>
+                  <CardDescription>
+                    Upload a PDF material schedule for review by the Treqy team. Materials will be extracted and require your approval before being added to your library.
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="bg-blue-50 p-6 rounded-lg">
+                <Upload className="h-12 w-12 text-blue-600 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-gray-900 mb-2 text-center">PDF Material Schedule Extraction</h3>
+                <p className="text-gray-600 mb-4 text-center">
+                  Upload a PDF material schedule and our team will extract all materials, 
+                  manufacturers, and specifications. You'll be able to review and approve 
+                  each material before it's added to your library.
+                </p>
+                <PDFMaterialExtractorForm onMaterialsAdded={fetchMaterials} />
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

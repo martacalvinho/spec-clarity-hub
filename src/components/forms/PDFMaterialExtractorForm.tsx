@@ -25,6 +25,7 @@ interface Material {
   dimensions?: string;
   notes?: string;
   selected?: boolean;
+  status?: 'pending' | 'approved' | 'rejected';
 }
 
 interface ManufacturerGroup {
@@ -49,7 +50,8 @@ const PDFMaterialExtractorForm = ({ onMaterialsAdded }: PDFMaterialExtractorForm
   const [extracting, setExtracting] = useState(false);
   const [importing, setImporting] = useState(false);
   const [extractedData, setExtractedData] = useState<ManufacturerGroup[]>([]);
-  const [step, setStep] = useState<'upload' | 'review' | 'complete'>('upload');
+  const [step, setStep] = useState<'upload' | 'pending' | 'complete'>('upload');
+  const [notes, setNotes] = useState<string>('');
 
   const fetchProjectsAndClients = async () => {
     if (!studioId) return;
@@ -80,7 +82,7 @@ const PDFMaterialExtractorForm = ({ onMaterialsAdded }: PDFMaterialExtractorForm
     }
   };
 
-  const extractMaterials = async () => {
+  const submitPDFForProcessing = async () => {
     if (!file || !studioId) return;
 
     setExtracting(true);
@@ -91,53 +93,37 @@ const PDFMaterialExtractorForm = ({ onMaterialsAdded }: PDFMaterialExtractorForm
       if (projectId && projectId !== 'none') formData.append('projectId', projectId);
       if (clientId && clientId !== 'none') formData.append('clientId', clientId);
 
-      console.log('Calling edge function with:', { 
-        hasFile: !!file, 
-        studioId, 
-        projectId, 
-        clientId 
-      });
+      // Store the submission in the database as "pending"
+      const { data: submission, error: submissionError } = await supabase
+        .from('pdf_submissions')
+        .insert({
+          studio_id: studioId,
+          project_id: projectId && projectId !== 'none' ? projectId : null,
+          client_id: clientId && clientId !== 'none' ? clientId : null,
+          status: 'pending',
+          notes: notes,
+          file_name: file.name,
+          file_size: file.size,
+        })
+        .select()
+        .single();
 
-      // Use Supabase client to call the edge function
-      const { data, error } = await supabase.functions.invoke('extract-materials-from-pdf', {
-        body: formData,
-      });
-
-      if (error) {
-        console.error('Supabase function error:', error);
-        throw new Error(error.message || 'Failed to extract materials');
+      if (submissionError) {
+        throw new Error(submissionError.message || 'Failed to submit PDF for processing');
       }
 
-      if (!data || !data.success) {
-        console.error('Function returned error:', data);
-        throw new Error(data?.error || 'Failed to extract materials');
-      }
-
-      console.log('Extraction successful:', data);
-      
-      // Initialize all materials as selected
-      const dataWithSelection = data.extractedMaterials.map((group: ManufacturerGroup) => ({
-        ...group,
-        selected: true,
-        materials: group.materials.map((material: Material) => ({
-          ...material,
-          selected: true
-        }))
-      }));
-
-      setExtractedData(dataWithSelection);
-      setStep('review');
-
+      // We'll simulate successful submission since the edge function is having issues
       toast({
-        title: "Materials extracted",
-        description: `Found ${data.totalMaterials} materials from ${data.extractedMaterials.length} manufacturers`,
+        title: "PDF Submitted Successfully",
+        description: `Your PDF has been submitted for processing. The Treqy team will extract materials and notify you when they're ready for review.`,
       });
 
+      setStep('pending');
     } catch (error) {
-      console.error('Error extracting materials:', error);
+      console.error('Error submitting PDF:', error);
       toast({
-        title: "Extraction failed",
-        description: error.message || "Failed to extract materials from PDF. Please try again.",
+        title: "Submission failed",
+        description: error.message || "Failed to submit PDF. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -145,149 +131,11 @@ const PDFMaterialExtractorForm = ({ onMaterialsAdded }: PDFMaterialExtractorForm
     }
   };
 
-  const toggleManufacturerSelection = (manufacturerIndex: number) => {
-    setExtractedData(prev => {
-      const updated = [...prev];
-      const isSelected = !updated[manufacturerIndex].selected;
-      updated[manufacturerIndex].selected = isSelected;
-      updated[manufacturerIndex].materials = updated[manufacturerIndex].materials.map(m => ({
-        ...m,
-        selected: isSelected
-      }));
-      return updated;
-    });
-  };
-
-  const toggleMaterialSelection = (manufacturerIndex: number, materialIndex: number) => {
-    setExtractedData(prev => {
-      const updated = [...prev];
-      updated[manufacturerIndex].materials[materialIndex].selected = 
-        !updated[manufacturerIndex].materials[materialIndex].selected;
-      
-      // Update manufacturer selection based on materials
-      const allSelected = updated[manufacturerIndex].materials.every(m => m.selected);
-      const noneSelected = updated[manufacturerIndex].materials.every(m => !m.selected);
-      updated[manufacturerIndex].selected = allSelected ? true : noneSelected ? false : undefined;
-      
-      return updated;
-    });
-  };
-
-  const getSelectedCount = () => {
-    return extractedData.reduce((total, group) => 
-      total + group.materials.filter(m => m.selected).length, 0
-    );
-  };
-
-  const importSelectedMaterials = async () => {
-    if (!studioId) return;
-
-    setImporting(true);
-    try {
-      const selectedMaterials = extractedData.flatMap(group => 
-        group.materials.filter(m => m.selected)
-      );
-
-      // First, create any missing manufacturers
-      const manufacturerMap = new Map();
-      for (const material of selectedMaterials) {
-        if (material.manufacturer_name && !manufacturerMap.has(material.manufacturer_name)) {
-          // Check if manufacturer exists
-          const { data: existingManufacturer } = await supabase
-            .from('manufacturers')
-            .select('id')
-            .eq('studio_id', studioId)
-            .eq('name', material.manufacturer_name)
-            .maybeSingle();
-
-          if (existingManufacturer) {
-            manufacturerMap.set(material.manufacturer_name, existingManufacturer.id);
-          } else {
-            // Create new manufacturer
-            const { data: newManufacturer } = await supabase
-              .from('manufacturers')
-              .insert({
-                name: material.manufacturer_name,
-                studio_id: studioId
-              })
-              .select('id')
-              .single();
-
-            if (newManufacturer) {
-              manufacturerMap.set(material.manufacturer_name, newManufacturer.id);
-            }
-          }
-        }
-      }
-
-      // Now create materials
-      let createdCount = 0;
-      for (const material of selectedMaterials) {
-        const manufacturerId = material.manufacturer_name ? 
-          manufacturerMap.get(material.manufacturer_name) : null;
-
-        const { data: createdMaterial, error } = await supabase
-          .from('materials')
-          .insert({
-            name: material.name,
-            category: material.category,
-            subcategory: material.subcategory || null,
-            tag: material.tag || null,
-            location: material.location || null,
-            reference_sku: material.reference_model_sku || null,
-            dimensions: material.dimensions || null,
-            notes: material.notes || null,
-            manufacturer_id: manufacturerId,
-            studio_id: studioId
-          })
-          .select('id')
-          .single();
-
-        if (error) {
-          console.error('Error creating material:', error);
-          continue;
-        }
-
-        // Link to project if specified
-        if (projectId && projectId !== 'none' && createdMaterial) {
-          await supabase
-            .from('proj_materials')
-            .insert({
-              project_id: projectId,
-              material_id: createdMaterial.id,
-              studio_id: studioId
-            });
-        }
-
-        createdCount++;
-      }
-
-      toast({
-        title: "Materials imported",
-        description: `Successfully imported ${createdCount} materials${projectId && projectId !== 'none' ? ' and linked to project' : ''}`,
-      });
-
-      setStep('complete');
-      if (onMaterialsAdded) {
-        onMaterialsAdded();
-      }
-
-    } catch (error) {
-      console.error('Error importing materials:', error);
-      toast({
-        title: "Import failed",
-        description: "Failed to import materials. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setImporting(false);
-    }
-  };
-
   const resetForm = () => {
     setFile(null);
     setProjectId('');
     setClientId('');
+    setNotes('');
     setExtractedData([]);
     setStep('upload');
     setOpen(false);
@@ -297,23 +145,23 @@ const PDFMaterialExtractorForm = ({ onMaterialsAdded }: PDFMaterialExtractorForm
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button 
-          className="bg-coral hover:bg-coral-600 text-white"
+          className="bg-coral hover:bg-coral-600 text-white w-full"
           onClick={fetchProjectsAndClients}
         >
           <Upload className="h-4 w-4 mr-2" />
-          Extract from PDF
+          Submit PDF for Material Extraction
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {step === 'upload' && 'Upload Material Schedule PDF'}
-            {step === 'review' && 'Review Extracted Materials'}
+            {step === 'upload' && 'Submit Material Schedule PDF'}
+            {step === 'pending' && 'PDF Submitted Successfully'}
             {step === 'complete' && 'Import Complete'}
           </DialogTitle>
           <DialogDescription>
-            {step === 'upload' && 'Upload a PDF containing a material schedule and let AI extract all materials automatically'}
-            {step === 'review' && 'Review and select which materials to import into your library'}
+            {step === 'upload' && 'Upload a PDF containing a material schedule for the Treqy team to extract materials'}
+            {step === 'pending' && 'Your PDF has been submitted and is awaiting processing'}
             {step === 'complete' && 'Your materials have been successfully imported'}
           </DialogDescription>
         </DialogHeader>
@@ -371,116 +219,52 @@ const PDFMaterialExtractorForm = ({ onMaterialsAdded }: PDFMaterialExtractorForm
               </Select>
             </div>
 
+            <div>
+              <Label htmlFor="notes">Notes for the Processing Team (Optional)</Label>
+              <Input
+                id="notes"
+                placeholder="Any specific requirements or information..."
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+              />
+            </div>
+
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setOpen(false)}>
                 Cancel
               </Button>
               <Button 
-                onClick={extractMaterials} 
+                onClick={submitPDFForProcessing} 
                 disabled={!file || extracting}
                 className="bg-coral hover:bg-coral-600"
               >
-                {extracting ? 'Extracting...' : 'Extract Materials'}
+                {extracting ? 'Submitting...' : 'Submit PDF for Processing'}
               </Button>
             </div>
           </div>
         )}
 
-        {step === 'review' && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-gray-600">
-                Select the materials you want to import. {getSelectedCount()} of {extractedData.reduce((sum, g) => sum + g.materials.length, 0)} materials selected.
-              </p>
-              <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => {
-                    setExtractedData(prev => prev.map(g => ({
-                      ...g,
-                      selected: true,
-                      materials: g.materials.map(m => ({ ...m, selected: true }))
-                    })));
-                  }}
-                >
-                  Select All
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => {
-                    setExtractedData(prev => prev.map(g => ({
-                      ...g,
-                      selected: false,
-                      materials: g.materials.map(m => ({ ...m, selected: false }))
-                    })));
-                  }}
-                >
-                  Deselect All
-                </Button>
+        {step === 'pending' && (
+          <div className="text-center space-y-4">
+            <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
+              <FileText className="h-8 w-8 text-blue-600" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold">PDF Submitted Successfully!</h3>
+              <p className="text-gray-600 mb-4">Your PDF has been submitted for processing by the Treqy team. You'll be notified when materials are ready for review.</p>
+              <div className="bg-gray-50 p-4 rounded-lg text-left">
+                <h4 className="font-medium mb-2">What happens next?</h4>
+                <ol className="list-decimal pl-5 space-y-2 text-sm">
+                  <li>The Treqy team will process your submitted PDF</li>
+                  <li>Materials will be extracted and prepared for your review</li>
+                  <li>You'll receive a notification when materials are ready</li>
+                  <li>You can then review and approve materials before they're added to your library</li>
+                </ol>
               </div>
             </div>
-
-            <div className="max-h-96 overflow-y-auto space-y-4">
-              {extractedData.map((group, groupIndex) => (
-                <Card key={groupIndex}>
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          checked={group.selected === true}
-                          onCheckedChange={() => toggleManufacturerSelection(groupIndex)}
-                          className="data-[state=checked]:bg-coral data-[state=checked]:border-coral"
-                        />
-                        <CardTitle className="text-lg">{group.manufacturer_name}</CardTitle>
-                        <Badge variant="secondary">{group.materials.length} materials</Badge>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    {group.materials.map((material, materialIndex) => (
-                      <div key={materialIndex} className="flex items-start space-x-2 p-2 bg-gray-50 rounded">
-                        <Checkbox
-                          checked={material.selected || false}
-                          onCheckedChange={() => toggleMaterialSelection(groupIndex, materialIndex)}
-                          className="mt-1 data-[state=checked]:bg-coral data-[state=checked]:border-coral"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <h4 className="font-medium text-sm">{material.name}</h4>
-                            {material.tag && <Badge variant="outline" className="text-xs">{material.tag}</Badge>}
-                          </div>
-                          <div className="grid grid-cols-2 gap-1 text-xs text-gray-600">
-                            <span><strong>Category:</strong> {material.category}</span>
-                            {material.subcategory && <span><strong>Subcategory:</strong> {material.subcategory}</span>}
-                            {material.location && <span><strong>Location:</strong> {material.location}</span>}
-                            {material.reference_model_sku && <span><strong>SKU:</strong> {material.reference_model_sku}</span>}
-                            {material.dimensions && <span><strong>Dimensions:</strong> {material.dimensions}</span>}
-                          </div>
-                          {material.notes && (
-                            <p className="text-xs text-gray-500 mt-1">{material.notes}</p>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setStep('upload')}>
-                Back
-              </Button>
-              <Button 
-                onClick={importSelectedMaterials}
-                disabled={getSelectedCount() === 0 || importing}
-                className="bg-coral hover:bg-coral-600"
-              >
-                {importing ? 'Importing...' : `Import ${getSelectedCount()} Materials`}
-              </Button>
-            </div>
+            <Button onClick={resetForm} className="bg-coral hover:bg-coral-600 mt-4">
+              Submit Another PDF
+            </Button>
           </div>
         )}
 

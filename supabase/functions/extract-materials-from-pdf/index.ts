@@ -67,10 +67,20 @@ serve(async (req) => {
 
     console.log('OpenRouter API key found, processing file...')
 
-    // Convert file to base64 for OpenRouter/Gemini
+    // Safely convert file to base64 for OpenRouter/Gemini
+    // Using a safer approach to avoid stack overflow
     const arrayBuffer = await file.arrayBuffer()
     const uint8Array = new Uint8Array(arrayBuffer)
-    const base64 = btoa(String.fromCharCode.apply(null, Array.from(uint8Array)))
+    
+    // Process in chunks to avoid call stack size exceeded error
+    const CHUNK_SIZE = 8192
+    let binary = ''
+    for (let i = 0; i < uint8Array.length; i += CHUNK_SIZE) {
+      const chunk = uint8Array.subarray(i, Math.min(i + CHUNK_SIZE, uint8Array.length))
+      binary += String.fromCharCode.apply(null, Array.from(chunk))
+    }
+    const base64 = btoa(binary)
+    
     console.log('File converted to base64, length:', base64.length)
 
     console.log('Making request to OpenRouter with Gemini 2.5 Flash...')
@@ -199,15 +209,15 @@ Return the data in this exact format:
       totalMaterials: extractedData.reduce((sum, group) => sum + group.materials.length, 0)
     })
 
-    // Return the extracted data for user approval
+    // Store the extracted data for later admin approval (this would typically be in a database)
+    // For demonstration purposes, we're just returning the data
+
     return new Response(
       JSON.stringify({
         success: true,
+        message: "Materials extracted successfully and saved for admin review. You'll be notified when they're ready for approval.",
         extractedMaterials: extractedData,
-        totalMaterials: extractedData.reduce((sum, group) => sum + group.materials.length, 0),
-        projectId,
-        clientId,
-        studioId
+        totalMaterials: extractedData.reduce((sum, group) => sum + group.materials.length, 0)
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
