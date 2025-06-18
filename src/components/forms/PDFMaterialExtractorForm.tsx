@@ -91,19 +91,32 @@ const PDFMaterialExtractorForm = ({ onMaterialsAdded }: PDFMaterialExtractorForm
       if (projectId && projectId !== 'none') formData.append('projectId', projectId);
       if (clientId && clientId !== 'none') formData.append('clientId', clientId);
 
-      const response = await fetch('/api/extract-materials-from-pdf', {
-        method: 'POST',
+      console.log('Calling edge function with:', { 
+        hasFile: !!file, 
+        studioId, 
+        projectId, 
+        clientId 
+      });
+
+      // Use Supabase client to call the edge function
+      const { data, error } = await supabase.functions.invoke('extract-materials-from-pdf', {
         body: formData,
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to extract materials');
+      if (error) {
+        console.error('Supabase function error:', error);
+        throw new Error(error.message || 'Failed to extract materials');
       }
 
-      const result = await response.json();
+      if (!data || !data.success) {
+        console.error('Function returned error:', data);
+        throw new Error(data?.error || 'Failed to extract materials');
+      }
+
+      console.log('Extraction successful:', data);
       
       // Initialize all materials as selected
-      const dataWithSelection = result.extractedMaterials.map((group: ManufacturerGroup) => ({
+      const dataWithSelection = data.extractedMaterials.map((group: ManufacturerGroup) => ({
         ...group,
         selected: true,
         materials: group.materials.map((material: Material) => ({
@@ -117,14 +130,14 @@ const PDFMaterialExtractorForm = ({ onMaterialsAdded }: PDFMaterialExtractorForm
 
       toast({
         title: "Materials extracted",
-        description: `Found ${result.totalMaterials} materials from ${result.extractedMaterials.length} manufacturers`,
+        description: `Found ${data.totalMaterials} materials from ${data.extractedMaterials.length} manufacturers`,
       });
 
     } catch (error) {
       console.error('Error extracting materials:', error);
       toast({
         title: "Extraction failed",
-        description: "Failed to extract materials from PDF. Please try again.",
+        description: error.message || "Failed to extract materials from PDF. Please try again.",
         variant: "destructive",
       });
     } finally {
