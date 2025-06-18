@@ -14,7 +14,7 @@ const FAQSection = () => {
     },
     {
       question: "How quickly can I get started?",
-      answer: "After signing up, you can send us your first spec PDF to onboard - or jump in and start building your own searchable material library. "
+      answer: "After signing up, you can send us your first spec PDF to onboard - or jump in and start building your own searchable material library."
     },
     {
       question: "Is my data secure?",
@@ -22,7 +22,7 @@ const FAQSection = () => {
     },
     {
       question: "How does the optional onboarding work?",
-      answer: ""You can send us as many past projects as you'd like, and we'll upload all the materials you've specified for them. The more historical data you provide, the more valuable Treqy becomes for your team."
+      answer: "You can send us as many past projects as you'd like, and we'll upload all the materials you've specified for them. The more historical data you provide, the more valuable Treqy becomes for your team."
     },
     {
       question: "Do you offer team collaboration features?",
