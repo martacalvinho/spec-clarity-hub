@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -29,10 +28,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       console.log('Fetching user profile for:', userId);
       
-      // First try to get existing profile
+      // First try to get existing profile with studio information
       const { data: profile, error } = await supabase
         .from('users')
-        .select('*, studios(*)')
+        .select(`
+          *,
+          studios(*)
+        `)
         .eq('id', userId)
         .single();
       
@@ -51,7 +53,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               last_name: lastName,
               role: 'studio_user'
             })
-            .select('*, studios(*)')
+            .select(`
+              *,
+              studios(*)
+            `)
             .single();
             
           if (createError) {
@@ -79,6 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (profile) {
         console.log('User profile found:', profile);
+        console.log('User studio_id:', profile.studio_id);
         setUserProfile(profile);
         
         // Check if user has a studio
@@ -90,7 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             variant: "destructive"
           });
         }
-      } else {
+      } else if (error && error.code === 'PGRST116') {
         // Profile doesn't exist, create one
         console.log('User profile not found, creating basic profile...');
         
@@ -103,7 +109,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             last_name: lastName,
             role: 'studio_user'
           })
-          .select('*, studios(*)')
+          .select(`
+            *,
+            studios(*)
+          `)
           .single();
           
         if (createError) {
@@ -275,7 +284,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const isAdmin = userProfile?.role === 'admin';
   
-  // Provide studioId - either from userProfile or null if admin without assignment
+  // Extract studioId properly from userProfile
+  const studioId = userProfile?.studio_id || null;
+  console.log('Context studioId:', studioId, 'from userProfile:', userProfile);
+  
   const contextValue: AuthContextType = {
     user,
     session,
@@ -284,7 +296,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signIn,
     signOut,
     isAdmin,
-    studioId: userProfile?.studio_id || null
+    studioId
   };
   
   return (
@@ -304,6 +316,8 @@ export function useAuth() {
   
   // If we're in a studio override context (admin viewing a specific studio), use that studio ID
   const effectiveStudioId = studioOverride || context.studioId;
+  
+  console.log('useAuth returning studioId:', effectiveStudioId, 'override:', studioOverride, 'context:', context.studioId);
   
   return {
     ...context,

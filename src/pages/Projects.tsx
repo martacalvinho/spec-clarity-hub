@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,7 +12,7 @@ import AddProjectForm from '@/components/forms/AddProjectForm';
 import EditProjectForm from '@/components/forms/EditProjectForm';
 
 const Projects = () => {
-  const { studioId, loading: authLoading } = useAuth();
+  const { studioId, loading: authLoading, userProfile } = useAuth();
   const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -22,16 +21,26 @@ const Projects = () => {
   const [sortBy, setSortBy] = useState('alphabetical');
 
   useEffect(() => {
-    if (!authLoading && studioId) {
-      fetchProjects();
-    } else if (!authLoading && !studioId) {
-      setError('No studio ID available');
-      setLoading(false);
+    console.log('Projects useEffect - authLoading:', authLoading, 'studioId:', studioId, 'userProfile:', userProfile);
+    
+    if (!authLoading) {
+      if (studioId) {
+        fetchProjects();
+      } else if (!studioId && userProfile) {
+        // User is authenticated but has no studio
+        setError('No studio assigned to your account. Please contact your administrator.');
+        setLoading(false);
+      } else if (!userProfile) {
+        // Still loading user profile or not authenticated
+        setError('Authentication required');
+        setLoading(false);
+      }
     }
-  }, [studioId, authLoading]);
+  }, [studioId, authLoading, userProfile]);
 
   const fetchProjects = async () => {
     if (!studioId) {
+      console.log('No studioId available for fetching projects');
       setError('No studio ID available');
       setLoading(false);
       return;
@@ -103,9 +112,11 @@ const Projects = () => {
       <div className="p-6">
         <div className="text-center text-red-600">
           <p>Error loading projects: {error}</p>
-          <Button onClick={fetchProjects} variant="outline" className="mt-2">
-            Try Again
-          </Button>
+          {studioId && (
+            <Button onClick={fetchProjects} variant="outline" className="mt-2">
+              Try Again
+            </Button>
+          )}
         </div>
       </div>
     );
