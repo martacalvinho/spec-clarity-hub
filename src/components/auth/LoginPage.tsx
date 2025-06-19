@@ -43,7 +43,13 @@ const LoginPage = () => {
     const email = formData.get('email') as string;
     const password = formData.get('password') as string;
     
-    await signIn(email, password);
+    const { error } = await signIn(email, password);
+    
+    if (!error) {
+      // Redirect to dashboard on successful login
+      navigate('/dashboard');
+    }
+    
     setIsLoading(false);
   };
 

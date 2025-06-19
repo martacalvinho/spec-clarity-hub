@@ -73,7 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const initializeAuth = async () => {
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
-        if (error) {
+        if (error && error.message !== 'The request was denied.') {
           console.error('Error getting session:', error);
         }
         
@@ -82,7 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(session?.user ?? null);
           setLoading(false);
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error('Error initializing auth:', err);
         if (mounted) {
           setLoading(false);
@@ -110,6 +110,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           title: "Sign in failed",
           description: error.message,
           variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Success",
+          description: "You have been signed in successfully."
         });
       }
 

@@ -17,6 +17,7 @@ import ProjectDetails from "./pages/ProjectDetails";
 import MaterialDetails from "./pages/MaterialDetails";
 import MaterialsByCategory from "./pages/MaterialsByCategory";
 import AuthPage from "./components/auth/AuthPage";
+import LoginPage from "./components/auth/LoginPage";
 import Studios from "./pages/Studios";
 import Users from "./pages/Users";
 import Alerts from "./pages/Alerts";
@@ -43,6 +44,7 @@ function App() {
               {/* Public routes */}
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<AuthPage />} />
+              <Route path="/login" element={<LoginPage />} />
               <Route path="/about" element={<About />} />
               <Route path="/terms" element={<Terms />} />
               <Route path="/privacy" element={<Privacy />} />
