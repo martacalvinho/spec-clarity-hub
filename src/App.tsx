@@ -23,6 +23,7 @@ import Studios from "./pages/Studios";
 import Users from "./pages/Users";
 import Alerts from "./pages/Alerts";
 import AdminAlerts from "./pages/AdminAlerts";
+import AdminPDFSubmissions from "./pages/AdminPDFSubmissions";
 import NotFound from "./pages/NotFound";
 import About from "./pages/About";
 import Terms from "./pages/Terms";
@@ -71,6 +72,7 @@ function App() {
                 <Route path="/studios" element={<DashboardLayout><Studios /></DashboardLayout>} />
                 <Route path="/users" element={<DashboardLayout><Users /></DashboardLayout>} />
                 <Route path="/admin-alerts" element={<DashboardLayout><AdminAlerts /></DashboardLayout>} />
+                <Route path="/admin-pdf-submissions" element={<DashboardLayout><AdminPDFSubmissions /></DashboardLayout>} />
                 <Route path="/onboarding" element={<DashboardLayout><Onboarding /></DashboardLayout>} />
                 
                 {/* 404 route */}
