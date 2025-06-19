@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,10 +6,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Building, FileSpreadsheet, Code, FolderOpen, Users, Upload } from 'lucide-react';
+import { Building, FileSpreadsheet, Code, FolderOpen, Users } from 'lucide-react';
 import MaterialsDataGrid from '@/components/onboarding/MaterialsDataGrid';
 import JSONDataInput from '@/components/onboarding/JSONDataInput';
-import PDFMaterialExtractorForm from '@/components/forms/PDFMaterialExtractorForm';
 import AddProjectForm from '@/components/forms/AddProjectForm';
 import AddClientForm from '@/components/forms/AddClientForm';
 
@@ -274,12 +272,8 @@ const Onboarding = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Tabs defaultValue="pdf" className="w-full">
-                <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="pdf" className="flex items-center gap-2">
-                    <Upload className="h-4 w-4" />
-                    PDF Extract
-                  </TabsTrigger>
+              <Tabs defaultValue="grid" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
                   <TabsTrigger value="grid" className="flex items-center gap-2">
                     <FileSpreadsheet className="h-4 w-4" />
                     Grid View
@@ -289,20 +283,6 @@ const Onboarding = () => {
                     JSON Input
                   </TabsTrigger>
                 </TabsList>
-                
-                <TabsContent value="pdf" className="mt-6">
-                  <div className="text-center space-y-4">
-                    <div className="bg-blue-50 p-6 rounded-lg">
-                      <Upload className="h-12 w-12 text-blue-600 mx-auto mb-4" />
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">AI-Powered PDF Extraction</h3>
-                      <p className="text-gray-600 mb-4">
-                        Upload a PDF material schedule and let our AI automatically extract all materials, 
-                        manufacturers, and specifications. Review and approve before importing.
-                      </p>
-                      <PDFMaterialExtractorForm />
-                    </div>
-                  </div>
-                </TabsContent>
                 
                 <TabsContent value="grid" className="mt-6">
                   <MaterialsDataGrid 

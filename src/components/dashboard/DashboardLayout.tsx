@@ -11,8 +11,7 @@ import {
   Users, 
   Bell,
   Settings,
-  AlertTriangle,
-  Upload
+  AlertTriangle
 } from 'lucide-react';
 import ChangePasswordForm from '@/components/forms/ChangePasswordForm';
 import ContactUsForm from '@/components/forms/ContactUsForm';
@@ -70,7 +69,6 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     { icon: Building, label: 'Manufacturers', href: '/manufacturers' },
     { icon: Users, label: 'Clients', href: '/clients' },
     { icon: Bell, label: 'Alerts', href: '/alerts' },
-    { icon: Upload, label: 'PDF Upload', href: '/pdf-upload' },
   ];
 
   return (

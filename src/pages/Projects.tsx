@@ -4,7 +4,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { Search, FolderOpen } from 'lucide-react';
@@ -13,35 +12,22 @@ import AddProjectForm from '@/components/forms/AddProjectForm';
 import EditProjectForm from '@/components/forms/EditProjectForm';
 
 const Projects = () => {
-  const { studioId, loading: authLoading } = useAuth();
+  const { studioId } = useAuth();
   const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterBy, setFilterBy] = useState('all');
   const [sortBy, setSortBy] = useState('alphabetical');
 
   useEffect(() => {
-    if (!authLoading && studioId) {
+    if (studioId) {
       fetchProjects();
-    } else if (!authLoading && !studioId) {
-      setError('No studio ID available');
-      setLoading(false);
     }
-  }, [studioId, authLoading]);
+  }, [studioId]);
 
   const fetchProjects = async () => {
-    if (!studioId) {
-      setError('No studio ID available');
-      setLoading(false);
-      return;
-    }
-
     try {
       setLoading(true);
-      setError(null);
-      console.log('Fetching projects for studio:', studioId);
-      
       const { data, error } = await supabase
         .from('projects')
         .select(`
@@ -50,18 +36,12 @@ const Projects = () => {
           proj_materials(id)
         `)
         .eq('studio_id', studioId)
-        .order('name', { ascending: true });
+        .order('name', { ascending: true }); // Changed from created_at to name for alphabetical sorting
 
-      if (error) {
-        console.error('Error fetching projects:', error);
-        setError(error.message);
-      } else {
-        console.log('Projects fetched:', data);
-        setProjects(data || []);
-      }
-    } catch (error: any) {
+      if (error) throw error;
+      setProjects(data || []);
+    } catch (error) {
       console.error('Error fetching projects:', error);
-      setError(error.message || 'An unexpected error occurred');
     } finally {
       setLoading(false);
     }
@@ -93,23 +73,6 @@ const Projects = () => {
       default: return 'bg-gray-100 text-gray-700';
     }
   };
-
-  if (authLoading) {
-    return <div className="p-6">Loading...</div>;
-  }
-
-  if (error) {
-    return (
-      <div className="p-6">
-        <div className="text-center text-red-600">
-          <p>Error loading projects: {error}</p>
-          <Button onClick={fetchProjects} variant="outline" className="mt-2">
-            Try Again
-          </Button>
-        </div>
-      </div>
-    );
-  }
 
   if (loading) {
     return <div className="p-6">Loading projects...</div>;

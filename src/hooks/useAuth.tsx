@@ -25,71 +25,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  const fetchUserProfile = async (userId: string, userEmail: string = '', firstName: string = '', lastName: string = '') => {
-    try {
-      console.log('Fetching user profile for:', userId);
-      
-      // First try to get existing profile
-      const { data: profile, error } = await supabase
-        .from('users')
-        .select('*, studios(*)')
-        .eq('id', userId)
-        .single();
-      
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error fetching user profile:', error);
-        setUserProfile(null);
-        toast({
-          title: "Profile Warning",
-          description: "Could not load user profile. Some features may be limited.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      if (profile) {
-        console.log('User profile found:', profile);
-        setUserProfile(profile);
-      } else {
-        // Profile doesn't exist, create one
-        console.log('User profile not found, creating basic profile...');
-        
-        const { data: newProfile, error: createError } = await supabase
-          .from('users')
-          .insert({
-            id: userId,
-            email: userEmail,
-            first_name: firstName,
-            last_name: lastName,
-            role: 'studio_user'
-          })
-          .select('*, studios(*)')
-          .single();
-          
-        if (createError) {
-          console.error('Error creating user profile:', createError);
-          setUserProfile(null);
-          toast({
-            title: "Profile Error",
-            description: "Could not create user profile. Please contact support.",
-            variant: "destructive"
-          });
-        } else {
-          console.log('User profile created successfully:', newProfile);
-          setUserProfile(newProfile);
-        }
-      }
-    } catch (err) {
-      console.error('Error in fetchUserProfile:', err);
-      setUserProfile(null);
-      toast({
-        title: "Connection Error",
-        description: "Could not connect to user profile service.",
-        variant: "destructive"
-      });
-    }
-  };
-
   useEffect(() => {
     let mounted = true;
 
@@ -107,19 +42,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Use setTimeout to prevent potential deadlocks
           setTimeout(async () => {
             if (!mounted) return;
-            await fetchUserProfile(
-              session.user.id,
-              session.user.email || '',
-              session.user.user_metadata?.first_name || '',
-              session.user.user_metadata?.last_name || ''
-            );
-            setLoading(false);
-          }, 100);
+            
+            try {
+              const { data: profile, error } = await supabase
+                .from('users')
+                .select('*, studios(*)')
+                .eq('id', session.user.id)
+                .single();
+              
+              if (error) {
+                console.error('Error fetching user profile:', error);
+              } else if (mounted) {
+                setUserProfile(profile);
+              }
+            } catch (err) {
+              console.error('Error in profile fetch:', err);
+            }
+          }, 0);
         } else {
           setUserProfile(null);
-          if (mounted) {
-            setLoading(false);
-          }
+        }
+        
+        if (mounted) {
+          setLoading(false);
         }
       }
     );
@@ -127,33 +72,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Check for existing session
     const initializeAuth = async () => {
       try {
-        console.log('Initializing auth...');
         const { data: { session }, error } = await supabase.auth.getSession();
-        
         if (error) {
           console.error('Error getting session:', error);
-          if (mounted) {
-            setLoading(false);
-          }
-          return;
         }
         
         if (mounted) {
           setSession(session);
           setUser(session?.user ?? null);
-          
-          if (session?.user) {
-            await fetchUserProfile(
-              session.user.id,
-              session.user.email || '',
-              session.user.user_metadata?.first_name || '',
-              session.user.user_metadata?.last_name || ''
-            );
-          }
-          
           setLoading(false);
         }
-      } catch (err: any) {
+      } catch (err) {
         console.error('Error initializing auth:', err);
         if (mounted) {
           setLoading(false);
@@ -181,11 +110,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           title: "Sign in failed",
           description: error.message,
           variant: "destructive"
-        });
-      } else {
-        toast({
-          title: "Success",
-          description: "You have been signed in successfully."
         });
       }
 
@@ -235,20 +159,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const isAdmin = userProfile?.role === 'admin';
   
-  // Allow access even without full profile if user is authenticated
-  const contextValue: AuthContextType = {
-    user,
-    session,
-    userProfile,
-    loading,
-    signIn,
-    signOut,
-    isAdmin,
-    studioId: userProfile?.studio_id || null
-  };
-  
   return (
-    <AuthContext.Provider value={contextValue}>
+    <AuthContext.Provider value={{
+      user,
+      session,
+      userProfile,
+      loading,
+      signIn,
+      signOut,
+      isAdmin,
+      studioId: userProfile?.studio_id
+    }}>
       {children}
     </AuthContext.Provider>
   );
