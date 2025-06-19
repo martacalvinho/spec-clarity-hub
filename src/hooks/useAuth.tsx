@@ -25,59 +25,59 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  const fetchUserProfile = async (userId: string) => {
+  const fetchUserProfile = async (userId: string, userEmail: string = '', firstName: string = '', lastName: string = '') => {
     try {
       console.log('Fetching user profile for:', userId);
+      
+      // First try to get existing profile
       const { data: profile, error } = await supabase
         .from('users')
         .select('*, studios(*)')
         .eq('id', userId)
         .single();
       
-      if (error) {
+      if (error && error.code !== 'PGRST116') {
         console.error('Error fetching user profile:', error);
+        setUserProfile(null);
+        toast({
+          title: "Profile Warning",
+          description: "Could not load user profile. Some features may be limited.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (profile) {
+        console.log('User profile found:', profile);
+        setUserProfile(profile);
+      } else {
+        // Profile doesn't exist, create one
+        console.log('User profile not found, creating basic profile...');
         
-        // If profile doesn't exist, create a basic one
-        if (error.code === 'PGRST116') {
-          console.log('User profile not found, creating basic profile...');
+        const { data: newProfile, error: createError } = await supabase
+          .from('users')
+          .insert({
+            id: userId,
+            email: userEmail,
+            first_name: firstName,
+            last_name: lastName,
+            role: 'studio_user'
+          })
+          .select('*, studios(*)')
+          .single();
           
-          // Create a basic user profile
-          const { data: newProfile, error: createError } = await supabase
-            .from('users')
-            .insert({
-              id: userId,
-              email: user?.email || '',
-              first_name: user?.user_metadata?.first_name || '',
-              last_name: user?.user_metadata?.last_name || '',
-              role: 'studio_user'
-            })
-            .select('*, studios(*)')
-            .single();
-            
-          if (createError) {
-            console.error('Error creating user profile:', createError);
-            setUserProfile(null);
-            toast({
-              title: "Profile Error",
-              description: "Could not create user profile. Please contact support.",
-              variant: "destructive"
-            });
-          } else {
-            console.log('User profile created successfully:', newProfile);
-            setUserProfile(newProfile);
-          }
-        } else {
-          // For other errors, don't clear the session but show a warning
+        if (createError) {
+          console.error('Error creating user profile:', createError);
           setUserProfile(null);
           toast({
-            title: "Profile Warning",
-            description: "Could not load user profile. Some features may be limited.",
+            title: "Profile Error",
+            description: "Could not create user profile. Please contact support.",
             variant: "destructive"
           });
+        } else {
+          console.log('User profile created successfully:', newProfile);
+          setUserProfile(newProfile);
         }
-      } else {
-        console.log('User profile fetched successfully:', profile);
-        setUserProfile(profile);
       }
     } catch (err) {
       console.error('Error in fetchUserProfile:', err);
@@ -107,14 +107,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Use setTimeout to prevent potential deadlocks
           setTimeout(async () => {
             if (!mounted) return;
-            await fetchUserProfile(session.user.id);
+            await fetchUserProfile(
+              session.user.id,
+              session.user.email || '',
+              session.user.user_metadata?.first_name || '',
+              session.user.user_metadata?.last_name || ''
+            );
+            setLoading(false);
           }, 100);
         } else {
           setUserProfile(null);
-        }
-        
-        if (mounted) {
-          setLoading(false);
+          if (mounted) {
+            setLoading(false);
+          }
         }
       }
     );
@@ -138,7 +143,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(session?.user ?? null);
           
           if (session?.user) {
-            await fetchUserProfile(session.user.id);
+            await fetchUserProfile(
+              session.user.id,
+              session.user.email || '',
+              session.user.user_metadata?.first_name || '',
+              session.user.user_metadata?.last_name || ''
+            );
           }
           
           setLoading(false);

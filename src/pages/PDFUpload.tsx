@@ -11,35 +11,58 @@ import PDFMaterialExtractorForm from '@/components/forms/PDFMaterialExtractorFor
 import { useToast } from '@/hooks/use-toast';
 
 const PDFUpload = () => {
-  const { studioId } = useAuth();
+  const { studioId, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [submissions, setSubmissions] = useState<any[]>([]);
   const [extractedMaterials, setExtractedMaterials] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (studioId) {
+    if (!authLoading && studioId) {
       fetchSubmissions();
       fetchExtractedMaterials();
+    } else if (!authLoading && !studioId) {
+      setError('No studio ID available');
+      setLoading(false);
     }
-  }, [studioId]);
+  }, [studioId, authLoading]);
 
   const fetchSubmissions = async () => {
+    if (!studioId) {
+      setError('No studio ID available');
+      setLoading(false);
+      return;
+    }
+
     try {
+      setLoading(true);
+      setError(null);
       const { data, error } = await supabase
         .from('pdf_submissions' as any)
         .select('*')
         .eq('studio_id', studioId)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setSubmissions(data || []);
-    } catch (error) {
+      if (error) {
+        console.error('Error fetching submissions:', error);
+        setError(error.message);
+      } else {
+        setSubmissions(data || []);
+      }
+    } catch (error: any) {
       console.error('Error fetching submissions:', error);
+      setError(error.message || 'An unexpected error occurred');
     }
   };
 
   const fetchExtractedMaterials = async () => {
+    if (!studioId) {
+      setError('No studio ID available');
+      setLoading(false);
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from('extracted_materials' as any)
@@ -50,10 +73,15 @@ const PDFUpload = () => {
         .eq('studio_id', studioId)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setExtractedMaterials(data || []);
-    } catch (error) {
+      if (error) {
+        console.error('Error fetching extracted materials:', error);
+        setError(error.message);
+      } else {
+        setExtractedMaterials(data || []);
+      }
+    } catch (error: any) {
       console.error('Error fetching extracted materials:', error);
+      setError(error.message || 'An unexpected error occurred');
     } finally {
       setLoading(false);
     }
@@ -152,6 +180,26 @@ const PDFUpload = () => {
         return 'bg-gray-100 text-gray-800';
     }
   };
+
+  if (authLoading) {
+    return <div className="p-6">Loading...</div>;
+  }
+
+  if (error) {
+    return (
+      <div className="p-6">
+        <div className="text-center text-red-600">
+          <p>Error loading PDF submissions: {error}</p>
+          <Button onClick={() => {
+            fetchSubmissions();
+            fetchExtractedMaterials();
+          }} variant="outline" className="mt-2">
+            Try Again
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return <div className="p-6">Loading PDF submissions...</div>;
