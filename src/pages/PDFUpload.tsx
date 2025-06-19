@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
-import { Upload, FileText, Clock, CheckCircle, XCircle, Edit2 } from 'lucide-react';
+import { Upload, FileText, Clock, CheckCircle, XCircle, Edit2, Download } from 'lucide-react';
 import PDFMaterialExtractorForm from '@/components/forms/PDFMaterialExtractorForm';
 import { useToast } from '@/hooks/use-toast';
 
@@ -39,8 +38,12 @@ const PDFUpload = () => {
       setLoading(true);
       setError(null);
       const { data, error } = await supabase
-        .from('pdf_submissions' as any)
-        .select('*')
+        .from('pdf_submissions')
+        .select(`
+          *,
+          projects(name),
+          clients(name)
+        `)
         .eq('studio_id', studioId)
         .order('created_at', { ascending: false });
 
@@ -65,10 +68,10 @@ const PDFUpload = () => {
 
     try {
       const { data, error } = await supabase
-        .from('extracted_materials' as any)
+        .from('extracted_materials')
         .select(`
           *,
-          pdf_submissions!inner(*)
+          pdf_submissions!inner(file_name)
         `)
         .eq('studio_id', studioId)
         .order('created_at', { ascending: false });
@@ -84,6 +87,47 @@ const PDFUpload = () => {
       setError(error.message || 'An unexpected error occurred');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const downloadPDF = async (submission: any) => {
+    if (!submission.object_path) {
+      toast({
+        title: "Download Error",
+        description: "File path not available for this submission",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.storage
+        .from(submission.bucket_id || 'pdfs')
+        .download(submission.object_path);
+
+      if (error) {
+        throw error;
+      }
+
+      // Create download link
+      const url = URL.createObjectURL(data);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = submission.file_name;
+      link.click();
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: "Download Started",
+        description: `Downloaded ${submission.file_name}`,
+      });
+    } catch (error: any) {
+      console.error('Error downloading file:', error);
+      toast({
+        title: "Download Failed",
+        description: error.message || "Failed to download PDF",
+        variant: "destructive",
+      });
     }
   };
 
@@ -275,16 +319,35 @@ const PDFUpload = () => {
                         <p className="text-sm text-gray-500">
                           Submitted {new Date(submission.created_at).toLocaleDateString()}
                         </p>
+                        {submission.projects && (
+                          <p className="text-sm text-gray-600">Project: {submission.projects.name}</p>
+                        )}
+                        {submission.clients && (
+                          <p className="text-sm text-gray-600">Client: {submission.clients.name}</p>
+                        )}
                         {submission.notes && (
                           <p className="text-sm text-gray-600 mt-1">{submission.notes}</p>
                         )}
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      {getStatusIcon(submission.status)}
-                      <Badge className={getStatusColor(submission.status)}>
-                        {submission.status.replace('_', ' ')}
-                      </Badge>
+                      {submission.object_path && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => downloadPDF(submission)}
+                          className="flex items-center gap-1"
+                        >
+                          <Download className="h-4 w-4" />
+                          Download
+                        </Button>
+                      )}
+                      <div className="flex items-center gap-2">
+                        {getStatusIcon(submission.status)}
+                        <Badge className={getStatusColor(submission.status)}>
+                          {submission.status.replace('_', ' ')}
+                        </Badge>
+                      </div>
                     </div>
                   </div>
                 ))}

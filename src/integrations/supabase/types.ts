@@ -852,12 +852,15 @@ export type Database = {
       }
       pdf_submissions: {
         Row: {
+          bucket_id: string
           client_id: string | null
           created_at: string
           file_name: string
           file_size: number | null
           id: string
+          mime_type: string | null
           notes: string | null
+          object_path: string | null
           processed_at: string | null
           processed_by: string | null
           project_id: string | null
@@ -866,12 +869,15 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          bucket_id?: string
           client_id?: string | null
           created_at?: string
           file_name: string
           file_size?: number | null
           id?: string
+          mime_type?: string | null
           notes?: string | null
+          object_path?: string | null
           processed_at?: string | null
           processed_by?: string | null
           project_id?: string | null
@@ -880,12 +886,15 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          bucket_id?: string
           client_id?: string | null
           created_at?: string
           file_name?: string
           file_size?: number | null
           id?: string
+          mime_type?: string | null
           notes?: string | null
+          object_path?: string | null
           processed_at?: string | null
           processed_by?: string | null
           project_id?: string | null

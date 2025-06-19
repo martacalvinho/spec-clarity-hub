@@ -15,7 +15,7 @@ interface PDFMaterialExtractorFormProps {
 }
 
 const PDFMaterialExtractorForm = ({ onMaterialsAdded }: PDFMaterialExtractorFormProps) => {
-  const { studioId } = useAuth();
+  const { studioId, user } = useAuth();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
@@ -57,12 +57,25 @@ const PDFMaterialExtractorForm = ({ onMaterialsAdded }: PDFMaterialExtractorForm
   };
 
   const submitPDFForProcessing = async () => {
-    if (!file || !studioId) return;
+    if (!file || !studioId || !user) return;
 
     setSubmitting(true);
     try {
-      // Insert the submission directly into the pdf_submissions table
-      const { error } = await supabase
+      // Generate unique file path
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const objectPath = `${user.id}/${timestamp}-${file.name}`;
+
+      // Upload file to storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('pdfs')
+        .upload(objectPath, file);
+
+      if (uploadError) {
+        throw new Error(uploadError.message || 'Failed to upload PDF');
+      }
+
+      // Insert submission record with storage reference
+      const { error: insertError } = await supabase
         .from('pdf_submissions')
         .insert({
           studio_id: studioId,
@@ -72,15 +85,20 @@ const PDFMaterialExtractorForm = ({ onMaterialsAdded }: PDFMaterialExtractorForm
           notes: notes,
           file_name: file.name,
           file_size: file.size,
+          bucket_id: 'pdfs',
+          object_path: objectPath,
+          mime_type: file.type,
         });
 
-      if (error) {
-        throw new Error(error.message || 'Failed to submit PDF for processing');
+      if (insertError) {
+        // If database insert fails, clean up uploaded file
+        await supabase.storage.from('pdfs').remove([objectPath]);
+        throw new Error(insertError.message || 'Failed to submit PDF for processing');
       }
 
       toast({
         title: "PDF Submitted Successfully",
-        description: "Your PDF has been submitted for processing by the Treqy team. You'll receive an alert when materials are ready for review.",
+        description: "Your PDF has been uploaded and submitted for processing by the Treqy team.",
       });
 
       setStep('submitted');
