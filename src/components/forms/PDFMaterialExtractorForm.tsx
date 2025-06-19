@@ -61,39 +61,21 @@ const PDFMaterialExtractorForm = ({ onMaterialsAdded }: PDFMaterialExtractorForm
 
     setSubmitting(true);
     try {
-      // Store the submission in the database using raw SQL since types aren't updated yet
-      const { error: submissionError } = await supabase.rpc('exec_sql', {
-        sql: `
-          INSERT INTO pdf_submissions (studio_id, project_id, client_id, status, notes, file_name, file_size)
-          VALUES ($1, $2, $3, 'pending', $4, $5, $6)
-        `,
-        params: [
-          studioId,
-          projectId && projectId !== 'none' ? projectId : null,
-          clientId && clientId !== 'none' ? clientId : null,
-          notes,
-          file.name,
-          file.size
-        ]
-      });
+      // Insert the submission directly into the pdf_submissions table
+      const { error } = await supabase
+        .from('pdf_submissions')
+        .insert({
+          studio_id: studioId,
+          project_id: projectId && projectId !== 'none' ? projectId : null,
+          client_id: clientId && clientId !== 'none' ? clientId : null,
+          status: 'pending',
+          notes: notes,
+          file_name: file.name,
+          file_size: file.size,
+        });
 
-      if (submissionError) {
-        // Fallback to direct insert since rpc might not exist
-        const { error: directError } = await supabase
-          .from('pdf_submissions' as any)
-          .insert({
-            studio_id: studioId,
-            project_id: projectId && projectId !== 'none' ? projectId : null,
-            client_id: clientId && clientId !== 'none' ? clientId : null,
-            status: 'pending',
-            notes: notes,
-            file_name: file.name,
-            file_size: file.size,
-          });
-
-        if (directError) {
-          throw new Error(directError.message || 'Failed to submit PDF for processing');
-        }
+      if (error) {
+        throw new Error(error.message || 'Failed to submit PDF for processing');
       }
 
       toast({
