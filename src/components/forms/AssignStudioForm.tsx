@@ -43,6 +43,11 @@ const AssignStudioForm = ({ user, onUserUpdated }: AssignStudioFormProps) => {
       setStudios(data || []);
     } catch (error) {
       console.error('Error fetching studios:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch studios",
+        variant: "destructive",
+      });
     }
   };
 
@@ -87,12 +92,14 @@ const AssignStudioForm = ({ user, onUserUpdated }: AssignStudioFormProps) => {
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm">
-          Assign Studio
+          {user.studio_id ? 'Change Studio' : 'Assign Studio'}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Assign Studio to {user.first_name} {user.last_name}</DialogTitle>
+          <DialogTitle>
+            {user.studio_id ? 'Change' : 'Assign'} Studio for {user.first_name} {user.last_name}
+          </DialogTitle>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -126,7 +133,7 @@ const AssignStudioForm = ({ user, onUserUpdated }: AssignStudioFormProps) => {
                 Cancel
               </Button>
               <Button type="submit" disabled={loading}>
-                {loading ? 'Updating...' : 'Update Assignment'}
+                {loading ? 'Updating...' : user.studio_id ? 'Update Assignment' : 'Assign Studio'}
               </Button>
             </div>
           </form>

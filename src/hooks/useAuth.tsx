@@ -38,18 +38,58 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       if (error && error.code !== 'PGRST116') {
         console.error('Error fetching user profile:', error);
-        setUserProfile(null);
-        toast({
-          title: "Profile Warning",
-          description: "Could not load user profile. Some features may be limited.",
-          variant: "destructive"
-        });
+        
+        // If it's a different error, try to create a basic profile
+        if (userEmail) {
+          console.log('Creating new user profile...');
+          const { data: newProfile, error: createError } = await supabase
+            .from('users')
+            .insert({
+              id: userId,
+              email: userEmail,
+              first_name: firstName,
+              last_name: lastName,
+              role: 'studio_user'
+            })
+            .select('*, studios(*)')
+            .single();
+            
+          if (createError) {
+            console.error('Error creating user profile:', createError);
+            setUserProfile(null);
+            toast({
+              title: "Profile Error",
+              description: "Could not create user profile. Please contact support.",
+              variant: "destructive"
+            });
+          } else {
+            console.log('User profile created successfully:', newProfile);
+            setUserProfile(newProfile);
+          }
+        } else {
+          setUserProfile(null);
+          toast({
+            title: "Profile Warning",
+            description: "Could not load user profile. Some features may be limited.",
+            variant: "destructive"
+          });
+        }
         return;
       }
 
       if (profile) {
         console.log('User profile found:', profile);
         setUserProfile(profile);
+        
+        // Check if user has a studio
+        if (!profile.studio_id && profile.role !== 'admin') {
+          console.log('User has no studio assigned');
+          toast({
+            title: "Studio Assignment Required",
+            description: "Your account needs to be assigned to a studio. Please contact your administrator.",
+            variant: "destructive"
+          });
+        }
       } else {
         // Profile doesn't exist, create one
         console.log('User profile not found, creating basic profile...');
@@ -235,7 +275,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const isAdmin = userProfile?.role === 'admin';
   
-  // Allow access even without full profile if user is authenticated
+  // Provide studioId - either from userProfile or null if admin without assignment
   const contextValue: AuthContextType = {
     user,
     session,
