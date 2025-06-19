@@ -12,7 +12,6 @@ import { useMaterialLimits } from '@/hooks/useMaterialLimits';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import MaterialLimitDialog from '@/components/dialogs/MaterialLimitDialog';
-import PDFMaterialExtractorForm from './PDFMaterialExtractorForm';
 
 const categories = [
   'Flooring', 'Lighting', 'Furniture', 'Textiles', 'Art & Accessories', 

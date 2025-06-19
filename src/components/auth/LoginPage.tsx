@@ -8,27 +8,9 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 
 const LoginPage = () => {
+  const { signIn, user, loading } = useAuth();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
-  
-  // Safe access to useAuth with error boundary
-  let authData;
-  try {
-    authData = useAuth();
-  } catch (error) {
-    console.error('Auth context error:', error);
-    // If auth context is not available yet, show loading
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-white via-gray-50 to-blue-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-coral mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  const { signIn, user, loading } = authData;
 
   // Redirect to dashboard if already logged in
   if (user && !loading) {
@@ -43,13 +25,7 @@ const LoginPage = () => {
     const email = formData.get('email') as string;
     const password = formData.get('password') as string;
     
-    const { error } = await signIn(email, password);
-    
-    if (!error) {
-      // Redirect to dashboard on successful login
-      navigate('/dashboard');
-    }
-    
+    await signIn(email, password);
     setIsLoading(false);
   };
 

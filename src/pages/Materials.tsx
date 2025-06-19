@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, Package, X, Filter, AlertTriangle, Settings } from 'lucide-react';
+import { Search, Package, X, Filter, AlertTriangle, Settings, Camera } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import AddMaterialForm from '@/components/forms/AddMaterialForm';
 import EditMaterialForm from '@/components/forms/EditMaterialForm';
@@ -19,7 +19,6 @@ import MaterialStatsCards from '@/components/MaterialStatsCards';
 import MaterialPhotoUpload from '@/components/MaterialPhotoUpload';
 import ConsideredMaterialsList from '@/components/ConsideredMaterialsList';
 import UserInitials from '@/components/UserInitials';
-import PDFMaterialExtractorForm from '@/components/forms/PDFMaterialExtractorForm';
 import { useToast } from '@/hooks/use-toast';
 import DeleteMaterialForm from '@/components/forms/DeleteMaterialForm';
 import AddConsideredMaterialForm from '@/components/forms/AddConsideredMaterialForm';
@@ -347,15 +346,6 @@ const Materials = () => {
             </p>
           )}
           <Button
-            onClick={checkForDuplicates}
-            disabled={checkingDuplicates || materials.length === 0}
-            variant="outline"
-            className="flex items-center gap-2"
-          >
-            <AlertTriangle className="h-4 w-4" />
-            {checkingDuplicates ? 'Checking...' : 'Check Duplicates'}
-          </Button>
-          <Button
             onClick={() => setAdvancedMode(!advancedMode)}
             variant={advancedMode ? "default" : "outline"}
             className="flex items-center gap-2"
@@ -369,70 +359,13 @@ const Materials = () => {
 
       <MaterialStatsCards />
 
-      {/* Duplicates Section */}
-      {(showDuplicatesOnly || duplicates.length > 0) && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <AlertTriangle className="h-5 w-5" />
-                  Duplicate Materials Found
-                </CardTitle>
-                <CardDescription>
-                  Materials with duplicate reference SKUs
-                </CardDescription>
-              </div>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={clearDuplicateFilter}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {filteredMaterials.filter(material => 
-                duplicates.some(dup => dup.id === material.id)
-              ).map((material) => {
-                const duplicateInfo = duplicates.find(dup => dup.id === material.id);
-                return (
-                  <div key={material.id} className="p-4 border border-red-200 bg-red-50 rounded-lg">
-                    <div className="flex items-center gap-4">
-                      <div className="p-2 bg-red-100 rounded-lg">
-                        {material.photo_url ? (
-                          <img 
-                            src={material.photo_url} 
-                            alt={material.name}
-                            className="h-12 w-12 object-cover rounded"
-                          />
-                        ) : (
-                          <Package className="h-6 w-6 text-red-600" />
-                        )}
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-lg">{material.name}</h3>
-                        <div className="text-sm text-gray-600">
-                          SKU: {material.reference_sku}
-                          <span className="ml-2 text-red-600 font-medium">
-                            (Found {duplicateInfo?.duplicateCount} materials with this SKU)
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       <Tabs defaultValue="materials" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="materials">All Materials</TabsTrigger>
+          <TabsTrigger value="duplicates" className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4" />
+            Check for Duplicates
+          </TabsTrigger>
           <TabsTrigger value="not-used">Outtakes</TabsTrigger>
         </TabsList>
         
@@ -923,6 +856,68 @@ const Materials = () => {
                       ? 'No materials found matching your search or filters.' 
                       : 'No materials yet. Create your first material!'
                     }
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="duplicates">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5" />
+                Duplicate Detection
+              </CardTitle>
+              <CardDescription>
+                Check for materials with duplicate reference SKUs
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <Button
+                  onClick={checkForDuplicates}
+                  disabled={checkingDuplicates || materials.length === 0}
+                  className="flex items-center gap-2"
+                >
+                  <AlertTriangle className="h-4 w-4" />
+                  {checkingDuplicates ? 'Checking...' : 'Check for Duplicates'}
+                </Button>
+                
+                {duplicates.length > 0 && (
+                  <div className="space-y-4">
+                    {filteredMaterials.filter(material => 
+                      duplicates.some(dup => dup.id === material.id)
+                    ).map((material) => {
+                      const duplicateInfo = duplicates.find(dup => dup.id === material.id);
+                      return (
+                        <div key={material.id} className="p-4 border border-red-200 bg-red-50 rounded-lg">
+                          <div className="flex items-center gap-4">
+                            <div className="p-2 bg-red-100 rounded-lg">
+                              {material.photo_url ? (
+                                <img 
+                                  src={material.photo_url} 
+                                  alt={material.name}
+                                  className="h-12 w-12 object-cover rounded"
+                                />
+                              ) : (
+                                <Package className="h-6 w-6 text-red-600" />
+                              )}
+                            </div>
+                            <div className="flex-1">
+                              <h3 className="font-semibold text-lg">{material.name}</h3>
+                              <div className="text-sm text-gray-600">
+                                SKU: {material.reference_sku}
+                                <span className="ml-2 text-red-600 font-medium">
+                                  (Found {duplicateInfo?.duplicateCount} materials with this SKU)
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
