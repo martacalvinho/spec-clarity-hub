@@ -25,6 +25,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
+  const fetchUserProfile = async (userId: string) => {
+    try {
+      console.log('Fetching user profile for:', userId);
+      const { data: profile, error } = await supabase
+        .from('users')
+        .select('*, studios(*)')
+        .eq('id', userId)
+        .single();
+      
+      if (error) {
+        console.error('Error fetching user profile:', error);
+        // If we can't fetch the profile, clear the session
+        setUserProfile(null);
+        setUser(null);
+        setSession(null);
+        toast({
+          title: "Session Error",
+          description: "Please try logging in again.",
+          variant: "destructive"
+        });
+      } else {
+        console.log('User profile fetched successfully:', profile);
+        setUserProfile(profile);
+      }
+    } catch (err) {
+      console.error('Error in fetchUserProfile:', err);
+      setUserProfile(null);
+    }
+  };
+
   useEffect(() => {
     let mounted = true;
 
@@ -42,23 +72,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Use setTimeout to prevent potential deadlocks
           setTimeout(async () => {
             if (!mounted) return;
-            
-            try {
-              const { data: profile, error } = await supabase
-                .from('users')
-                .select('*, studios(*)')
-                .eq('id', session.user.id)
-                .single();
-              
-              if (error) {
-                console.error('Error fetching user profile:', error);
-              } else if (mounted) {
-                setUserProfile(profile);
-              }
-            } catch (err) {
-              console.error('Error in profile fetch:', err);
-            }
-          }, 0);
+            await fetchUserProfile(session.user.id);
+          }, 100);
         } else {
           setUserProfile(null);
         }
@@ -72,14 +87,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Check for existing session
     const initializeAuth = async () => {
       try {
+        console.log('Initializing auth...');
         const { data: { session }, error } = await supabase.auth.getSession();
-        if (error && error.message !== 'The request was denied.') {
+        
+        if (error) {
           console.error('Error getting session:', error);
+          if (mounted) {
+            setLoading(false);
+          }
+          return;
         }
         
         if (mounted) {
           setSession(session);
           setUser(session?.user ?? null);
+          
+          if (session?.user) {
+            await fetchUserProfile(session.user.id);
+          }
+          
           setLoading(false);
         }
       } catch (err: any) {

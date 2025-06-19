@@ -12,21 +12,34 @@ import AddManufacturerForm from '@/components/forms/AddManufacturerForm';
 import EditManufacturerForm from '@/components/forms/EditManufacturerForm';
 
 const Manufacturers = () => {
-  const { studioId } = useAuth();
+  const { studioId, loading: authLoading } = useAuth();
   const [manufacturers, setManufacturers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('alphabetical');
 
   useEffect(() => {
-    if (studioId) {
+    if (!authLoading && studioId) {
       fetchManufacturers();
+    } else if (!authLoading && !studioId) {
+      setError('No studio ID available');
+      setLoading(false);
     }
-  }, [studioId]);
+  }, [studioId, authLoading]);
 
   const fetchManufacturers = async () => {
+    if (!studioId) {
+      setError('No studio ID available');
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
+      setError(null);
+      console.log('Fetching manufacturers for studio:', studioId);
+      
       const { data, error } = await supabase
         .from('manufacturers')
         .select(`
@@ -36,10 +49,16 @@ const Manufacturers = () => {
         .eq('studio_id', studioId)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setManufacturers(data || []);
-    } catch (error) {
+      if (error) {
+        console.error('Error fetching manufacturers:', error);
+        setError(error.message);
+      } else {
+        console.log('Manufacturers fetched:', data);
+        setManufacturers(data || []);
+      }
+    } catch (error: any) {
       console.error('Error fetching manufacturers:', error);
+      setError(error.message || 'An unexpected error occurred');
     } finally {
       setLoading(false);
     }
@@ -59,6 +78,23 @@ const Manufacturers = () => {
       // Default alphabetical sorting
       return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
     });
+
+  if (authLoading) {
+    return <div className="p-6">Loading...</div>;
+  }
+
+  if (error) {
+    return (
+      <div className="p-6">
+        <div className="text-center text-red-600">
+          <p>Error loading manufacturers: {error}</p>
+          <Button onClick={fetchManufacturers} variant="outline" className="mt-2">
+            Try Again
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return <div className="p-6">Loading manufacturers...</div>;
