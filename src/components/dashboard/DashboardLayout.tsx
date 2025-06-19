@@ -21,7 +21,8 @@ import {
   UserCog,
   Bell,
   Upload,
-  FileText
+  FileText,
+  LayoutDashboard
 } from 'lucide-react';
 
 interface DashboardLayoutProps {
@@ -41,8 +42,10 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       return;
     }
 
-    fetchAlertsCount();
-  }, [user, navigate, studioId]);
+    if (!isAdmin) {
+      fetchAlertsCount();
+    }
+  }, [user, navigate, studioId, isAdmin]);
 
   const fetchAlertsCount = async () => {
     if (!studioId) return;
@@ -65,7 +68,8 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     navigate('/');
   };
 
-  const navItems = [
+  // Regular user navigation
+  const regularNavItems = [
     { icon: Home, label: 'Dashboard', path: '/dashboard' },
     { icon: Package, label: 'Materials', path: '/materials' },
     { icon: FolderOpen, label: 'Projects', path: '/projects' },
@@ -80,16 +84,20 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     },
   ];
 
+  // Admin navigation - completely separate
   const adminNavItems = [
+    { icon: LayoutDashboard, label: 'Admin Dashboard', path: '/dashboard' },
     { icon: Building, label: 'Studios', path: '/studios' },
     { icon: UserCog, label: 'Users', path: '/users' },
-    { icon: Bell, label: 'Admin Alerts', path: '/admin-alerts' },
-    { icon: FileText, label: 'PDF Submissions', path: '/admin-pdf-submissions' },
+    { icon: Bell, label: 'Send Alerts', path: '/admin-alerts' },
     { icon: Settings, label: 'Onboarding', path: '/onboarding' },
+    { icon: FileText, label: 'PDF Submissions', path: '/admin-pdf-submissions' },
   ];
 
-  const NavigationItems = ({ onItemClick }: { onItemClick?: () => void }) => (
-    <>
+  const NavigationItems = ({ onItemClick }: { onItemClick?: () => void }) => {
+    const navItems = isAdmin ? adminNavItems : regularNavItems;
+    
+    return (
       <div className="space-y-2">
         {navItems.map((item) => (
           <Button
@@ -113,35 +121,8 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
           </Button>
         ))}
       </div>
-      
-      {isAdmin && (
-        <>
-          <Separator className="my-4" />
-          <div className="space-y-2">
-            <h3 className="font-semibold text-gray-500 text-sm uppercase tracking-wider px-2">
-              Admin Panel
-            </h3>
-            {adminNavItems.map((item) => (
-              <Button
-                key={item.path}
-                variant={location.pathname === item.path ? "default" : "ghost"}
-                className={`w-full justify-start ${
-                  location.pathname === item.path ? "bg-coral text-white" : "text-gray-700"
-                }`}
-                onClick={() => {
-                  navigate(item.path);
-                  onItemClick?.();
-                }}
-              >
-                <item.icon className="mr-2 h-4 w-4" />
-                {item.label}
-              </Button>
-            ))}
-          </div>
-        </>
-      )}
-    </>
-  );
+    );
+  };
 
   if (!user) {
     return <div>Loading...</div>;
@@ -155,6 +136,12 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
           <div className="flex items-center flex-shrink-0 px-4">
             <h1 className="text-xl font-bold text-gray-900">Treqy</h1>
           </div>
+          {isAdmin && (
+            <div className="px-4 mt-2">
+              <p className="text-sm text-gray-500">Admin Panel</p>
+              <p className="text-xs text-gray-400">Marta Calvinho</p>
+            </div>
+          )}
           <nav className="mt-8 flex-1 px-2 space-y-2">
             <NavigationItems />
           </nav>
@@ -175,7 +162,10 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       <div className="flex-1 flex flex-col lg:pl-0">
         {/* Mobile Header */}
         <div className="lg:hidden flex items-center justify-between p-4 bg-white border-b">
-          <h1 className="text-xl font-bold text-gray-900">Treqy</h1>
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">Treqy</h1>
+            {isAdmin && <p className="text-xs text-gray-500">Admin Panel</p>}
+          </div>
           <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
             <SheetTrigger asChild>
               <Button variant="ghost" size="sm">
@@ -186,6 +176,12 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
               <div className="flex flex-col h-full">
                 <div className="p-6">
                   <h1 className="text-xl font-bold text-gray-900">Treqy</h1>
+                  {isAdmin && (
+                    <div className="mt-2">
+                      <p className="text-sm text-gray-500">Admin Panel</p>
+                      <p className="text-xs text-gray-400">Marta Calvinho</p>
+                    </div>
+                  )}
                 </div>
                 <nav className="flex-1 px-2 space-y-2">
                   <NavigationItems onItemClick={() => setMobileMenuOpen(false)} />
