@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useMaterialLimits } from '@/hooks/useMaterialLimits';
@@ -13,7 +12,7 @@ import AddClientForm from '@/components/forms/AddClientForm';
 import AddManufacturerForm from '@/components/forms/AddManufacturerForm';
 
 const StudioDashboard = () => {
-  const { userProfile, studioId } = useAuth();
+  const { userProfile, studioId, loading: authLoading } = useAuth();
   const { monthlyCount, monthlyLimit, billingPreference } = useMaterialLimits();
   const [stats, setStats] = useState({
     totalProjects: 0,
@@ -27,16 +26,27 @@ const StudioDashboard = () => {
   const [recentProjects, setRecentProjects] = useState<any[]>([]);
   const [topMaterials, setTopMaterials] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (studioId) {
+    if (!authLoading && studioId) {
       fetchStudioData();
+    } else if (!authLoading && !studioId) {
+      setError('No studio ID available');
+      setLoading(false);
     }
-  }, [studioId]);
+  }, [studioId, authLoading]);
 
   const fetchStudioData = async () => {
+    if (!studioId) {
+      setError('No studio ID available');
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
+      setError(null);
       
       // Fetch counts
       const [projectsResult, materialsResult, manufacturersResult, clientsResult, alertsResult] = await Promise.all([
@@ -116,8 +126,9 @@ const StudioDashboard = () => {
       setRecentMaterials(recentMaterialsData || []);
       setRecentProjects(recentProjectsData || []);
       setTopMaterials(topMaterialsProcessed || []);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching studio data:', error);
+      setError(error.message || 'An unexpected error occurred');
       // Set default empty arrays to prevent map errors
       setRecentMaterials([]);
       setRecentProjects([]);
@@ -131,6 +142,23 @@ const StudioDashboard = () => {
     fetchStudioData();
   };
 
+  if (authLoading) {
+    return <div className="p-6">Loading...</div>;
+  }
+
+  if (error) {
+    return (
+      <div className="p-6">
+        <div className="text-center text-red-600">
+          <p>Error loading dashboard: {error}</p>
+          <Button onClick={fetchStudioData} variant="outline" className="mt-2">
+            Try Again
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   if (loading) {
     return <div className="p-6">Loading dashboard...</div>;
   }
@@ -138,7 +166,7 @@ const StudioDashboard = () => {
   const getUsageColor = () => {
     const percentage = (monthlyCount / monthlyLimit) * 100;
     if (percentage >= 90) return 'text-red-600';
-    if (percentage >= 75) return 'text-yellow-600';
+    if (percentage >= 75)   'text-yellow-600';
     return 'text-coral-600';
   };
 
@@ -158,7 +186,7 @@ const StudioDashboard = () => {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">{userProfile?.studios?.name}</h1>
+          <h1 className="text-3xl font-bold text-gray-900">{userProfile?.studios?.name || 'Studio Dashboard'}</h1>
           <p className="text-gray-600 mt-1">Studio Dashboard</p>
         </div>
       </div>

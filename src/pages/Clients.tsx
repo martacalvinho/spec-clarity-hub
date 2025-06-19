@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { Search, Users } from 'lucide-react';
@@ -12,22 +13,35 @@ import AddClientForm from '@/components/forms/AddClientForm';
 import EditClientForm from '@/components/forms/EditClientForm';
 
 const Clients = () => {
-  const { studioId } = useAuth();
+  const { studioId, loading: authLoading } = useAuth();
   const [clients, setClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterBy, setFilterBy] = useState('all');
   const [sortBy, setSortBy] = useState('alphabetical');
 
   useEffect(() => {
-    if (studioId) {
+    if (!authLoading && studioId) {
       fetchClients();
+    } else if (!authLoading && !studioId) {
+      setError('No studio ID available');
+      setLoading(false);
     }
-  }, [studioId]);
+  }, [studioId, authLoading]);
 
   const fetchClients = async () => {
+    if (!studioId) {
+      setError('No studio ID available');
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
+      setError(null);
+      console.log('Fetching clients for studio:', studioId);
+      
       const { data, error } = await supabase
         .from('clients')
         .select(`
@@ -37,10 +51,16 @@ const Clients = () => {
         .eq('studio_id', studioId)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setClients(data || []);
-    } catch (error) {
+      if (error) {
+        console.error('Error fetching clients:', error);
+        setError(error.message);
+      } else {
+        console.log('Clients fetched:', data);
+        setClients(data || []);
+      }
+    } catch (error: any) {
       console.error('Error fetching clients:', error);
+      setError(error.message || 'An unexpected error occurred');
     } finally {
       setLoading(false);
     }
@@ -70,6 +90,23 @@ const Clients = () => {
       default: return 'bg-gray-100 text-gray-700';
     }
   };
+
+  if (authLoading) {
+    return <div className="p-6">Loading...</div>;
+  }
+
+  if (error) {
+    return (
+      <div className="p-6">
+        <div className="text-center text-red-600">
+          <p>Error loading clients: {error}</p>
+          <Button onClick={fetchClients} variant="outline" className="mt-2">
+            Try Again
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return <div className="p-6">Loading clients...</div>;
