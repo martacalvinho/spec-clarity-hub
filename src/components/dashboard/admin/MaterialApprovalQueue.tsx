@@ -92,9 +92,9 @@ const MaterialApprovalQueue = () => {
       if (pendingError) throw pendingError;
       
       // Filter out any records with missing studios data
-      const validPendingData = (pendingData || []).filter(item => 
-        item.studios && typeof item.studios === 'object' && 'name' in item.studios
-      );
+      const validPendingData = (pendingData || []).filter((item: any) => 
+        item.studios && typeof item.studios === 'object' && item.studios.name
+      ) as PendingMaterial[];
       setPendingMaterials(validPendingData);
 
       // Fetch approved materials
@@ -111,9 +111,9 @@ const MaterialApprovalQueue = () => {
 
       if (approvedError) throw approvedError;
       
-      const validApprovedData = (approvedData || []).filter(item => 
-        item.studios && typeof item.studios === 'object' && 'name' in item.studios
-      );
+      const validApprovedData = (approvedData || []).filter((item: any) => 
+        item.studios && typeof item.studios === 'object' && item.studios.name
+      ) as PendingMaterial[];
       setApprovedMaterials(validApprovedData);
 
       // Fetch rejected materials
@@ -130,9 +130,9 @@ const MaterialApprovalQueue = () => {
 
       if (rejectedError) throw rejectedError;
       
-      const validRejectedData = (rejectedData || []).filter(item => 
-        item.studios && typeof item.studios === 'object' && 'name' in item.studios
-      );
+      const validRejectedData = (rejectedData || []).filter((item: any) => 
+        item.studios && typeof item.studios === 'object' && item.studios.name
+      ) as PendingMaterial[];
       setRejectedMaterials(validRejectedData);
 
     } catch (error) {
