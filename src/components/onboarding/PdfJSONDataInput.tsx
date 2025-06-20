@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -246,7 +247,7 @@ const PdfJSONDataInput = ({ studioId, submissionId, projectId, clientId, onImpor
               continue;
             }
 
-            // Link existing material to the current project
+            // Link existing material to the current project (same as "add to project" functionality)
             console.log(`Linking material ${result.selectedExistingId} to project ${projectId}`);
             const { error: projMaterialError } = await supabase
               .from('proj_materials')
