@@ -309,16 +309,28 @@ const UploadDocuments = () => {
       const { data: userData } = await supabase.auth.getUser();
       const currentUserId = userData.user?.id;
 
-      // Try to approve from pending_materials first
-      const { data: pendingMaterial } = await supabase
+      // Try to get the pending material first
+      const { data: pendingMaterial, error: fetchError } = await supabase
         .from('pending_materials')
         .select('*')
         .eq('id', materialId)
         .single();
 
-      if (pendingMaterial) {
+      if (fetchError || !pendingMaterial) {
+        // Fallback to extracted_materials if not found in pending_materials
+        const { error } = await supabase
+          .from('extracted_materials')
+          .update({ 
+            status: 'approved',
+            approved_by: currentUserId,
+            approved_at: new Date().toISOString()
+          })
+          .eq('id', materialId);
+
+        if (error) throw error;
+      } else {
         // Move from pending_materials to materials table
-        const { error: insertError } = await supabase
+        const { data: newMaterial, error: insertError } = await supabase
           .from('materials')
           .insert({
             name: pendingMaterial.name,
@@ -334,7 +346,9 @@ const UploadDocuments = () => {
             notes: pendingMaterial.notes,
             studio_id: pendingMaterial.studio_id,
             created_by: currentUserId
-          });
+          })
+          .select()
+          .single();
 
         if (insertError) throw insertError;
 
@@ -347,46 +361,29 @@ const UploadDocuments = () => {
         if (deleteError) throw deleteError;
 
         // Link to project if project_id exists
-        if (pendingMaterial.project_id) {
-          const { data: newMaterial } = await supabase
-            .from('materials')
-            .select('id')
-            .eq('studio_id', pendingMaterial.studio_id)
-            .eq('name', pendingMaterial.name)
-            .eq('category', pendingMaterial.category)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .single();
+        if (pendingMaterial.project_id && newMaterial) {
+          const { error: linkError } = await supabase
+            .from('proj_materials')
+            .insert({
+              project_id: pendingMaterial.project_id,
+              material_id: newMaterial.id,
+              studio_id: pendingMaterial.studio_id,
+              notes: pendingMaterial.tag ? `Tag: ${pendingMaterial.tag}` : null
+            });
 
-          if (newMaterial) {
-            await supabase
-              .from('proj_materials')
-              .insert({
-                project_id: pendingMaterial.project_id,
-                material_id: newMaterial.id,
-                studio_id: pendingMaterial.studio_id
-              });
+          if (linkError) {
+            console.error('Error linking material to project:', linkError);
+            // Don't throw error here as the material was successfully created
           }
         }
-      } else {
-        // Fallback to original extracted_materials logic
-        const { error } = await supabase
-          .from('extracted_materials')
-          .update({ 
-            status: 'approved',
-            approved_by: currentUserId,
-            approved_at: new Date().toISOString()
-          })
-          .eq('id', materialId);
-
-        if (error) throw error;
       }
 
       toast({
         title: "Success",
-        description: "Material approved successfully"
+        description: "Material approved and moved to materials library"
       });
 
+      // Refresh all data
       fetchApprovedMaterials();
       fetchPendingApproval();
     } catch (error) {
@@ -394,6 +391,49 @@ const UploadDocuments = () => {
       toast({
         title: "Error",
         description: "Failed to approve material",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const approveAllMaterials = async () => {
+    try {
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const material of pendingApproval) {
+        try {
+          await approveMaterial(material.id);
+          successCount++;
+        } catch (error) {
+          console.error(`Error approving material ${material.id}:`, error);
+          errorCount++;
+        }
+      }
+
+      if (successCount > 0) {
+        toast({
+          title: "Success",
+          description: `${successCount} materials approved and moved to materials library${errorCount > 0 ? `, ${errorCount} failed` : ''}`
+        });
+      }
+
+      if (errorCount > 0 && successCount === 0) {
+        toast({
+          title: "Error",
+          description: "Failed to approve materials",
+          variant: "destructive"
+        });
+      }
+
+      // Refresh all data
+      fetchApprovedMaterials();
+      fetchPendingApproval();
+    } catch (error) {
+      console.error('Error approving all materials:', error);
+      toast({
+        title: "Error",
+        description: "Failed to approve materials",
         variant: "destructive"
       });
     }
@@ -407,29 +447,6 @@ const UploadDocuments = () => {
 
   const handleMaterialUpdated = () => {
     fetchPendingApproval();
-  };
-
-  const approveAllMaterials = async () => {
-    try {
-      for (const material of pendingApproval) {
-        await approveMaterial(material.id);
-      }
-
-      toast({
-        title: "Success",
-        description: `${pendingApproval.length} materials approved successfully`
-      });
-
-      fetchApprovedMaterials();
-      fetchPendingApproval();
-    } catch (error) {
-      console.error('Error approving all materials:', error);
-      toast({
-        title: "Error",
-        description: "Failed to approve materials",
-        variant: "destructive"
-      });
-    }
   };
 
   return (
