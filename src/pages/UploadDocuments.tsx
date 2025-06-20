@@ -1,10 +1,10 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { FileUpload } from '@/components/ui/file-upload';
 import { Upload, FileText } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -58,16 +58,18 @@ const UploadDocuments = () => {
     }
   };
 
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+  const handleFileSelect = (file: File | null) => {
     if (file && file.type === 'application/pdf') {
       setSelectedFile(file);
-    } else {
+    } else if (file) {
       toast({
         title: "Invalid file type",
         description: "Please select a PDF file",
         variant: "destructive"
       });
+      setSelectedFile(null);
+    } else {
+      setSelectedFile(null);
     }
   };
 
@@ -151,20 +153,12 @@ const UploadDocuments = () => {
             <div>
               <Label htmlFor="pdf-upload">Select PDF File</Label>
               <div className="mt-1">
-                <input
-                  id="pdf-upload"
-                  type="file"
+                <FileUpload
+                  onFileSelect={handleFileSelect}
                   accept=".pdf"
-                  onChange={handleFileSelect}
-                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-coral-50 file:text-coral-700 hover:file:bg-coral-100"
+                  selectedFile={selectedFile}
                 />
               </div>
-              {selectedFile && (
-                <div className="mt-2 flex items-center gap-2 text-sm text-gray-600">
-                  <FileText className="h-4 w-4" />
-                  {selectedFile.name} ({Math.round(selectedFile.size / 1024)} KB)
-                </div>
-              )}
             </div>
 
             <div>
