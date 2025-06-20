@@ -1,9 +1,10 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { CheckCircle, Package, Building } from 'lucide-react';
@@ -58,7 +59,7 @@ interface ExistingManufacturer {
   similarity_score: number;
 }
 
-interface MaterialResolution {
+interface DuplicateDetectionResult {
   materialToImport: MaterialToImport;
   existingMaterials: ExistingMaterial[];
   action: 'create' | 'link';
@@ -78,6 +79,11 @@ interface JSONDataInputProps {
   pdfSubmissionId?: string;
 }
 
+interface Manufacturer {
+  id: string;
+  name: string;
+}
+
 const JSONDataInput = ({ studioId, projectId, pdfSubmissionId }: JSONDataInputProps) => {
   const { toast } = useToast();
   const [materialsJsonInput, setMaterialsJsonInput] = useState('');
@@ -87,6 +93,27 @@ const JSONDataInput = ({ studioId, projectId, pdfSubmissionId }: JSONDataInputPr
   const [showMaterialDuplicateDetector, setShowMaterialDuplicateDetector] = useState(false);
   const [showManufacturerDuplicateDetector, setShowManufacturerDuplicateDetector] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [manufacturers, setManufacturers] = useState<Manufacturer[]>([]);
+  const [selectedManufacturerId, setSelectedManufacturerId] = useState<string>('');
+
+  useEffect(() => {
+    fetchManufacturers();
+  }, [studioId]);
+
+  const fetchManufacturers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('manufacturers')
+        .select('id, name')
+        .eq('studio_id', studioId)
+        .order('name');
+
+      if (error) throw error;
+      setManufacturers(data || []);
+    } catch (error) {
+      console.error('Error fetching manufacturers:', error);
+    }
+  };
 
   const parseMaterialsJson = () => {
     try {
@@ -107,7 +134,13 @@ const JSONDataInput = ({ studioId, projectId, pdfSubmissionId }: JSONDataInputPr
         return;
       }
       
-      setMaterialsData(validMaterials);
+      // Apply selected manufacturer to all materials if one is selected
+      const materialsWithManufacturer = validMaterials.map(material => ({
+        ...material,
+        manufacturer_id: selectedManufacturerId || material.manufacturer_id
+      }));
+      
+      setMaterialsData(materialsWithManufacturer);
       setMaterialsJsonInput('');
       
       toast({
@@ -158,7 +191,7 @@ const JSONDataInput = ({ studioId, projectId, pdfSubmissionId }: JSONDataInputPr
     }
   };
 
-  const processMaterials = async (materialsToProcess: MaterialToImport[], materialResolutions?: MaterialResolution[]) => {
+  const processMaterials = async (materialsToProcess: MaterialToImport[], materialResolutions?: DuplicateDetectionResult[]) => {
     console.log('Processing materials:', materialsToProcess.length);
     
     try {
@@ -410,6 +443,8 @@ const JSONDataInput = ({ studioId, projectId, pdfSubmissionId }: JSONDataInputPr
           description: `Successfully added ${results.length} manufacturers.`,
         });
         setManufacturersData([]);
+        // Refresh manufacturers list
+        fetchManufacturers();
       } else {
         setShowManufacturerDuplicateDetector(true);
       }
@@ -437,6 +472,8 @@ const JSONDataInput = ({ studioId, projectId, pdfSubmissionId }: JSONDataInputPr
 
       setShowManufacturerDuplicateDetector(false);
       setManufacturersData([]);
+      // Refresh manufacturers list
+      fetchManufacturers();
     } catch (error) {
       console.error('Error processing manufacturer resolutions:', error);
       toast({
@@ -449,7 +486,7 @@ const JSONDataInput = ({ studioId, projectId, pdfSubmissionId }: JSONDataInputPr
     }
   };
 
-  const handleMaterialResolution = async (resolutions: MaterialResolution[]) => {
+  const handleMaterialResolution = async (resolutions: DuplicateDetectionResult[]) => {
     setLoading(true);
     try {
       const result = await processMaterials(materialsData, resolutions);
@@ -566,6 +603,21 @@ const JSONDataInput = ({ studioId, projectId, pdfSubmissionId }: JSONDataInputPr
             </div>
           ) : (
             <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Default Manufacturer (Optional)</label>
+                <Select value={selectedManufacturerId} onValueChange={setSelectedManufacturerId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a manufacturer to apply to all materials" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {manufacturers.map((manufacturer) => (
+                      <SelectItem key={manufacturer.id} value={manufacturer.id}>
+                        {manufacturer.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <Textarea
                 placeholder='Example: [{"name": "Oak Flooring", "category": "Flooring", "subcategory": "Hardwood", "notes": "Premium quality"}, {"name": "Ceramic Tiles", "category": "Flooring", "subcategory": "Ceramic"}]'
                 value={materialsJsonInput}
