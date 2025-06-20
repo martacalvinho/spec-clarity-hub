@@ -76,6 +76,25 @@ const PdfSubmissions = () => {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
+      // Update submission status to processing when admin downloads it
+      if (submission.status === 'pending') {
+        const { error: updateError } = await supabase
+          .from('pdf_submissions')
+          .update({ 
+            status: 'processing',
+            processed_at: new Date().toISOString(),
+            processed_by: (await supabase.auth.getUser()).data.user?.id
+          })
+          .eq('id', submission.id);
+
+        if (updateError) {
+          console.error('Error updating submission status:', updateError);
+        } else {
+          // Refresh the submissions list
+          fetchSubmissions();
+        }
+      }
+
       toast({
         title: "Success",
         description: "PDF downloaded successfully"
@@ -99,9 +118,17 @@ const PdfSubmissions = () => {
       rejected: 'bg-red-100 text-red-800'
     };
 
+    const statusLabels = {
+      pending: 'Pending',
+      processing: 'Processing',
+      ready_for_review: 'Ready for Review',
+      completed: 'Approved',
+      rejected: 'Rejected'
+    };
+
     return (
       <Badge className={statusColors[status as keyof typeof statusColors] || 'bg-gray-100 text-gray-800'}>
-        {status.replace('_', ' ').toUpperCase()}
+        {statusLabels[status as keyof typeof statusLabels] || status}
       </Badge>
     );
   };
