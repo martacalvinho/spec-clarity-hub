@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useMaterialLimits } from '@/hooks/useMaterialLimits';
+import { useUnitToggle } from '@/hooks/useUnitToggle';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -9,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, Package, X, Filter, AlertTriangle, Settings, Camera } from 'lucide-react';
+import { Search, Package, X, Filter, AlertTriangle, Settings, Camera, Copy } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import AddMaterialForm from '@/components/forms/AddMaterialForm';
 import EditMaterialForm from '@/components/forms/EditMaterialForm';
@@ -18,7 +19,7 @@ import MaterialPricingInput from '@/components/MaterialPricingInput';
 import MaterialStatsCards from '@/components/MaterialStatsCards';
 import MaterialPhotoUpload from '@/components/MaterialPhotoUpload';
 import ConsideredMaterialsList from '@/components/ConsideredMaterialsList';
-import UserInitials from '@/components/UserInitials';
+import UnitToggle from '@/components/UnitToggle';
 import { useToast } from '@/hooks/use-toast';
 import DeleteMaterialForm from '@/components/forms/DeleteMaterialForm';
 import AddConsideredMaterialForm from '@/components/forms/AddConsideredMaterialForm';
@@ -26,6 +27,7 @@ import AddConsideredMaterialForm from '@/components/forms/AddConsideredMaterialF
 const Materials = () => {
   const { studioId } = useAuth();
   const { canAddMaterial } = useMaterialLimits();
+  const { unit, formatPrice, formatArea } = useUnitToggle();
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
   const [materials, setMaterials] = useState<any[]>([]);
@@ -69,7 +71,6 @@ const Materials = () => {
     try {
       setLoading(true);
       
-      // Simplified query for better performance
       const { data, error } = await supabase
         .from('materials')
         .select(`
@@ -90,6 +91,8 @@ const Materials = () => {
           total_units,
           notes,
           created_by,
+          created_at,
+          updated_at,
           manufacturer_id,
           manufacturers(name),
           proj_materials(
@@ -249,6 +252,61 @@ const Materials = () => {
     setDuplicates([]);
   };
 
+  const clearFilters = () => {
+    setProjectFilter('');
+    setManufacturerFilter('');
+    setClientFilter('');
+    setLocationFilter('');
+    setCategoryFilter('');
+    setSubcategoryFilter('');
+  };
+
+  const hasActiveFilters = projectFilter && projectFilter !== 'all' || 
+                          manufacturerFilter && manufacturerFilter !== 'all' || 
+                          clientFilter && clientFilter !== 'all' ||
+                          locationFilter ||
+                          categoryFilter && categoryFilter !== 'all' ||
+                          subcategoryFilter && subcategoryFilter !== 'all';
+
+  const parseLocations = (locationString: string | null) => {
+    if (!locationString) return [];
+    return locationString.split(',').map(loc => loc.trim()).filter(loc => loc.length > 0);
+  };
+
+  const handleLocationClick = (location: string) => {
+    if (locationFilter === location) {
+      setLocationFilter('');
+    } else {
+      setLocationFilter(location);
+    }
+  };
+
+  const handlePhotoUpdated = (materialId: string, photoUrl: string | null) => {
+    setMaterials(prev => prev.map(material => 
+      material.id === materialId 
+        ? { ...material, photo_url: photoUrl }
+        : material
+    ));
+  };
+
+  const copyMaterialToClipboard = async (material: any) => {
+    const materialText = `${material.name}\nCategory: ${material.category}\nModel: ${material.model || 'N/A'}\nSKU: ${material.reference_sku || 'N/A'}`;
+    
+    try {
+      await navigator.clipboard.writeText(materialText);
+      toast({
+        title: "Copied to clipboard",
+        description: "Material details copied successfully"
+      });
+    } catch (error) {
+      toast({
+        title: "Copy failed",
+        description: "Failed to copy material details",
+        variant: "destructive"
+      });
+    }
+  };
+
   const filteredMaterials = materials.filter(material => {
     if (showDuplicatesOnly) {
       const isDuplicate = duplicates.some(dup => dup.id === material.id);
@@ -289,47 +347,14 @@ const Materials = () => {
       const aProjectCount = a.proj_materials?.length || 0;
       const bProjectCount = b.proj_materials?.length || 0;
       return bProjectCount - aProjectCount;
+    } else if (sortBy === 'newest_first') {
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    } else if (sortBy === 'last_updated') {
+      return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
     }
     // Default alphabetical sorting
     return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
   });
-
-  const clearFilters = () => {
-    setProjectFilter('');
-    setManufacturerFilter('');
-    setClientFilter('');
-    setLocationFilter('');
-    setCategoryFilter('');
-    setSubcategoryFilter('');
-  };
-
-  const hasActiveFilters = projectFilter && projectFilter !== 'all' || 
-                          manufacturerFilter && manufacturerFilter !== 'all' || 
-                          clientFilter && clientFilter !== 'all' ||
-                          locationFilter ||
-                          categoryFilter && categoryFilter !== 'all' ||
-                          subcategoryFilter && subcategoryFilter !== 'all';
-
-  const parseLocations = (locationString: string | null) => {
-    if (!locationString) return [];
-    return locationString.split(',').map(loc => loc.trim()).filter(loc => loc.length > 0);
-  };
-
-  const handleLocationClick = (location: string) => {
-    if (locationFilter === location) {
-      setLocationFilter('');
-    } else {
-      setLocationFilter(location);
-    }
-  };
-
-  const handlePhotoUpdated = (materialId: string, photoUrl: string | null) => {
-    setMaterials(prev => prev.map(material => 
-      material.id === materialId 
-        ? { ...material, photo_url: photoUrl }
-        : material
-    ));
-  };
 
   if (loading) {
     return <div className="p-6">Loading materials...</div>;
@@ -345,6 +370,7 @@ const Materials = () => {
               Material limit reached for this month
             </p>
           )}
+          <UnitToggle />
           <Button
             onClick={() => setAdvancedMode(!advancedMode)}
             variant={advancedMode ? "default" : "outline"}
@@ -388,6 +414,8 @@ const Materials = () => {
                     <SelectContent>
                       <SelectItem value="alphabetical">Alphabetical</SelectItem>
                       <SelectItem value="most_projects">Most Projects</SelectItem>
+                      <SelectItem value="newest_first">Newest First</SelectItem>
+                      <SelectItem value="last_updated">Last Updated</SelectItem>
                     </SelectContent>
                   </Select>
                   <div className="relative w-64">
@@ -602,18 +630,42 @@ const Materials = () => {
                   return (
                     <div key={material.id} className="space-y-0">
                       <div 
-                        className={`flex items-center justify-between p-6 border rounded-lg hover:bg-gray-50 relative ${
+                        className={`flex items-start justify-between p-6 border rounded-lg hover:bg-gray-50 relative ${
                           isDuplicate ? 'border-red-200 bg-red-50' : ''
                         }`}
                       >
                         {/* Action icons - fixed positioning in top right */}
                         <TooltipProvider>
                           <div className="absolute top-4 right-4 flex items-center gap-1">
-                            <MaterialPhotoUpload 
-                              materialId={material.id}
-                              currentPhotoUrl={material.photo_url}
-                              onPhotoUpdated={(photoUrl) => handlePhotoUpdated(material.id, photoUrl)}
-                            />
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div>
+                                  <MaterialPhotoUpload 
+                                    materialId={material.id}
+                                    currentPhotoUrl={material.photo_url}
+                                    onPhotoUpdated={(photoUrl) => handlePhotoUpdated(material.id, photoUrl)}
+                                  />
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Upload photo</p>
+                              </TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => copyMaterialToClipboard(material)}
+                                  className="h-8 w-8 p-0"
+                                >
+                                  <Copy className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Copy material details</p>
+                              </TooltipContent>
+                            </Tooltip>
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <div>
@@ -685,6 +737,7 @@ const Materials = () => {
                                 {material.subcategory && (
                                   <>
                                     <span className="text-gray-400">•</span>
+                                    <span className="font-medium">Subcategory:</span>
                                     <span className="text-gray-600">{material.subcategory}</span>
                                   </>
                                 )}
@@ -725,36 +778,21 @@ const Materials = () => {
                                           >
                                             {projMaterial.projects.name}
                                           </Link>
+                                          {projMaterial.projects.clients?.name && (
+                                            <span className="text-gray-500">
+                                              {' '}(Client: 
+                                              <Link 
+                                                to={`/clients/${projMaterial.projects.client_id}`}
+                                                className="text-green-600 hover:text-green-800 hover:underline"
+                                              >
+                                                {projMaterial.projects.clients.name}
+                                              </Link>
+                                              )
+                                            </span>
+                                          )}
                                           {index < projects.length - 1 && <span className="text-gray-400">,</span>}
                                         </span>
                                       ))}
-                                      
-                                      {/* Show unique clients */}
-                                      {(() => {
-                                        const uniqueClients = [...new Set(projects.map((p: any) => p.projects?.clients?.name).filter(Boolean))];
-                                        if (uniqueClients.length > 0) {
-                                          return (
-                                            <div className="flex items-center gap-2 ml-2">
-                                              <span className="font-medium text-gray-700">Client:</span>
-                                              {uniqueClients.map((clientName: string, index: number) => {
-                                                const clientProject = projects.find((p: any) => p.projects?.clients?.name === clientName);
-                                                return (
-                                                  <span key={clientName} className="flex items-center gap-1">
-                                                    <Link 
-                                                      to={`/clients/${clientProject?.projects?.client_id}`}
-                                                      className="text-green-600 hover:text-green-800 hover:underline font-medium"
-                                                    >
-                                                      {clientName}
-                                                    </Link>
-                                                    {index < uniqueClients.length - 1 && <span className="text-gray-400">,</span>}
-                                                  </span>
-                                                );
-                                              })}
-                                            </div>
-                                          );
-                                        }
-                                        return null;
-                                      })()}
                                     </div>
                                   )}
                                   
@@ -820,8 +858,8 @@ const Materials = () => {
                               {advancedMode && (material.price_per_sqft || material.price_per_unit) && (
                                 <Badge variant="outline" className="text-xs text-green-600 border-green-300">
                                   {material.unit_type === 'sqft' 
-                                    ? `$${material.price_per_sqft}/sqft` 
-                                    : `$${material.price_per_unit}/unit`
+                                    ? formatPrice(material.price_per_sqft, 'sqft')
+                                    : formatPrice(material.price_per_unit, material.unit_type === 'sqm' ? 'sqm' : 'sqft')
                                   }
                                 </Badge>
                               )}
@@ -831,7 +869,7 @@ const Materials = () => {
                             {material.notes && (
                               <div className="mt-2">
                                 <p className="text-sm text-gray-600 bg-gray-50 p-2 rounded border-l-2 border-gray-300">
-                                  {material.notes}
+                                  <span className="font-medium text-gray-700">Notes:</span> {material.notes}
                                 </p>
                               </div>
                             )}

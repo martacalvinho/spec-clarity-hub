@@ -57,6 +57,10 @@ const Clients = () => {
         const aProjectCount = a.projects?.length || 0;
         const bProjectCount = b.projects?.length || 0;
         return bProjectCount - aProjectCount;
+      } else if (sortBy === 'newest_first') {
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      } else if (sortBy === 'last_updated') {
+        return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
       }
       // Default alphabetical sorting
       return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
@@ -108,6 +112,8 @@ const Clients = () => {
                 <SelectContent>
                   <SelectItem value="alphabetical">Alphabetical</SelectItem>
                   <SelectItem value="most_projects">Most Projects</SelectItem>
+                  <SelectItem value="newest_first">Newest First</SelectItem>
+                  <SelectItem value="last_updated">Last Updated</SelectItem>
                 </SelectContent>
               </Select>
               <div className="relative w-64">

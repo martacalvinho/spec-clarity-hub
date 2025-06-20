@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -5,10 +6,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { FileUpload } from '@/components/ui/file-upload';
-import { Upload, FileText } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Upload, FileText, Clock, CheckCircle, AlertCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { format } from 'date-fns';
 
 const UploadDocuments = () => {
   const { userProfile, studioId } = useAuth();
@@ -20,11 +24,17 @@ const UploadDocuments = () => {
   const [notes, setNotes] = useState('');
   const [uploading, setUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [submissionHistory, setSubmissionHistory] = useState<any[]>([]);
+  const [approvedMaterials, setApprovedMaterials] = useState<any[]>([]);
+  const [pendingApproval, setPendingApproval] = useState<any[]>([]);
 
   useEffect(() => {
     if (studioId) {
       fetchProjects();
       fetchClients();
+      fetchSubmissionHistory();
+      fetchApprovedMaterials();
+      fetchPendingApproval();
     }
   }, [studioId]);
 
@@ -55,6 +65,63 @@ const UploadDocuments = () => {
       setClients(data || []);
     } catch (error) {
       console.error('Error fetching clients:', error);
+    }
+  };
+
+  const fetchSubmissionHistory = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('pdf_submissions')
+        .select(`
+          *,
+          projects(name),
+          clients(name)
+        `)
+        .eq('studio_id', studioId)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      setSubmissionHistory(data || []);
+    } catch (error) {
+      console.error('Error fetching submission history:', error);
+    }
+  };
+
+  const fetchApprovedMaterials = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('extracted_materials')
+        .select(`
+          *,
+          pdf_submissions(file_name, created_at)
+        `)
+        .eq('studio_id', studioId)
+        .eq('status', 'approved')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      setApprovedMaterials(data || []);
+    } catch (error) {
+      console.error('Error fetching approved materials:', error);
+    }
+  };
+
+  const fetchPendingApproval = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('extracted_materials')
+        .select(`
+          *,
+          pdf_submissions(file_name, created_at)
+        `)
+        .eq('studio_id', studioId)
+        .in('status', ['pending', 'ready_for_review'])
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      setPendingApproval(data || []);
+    } catch (error) {
+      console.error('Error fetching pending approval materials:', error);
     }
   };
 
@@ -117,6 +184,9 @@ const UploadDocuments = () => {
       const fileInput = document.getElementById('pdf-upload') as HTMLInputElement;
       if (fileInput) fileInput.value = '';
 
+      // Refresh submission history
+      fetchSubmissionHistory();
+
     } catch (error) {
       console.error('Error uploading PDF:', error);
       toast({
@@ -129,9 +199,91 @@ const UploadDocuments = () => {
     }
   };
 
+  const getStatusBadge = (status: string) => {
+    const statusConfig = {
+      pending: { color: 'bg-yellow-100 text-yellow-800', icon: Clock, label: 'Processing' },
+      processing: { color: 'bg-blue-100 text-blue-800', icon: Clock, label: 'Processing' },
+      ready_for_review: { color: 'bg-purple-100 text-purple-800', icon: AlertCircle, label: 'Ready for Review' },
+      completed: { color: 'bg-green-100 text-green-800', icon: CheckCircle, label: 'Complete' },
+      approved: { color: 'bg-green-100 text-green-800', icon: CheckCircle, label: 'Approved' }
+    };
+
+    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;
+    const Icon = config.icon;
+
+    return (
+      <Badge className={`${config.color} flex items-center gap-1`}>
+        <Icon className="h-3 w-3" />
+        {config.label}
+      </Badge>
+    );
+  };
+
+  const approveMaterial = async (materialId: string) => {
+    try {
+      const { error } = await supabase
+        .from('extracted_materials')
+        .update({ 
+          status: 'approved',
+          approved_by: userProfile?.id,
+          approved_at: new Date().toISOString()
+        })
+        .eq('id', materialId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Material approved successfully"
+      });
+
+      fetchApprovedMaterials();
+      fetchPendingApproval();
+    } catch (error) {
+      console.error('Error approving material:', error);
+      toast({
+        title: "Error",
+        description: "Failed to approve material",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const approveAllMaterials = async () => {
+    try {
+      const materialIds = pendingApproval.map(m => m.id);
+      
+      const { error } = await supabase
+        .from('extracted_materials')
+        .update({ 
+          status: 'approved',
+          approved_by: userProfile?.id,
+          approved_at: new Date().toISOString()
+        })
+        .in('id', materialIds);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: `${materialIds.length} materials approved successfully`
+      });
+
+      fetchApprovedMaterials();
+      fetchPendingApproval();
+    } catch (error) {
+      console.error('Error approving all materials:', error);
+      toast({
+        title: "Error",
+        description: "Failed to approve materials",
+        variant: "destructive"
+      });
+    }
+  };
+
   return (
     <div className="p-6">
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900">Upload Documents</h1>
           <p className="text-gray-600 mt-1">
@@ -139,80 +291,277 @@ const UploadDocuments = () => {
           </p>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Upload className="h-5 w-5" />
-              PDF Document Upload
-            </CardTitle>
-            <CardDescription>
-              Upload a PDF document containing material specifications or project details
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="pdf-upload">Select PDF File</Label>
-              <div className="mt-1">
-                <FileUpload
-                  onFileSelect={handleFileSelect}
-                  accept=".pdf"
-                  selectedFile={selectedFile}
-                />
-              </div>
-            </div>
+        <Tabs defaultValue="upload" className="w-full">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="upload">Upload PDF</TabsTrigger>
+            <TabsTrigger value="history">Submission History</TabsTrigger>
+            <TabsTrigger value="approval">Pending Approval ({pendingApproval.length})</TabsTrigger>
+            <TabsTrigger value="approved">Approved Materials ({approvedMaterials.length})</TabsTrigger>
+          </TabsList>
 
-            <div>
-              <Label htmlFor="project">Project (Optional)</Label>
-              <Select value={selectedProject} onValueChange={setSelectedProject}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a project" />
-                </SelectTrigger>
-                <SelectContent>
-                  {projects.map((project) => (
-                    <SelectItem key={project.id} value={project.id}>
-                      {project.name}
-                    </SelectItem>
+          <TabsContent value="upload">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Upload className="h-5 w-5" />
+                  PDF Document Upload
+                </CardTitle>
+                <CardDescription>
+                  Upload a PDF document containing material specifications or project details
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label htmlFor="pdf-upload">Select PDF File</Label>
+                  <div className="mt-1">
+                    <FileUpload
+                      onFileSelect={handleFileSelect}
+                      accept=".pdf"
+                      selectedFile={selectedFile}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="project">Project (Optional)</Label>
+                  <Select value={selectedProject} onValueChange={setSelectedProject}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a project" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {projects.map((project) => (
+                        <SelectItem key={project.id} value={project.id}>
+                          {project.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="client">Client (Optional)</Label>
+                  <Select value={selectedClient} onValueChange={setSelectedClient}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a client" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {clients.map((client) => (
+                        <SelectItem key={client.id} value={client.id}>
+                          {client.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="notes">Notes (Optional)</Label>
+                  <Textarea
+                    id="notes"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Add any additional notes or context about this document..."
+                    rows={3}
+                  />
+                </div>
+
+                <Button
+                  onClick={handleUpload}
+                  disabled={!selectedFile || uploading}
+                  className="w-full"
+                >
+                  {uploading ? 'Uploading...' : 'Upload PDF'}
+                </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="history">
+            <Card>
+              <CardHeader>
+                <CardTitle>Submission History</CardTitle>
+                <CardDescription>View all your PDF submissions and their processing status</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {submissionHistory.map((submission) => (
+                    <div key={submission.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div className="flex items-center gap-4">
+                        <div className="p-2 bg-blue-100 rounded-lg">
+                          <FileText className="h-6 w-6 text-blue-600" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold">{submission.file_name}</h3>
+                          <div className="text-sm text-gray-600">
+                            <p>Uploaded on {format(new Date(submission.created_at), 'PPP')}</p>
+                            {submission.projects && <p>Project: {submission.projects.name}</p>}
+                            {submission.clients && <p>Client: {submission.clients.name}</p>}
+                            {submission.notes && <p>Notes: {submission.notes}</p>}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end gap-2">
+                        {getStatusBadge(submission.status)}
+                        <div className="text-xs text-gray-500">
+                          {submission.file_size && `${Math.round(submission.file_size / 1024)} KB`}
+                        </div>
+                      </div>
+                    </div>
                   ))}
-                </SelectContent>
-              </Select>
-            </div>
+                  {submissionHistory.length === 0 && (
+                    <div className="text-center py-8 text-gray-500">
+                      No PDF submissions yet. Upload your first document above!
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-            <div>
-              <Label htmlFor="client">Client (Optional)</Label>
-              <Select value={selectedClient} onValueChange={setSelectedClient}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a client" />
-                </SelectTrigger>
-                <SelectContent>
-                  {clients.map((client) => (
-                    <SelectItem key={client.id} value={client.id}>
-                      {client.name}
-                    </SelectItem>
+          <TabsContent value="approval">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Materials Pending Approval</CardTitle>
+                    <CardDescription>Review and approve materials extracted from your PDFs</CardDescription>
+                  </div>
+                  {pendingApproval.length > 0 && (
+                    <Button onClick={approveAllMaterials} className="bg-green-600 hover:bg-green-700">
+                      Approve All ({pendingApproval.length})
+                    </Button>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {pendingApproval.map((material) => (
+                    <div key={material.id} className="p-4 border rounded-lg">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-lg">{material.name}</h3>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-2 text-sm">
+                            <div>
+                              <span className="font-medium text-gray-700">Category:</span>
+                              <p className="text-gray-600">{material.category}</p>
+                            </div>
+                            {material.subcategory && (
+                              <div>
+                                <span className="font-medium text-gray-700">Subcategory:</span>
+                                <p className="text-gray-600">{material.subcategory}</p>
+                              </div>
+                            )}
+                            {material.manufacturer_name && (
+                              <div>
+                                <span className="font-medium text-gray-700">Manufacturer:</span>
+                                <p className="text-gray-600">{material.manufacturer_name}</p>
+                              </div>
+                            )}
+                            {material.reference_sku && (
+                              <div>
+                                <span className="font-medium text-gray-700">SKU:</span>
+                                <p className="text-gray-600">{material.reference_sku}</p>
+                              </div>
+                            )}
+                          </div>
+                          {material.notes && (
+                            <div className="mt-2">
+                              <span className="font-medium text-gray-700">Notes:</span>
+                              <p className="text-gray-600 text-sm">{material.notes}</p>
+                            </div>
+                          )}
+                          <div className="mt-2 text-xs text-gray-500">
+                            From PDF: {material.pdf_submissions?.file_name}
+                          </div>
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          {getStatusBadge(material.status)}
+                          <Button 
+                            size="sm" 
+                            onClick={() => approveMaterial(material.id)}
+                            className="bg-green-600 hover:bg-green-700"
+                          >
+                            <CheckCircle className="h-4 w-4 mr-1" />
+                            Approve
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
                   ))}
-                </SelectContent>
-              </Select>
-            </div>
+                  {pendingApproval.length === 0 && (
+                    <div className="text-center py-8 text-gray-500">
+                      No materials pending approval at this time.
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-            <div>
-              <Label htmlFor="notes">Notes (Optional)</Label>
-              <Textarea
-                id="notes"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Add any additional notes or context about this document..."
-                rows={3}
-              />
-            </div>
-
-            <Button
-              onClick={handleUpload}
-              disabled={!selectedFile || uploading}
-              className="w-full"
-            >
-              {uploading ? 'Uploading...' : 'Upload PDF'}
-            </Button>
-          </CardContent>
-        </Card>
+          <TabsContent value="approved">
+            <Card>
+              <CardHeader>
+                <CardTitle>Approved Materials</CardTitle>
+                <CardDescription>Materials that have been approved and added to your library</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {approvedMaterials.map((material) => (
+                    <div key={material.id} className="p-4 border rounded-lg bg-green-50">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-lg">{material.name}</h3>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-2 text-sm">
+                            <div>
+                              <span className="font-medium text-gray-700">Category:</span>
+                              <p className="text-gray-600">{material.category}</p>
+                            </div>
+                            {material.subcategory && (
+                              <div>
+                                <span className="font-medium text-gray-700">Subcategory:</span>
+                                <p className="text-gray-600">{material.subcategory}</p>
+                              </div>
+                            )}
+                            {material.manufacturer_name && (
+                              <div>
+                                <span className="font-medium text-gray-700">Manufacturer:</span>
+                                <p className="text-gray-600">{material.manufacturer_name}</p>
+                              </div>
+                            )}
+                            {material.reference_sku && (
+                              <div>
+                                <span className="font-medium text-gray-700">SKU:</span>
+                                <p className="text-gray-600">{material.reference_sku}</p>
+                              </div>
+                            )}
+                          </div>
+                          {material.notes && (
+                            <div className="mt-2">
+                              <span className="font-medium text-gray-700">Notes:</span>
+                              <p className="text-gray-600 text-sm">{material.notes}</p>
+                            </div>
+                          )}
+                          <div className="mt-2 text-xs text-gray-500">
+                            From PDF: {material.pdf_submissions?.file_name} • 
+                            Approved on {format(new Date(material.approved_at), 'PPP')}
+                          </div>
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          {getStatusBadge(material.status)}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {approvedMaterials.length === 0 && (
+                    <div className="text-center py-8 text-gray-500">
+                      No approved materials yet. Upload and approve some PDFs to see them here!
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
