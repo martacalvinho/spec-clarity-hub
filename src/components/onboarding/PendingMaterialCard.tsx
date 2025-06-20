@@ -70,19 +70,83 @@ const PendingMaterialCard = ({ material, onApprove, onEdit }: PendingMaterialCar
 
   const findSimilarMaterials = async () => {
     try {
-      const { data, error } = await supabase.rpc('find_similar_materials', {
+      // Enhanced duplicate detection - check both by name similarity and by SKU match
+      const queries = [];
+      
+      // First check by name and category similarity
+      const nameQuery = supabase.rpc('find_similar_materials', {
         studio_id_param: material.studio_id,
         material_name_param: material.name,
         category_param: material.category,
         manufacturer_id_param: material.manufacturer_id || null,
-        similarity_threshold: 0.7
+        similarity_threshold: 0.6 // Lower threshold for better detection
       });
+      
+      queries.push(nameQuery);
 
-      if (error) throw error;
+      // If we have a SKU, also check for exact SKU matches across all categories
+      if (material.reference_sku && material.reference_sku.trim()) {
+        const skuQuery = supabase
+          .from('materials')
+          .select(`
+            id,
+            name,
+            category,
+            subcategory,
+            reference_sku,
+            manufacturer_id,
+            manufacturers!inner(name)
+          `)
+          .eq('studio_id', material.studio_id)
+          .eq('reference_sku', material.reference_sku.trim())
+          .neq('id', material.id || 'none'); // Exclude current material if it exists
+        
+        queries.push(skuQuery);
+      }
+
+      const results = await Promise.all(queries);
+      let allSimilarMaterials: any[] = [];
+
+      // Process name similarity results
+      if (results[0].data && !results[0].error) {
+        allSimilarMaterials.push(...results[0].data);
+      }
+
+      // Process SKU match results
+      if (results.length > 1 && results[1].data && !results[1].error) {
+        const skuMatches = results[1].data.map((item: any) => ({
+          id: item.id,
+          name: item.name,
+          category: item.category,
+          subcategory: item.subcategory,
+          manufacturer_name: item.manufacturers?.name || 'No Manufacturer',
+          manufacturer_id: item.manufacturer_id,
+          reference_sku: item.reference_sku,
+          dimensions: null,
+          similarity_score: 0.98 // Very high score for exact SKU match
+        }));
+        allSimilarMaterials.push(...skuMatches);
+      }
+
+      // Remove duplicates by ID and sort by similarity score
+      const uniqueMaterials = allSimilarMaterials.reduce((acc, current) => {
+        const existing = acc.find(item => item.id === current.id);
+        if (!existing) {
+          acc.push(current);
+        } else if (current.similarity_score > existing.similarity_score) {
+          // Replace with higher scoring match
+          const index = acc.findIndex(item => item.id === current.id);
+          acc[index] = current;
+        }
+        return acc;
+      }, []);
+
+      // Sort by similarity score
+      uniqueMaterials.sort((a, b) => b.similarity_score - a.similarity_score);
 
       // For each similar material, get the projects it's associated with
       const materialsWithProjects = await Promise.all(
-        (data || []).map(async (similar: any) => {
+        uniqueMaterials.map(async (similar: any) => {
           const { data: projectData } = await supabase
             .from('proj_materials')
             .select(`
@@ -211,7 +275,7 @@ const PendingMaterialCard = ({ material, onApprove, onEdit }: PendingMaterialCar
             </div>
           </div>
 
-          {/* Duplicate Detection Alert */}
+          {/* Enhanced Duplicate Detection Alert */}
           {!loading && similarMaterials.length > 0 && (
             <Alert className="border-orange-200 bg-orange-50">
               <AlertTriangle className="h-4 w-4 text-orange-600" />
@@ -230,6 +294,14 @@ const PendingMaterialCard = ({ material, onApprove, onEdit }: PendingMaterialCar
                             {similar.reference_sku}
                           </Badge>
                         )}
+                        {similar.similarity_score >= 0.95 && (
+                          <Badge className="text-xs bg-red-100 text-red-800">
+                            High Match
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="ml-5 text-xs text-orange-700">
+                        {similar.category}{similar.subcategory && ` • ${similar.subcategory}`}
                       </div>
                       {similar.projects.length > 0 && (
                         <div className="ml-5 mt-1">
@@ -244,6 +316,12 @@ const PendingMaterialCard = ({ material, onApprove, onEdit }: PendingMaterialCar
                       )}
                     </div>
                   ))}
+                  <div className="mt-3 p-2 bg-blue-50 rounded border-l-4 border-blue-400">
+                    <p className="text-xs text-blue-800">
+                      <strong>Note about Tags:</strong> Each project can have its own tag for the same material 
+                      (e.g., M-01 for one project, MD-02 for another). Tags are project-specific and will be preserved.
+                    </p>
+                  </div>
                 </div>
               </AlertDescription>
             </Alert>
