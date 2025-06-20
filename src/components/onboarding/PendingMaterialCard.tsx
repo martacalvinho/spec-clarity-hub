@@ -13,6 +13,7 @@ interface SimilarMaterial {
   category: string;
   subcategory: string;
   reference_sku: string;
+  similarity_score: number;
   projects: Array<{
     id: string;
     name: string;
