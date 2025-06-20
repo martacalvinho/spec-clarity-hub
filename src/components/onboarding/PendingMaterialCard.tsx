@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -75,26 +74,53 @@ const PendingMaterialCard = ({ material, onApprove, onEdit }: PendingMaterialCar
         name: material.name,
         category: material.category,
         manufacturer_id: material.manufacturer_id,
+        manufacturer_name: material.manufacturer_name,
         reference_sku: material.reference_sku
       });
 
-      // Enhanced duplicate detection - check both by name similarity and by SKU match
-      const queries = [];
+      // First, get the manufacturer_id if we only have manufacturer_name
+      let manufacturerId = material.manufacturer_id;
       
-      // First check by name and category similarity with manufacturer
-      const nameQuery = supabase.rpc('find_similar_materials', {
+      if (!manufacturerId && material.manufacturer_name) {
+        console.log('Looking up manufacturer ID for:', material.manufacturer_name);
+        const { data: manufacturerData } = await supabase
+          .from('manufacturers')
+          .select('id')
+          .eq('studio_id', material.studio_id)
+          .ilike('name', material.manufacturer_name.trim())
+          .single();
+        
+        if (manufacturerData) {
+          manufacturerId = manufacturerData.id;
+          console.log('Found manufacturer ID:', manufacturerId);
+        } else {
+          console.log('No manufacturer found for name:', material.manufacturer_name);
+        }
+      }
+
+      console.log('Calling find_similar_materials with manufacturer_id:', manufacturerId);
+
+      // Call the enhanced duplicate detection function
+      const { data: similarData, error: similarError } = await supabase.rpc('find_similar_materials', {
         studio_id_param: material.studio_id,
         material_name_param: material.name,
         category_param: material.category,
-        manufacturer_id_param: material.manufacturer_id || null,
-        similarity_threshold: 0.5 // Lower threshold for better detection
+        manufacturer_id_param: manufacturerId || null,
+        similarity_threshold: 0.5
       });
-      
-      queries.push(nameQuery);
 
-      // If we have a SKU, also check for exact SKU matches across all categories
+      if (similarError) {
+        console.error('Error from find_similar_materials function:', similarError);
+        throw similarError;
+      }
+
+      console.log('find_similar_materials results:', similarData);
+
+      // Also check for exact SKU matches if we have a SKU but no manufacturer match
+      let skuMatches: any[] = [];
       if (material.reference_sku && material.reference_sku.trim()) {
-        const skuQuery = supabase
+        console.log('Also checking for exact SKU matches:', material.reference_sku);
+        const { data: skuData, error: skuError } = await supabase
           .from('materials')
           .select(`
             id,
@@ -107,46 +133,31 @@ const PendingMaterialCard = ({ material, onApprove, onEdit }: PendingMaterialCar
           `)
           .eq('studio_id', material.studio_id)
           .eq('reference_sku', material.reference_sku.trim())
-          .neq('id', material.id || 'none'); // Exclude current material if it exists
+          .neq('id', material.id || 'none');
         
-        queries.push(skuQuery);
+        if (!skuError && skuData) {
+          skuMatches = skuData.map((item: any) => ({
+            id: item.id,
+            name: item.name,
+            category: item.category,
+            subcategory: item.subcategory,
+            manufacturer_name: item.manufacturers?.name || 'No Manufacturer',
+            manufacturer_id: item.manufacturer_id,
+            reference_sku: item.reference_sku,
+            dimensions: null,
+            similarity_score: 0.95 // High score for exact SKU match
+          }));
+          console.log('Additional SKU matches found:', skuMatches);
+        }
       }
 
-      const results = await Promise.all(queries);
-      let allSimilarMaterials: any[] = [];
-
-      // Process name similarity results
-      if (results[0].data && !results[0].error) {
-        console.log('Name similarity results:', results[0].data);
-        allSimilarMaterials.push(...results[0].data);
-      } else if (results[0].error) {
-        console.error('Name similarity error:', results[0].error);
-      }
-
-      // Process SKU match results
-      if (results.length > 1 && results[1].data && !results[1].error) {
-        const skuMatches = results[1].data.map((item: any) => ({
-          id: item.id,
-          name: item.name,
-          category: item.category,
-          subcategory: item.subcategory,
-          manufacturer_name: item.manufacturers?.name || 'No Manufacturer',
-          manufacturer_id: item.manufacturer_id,
-          reference_sku: item.reference_sku,
-          dimensions: null,
-          similarity_score: 0.98 // Very high score for exact SKU match
-        }));
-        console.log('SKU match results:', skuMatches);
-        allSimilarMaterials.push(...skuMatches);
-      }
-
-      // Remove duplicates by ID and sort by similarity score
-      const uniqueMaterials = allSimilarMaterials.reduce((acc, current) => {
+      // Combine results and remove duplicates
+      const allMatches = [...(similarData || []), ...skuMatches];
+      const uniqueMatches = allMatches.reduce((acc, current) => {
         const existing = acc.find(item => item.id === current.id);
         if (!existing) {
           acc.push(current);
         } else if (current.similarity_score > existing.similarity_score) {
-          // Replace with higher scoring match
           const index = acc.findIndex(item => item.id === current.id);
           acc[index] = current;
         }
@@ -154,13 +165,13 @@ const PendingMaterialCard = ({ material, onApprove, onEdit }: PendingMaterialCar
       }, []);
 
       // Sort by similarity score
-      uniqueMaterials.sort((a, b) => b.similarity_score - a.similarity_score);
+      uniqueMatches.sort((a, b) => b.similarity_score - a.similarity_score);
 
-      console.log('Final unique similar materials:', uniqueMaterials);
+      console.log('Final unique similar materials:', uniqueMatches);
 
       // For each similar material, get the projects it's associated with
       const materialsWithProjects = await Promise.all(
-        uniqueMaterials.map(async (similar: any) => {
+        uniqueMatches.map(async (similar: any) => {
           const { data: projectData } = await supabase
             .from('proj_materials')
             .select(`
