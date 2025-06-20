@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -36,10 +37,12 @@ interface PendingMaterial {
   approved_at: string | null;
   rejected_at: string | null;
   rejection_reason: string | null;
-  pdf_submissions: {
+  studio_id: string;
+  submission_id: string | null;
+  pdf_submissions?: {
     file_name: string;
   } | null;
-  studios: {
+  studios?: {
     name: string;
   } | null;
 }
@@ -84,7 +87,7 @@ const MaterialApprovalQueue = () => {
       console.log('PDF Status Data:', pdfStatusData);
       setPdfStatuses(pdfStatusData || []);
 
-      // Fetch pending materials - simplified query first
+      // Fetch pending materials with a separate query for studios
       console.log('Fetching pending materials...');
       const { data: pendingData, error: pendingError } = await supabase
         .from('pending_materials')
@@ -97,37 +100,53 @@ const MaterialApprovalQueue = () => {
           approved_at,
           rejected_at,
           rejection_reason,
-          submission_id,
-          pdf_submissions!pending_materials_submission_id_fkey (
-            file_name
-          ),
-          studios!pending_materials_studio_id_fkey (
-            name
-          )
+          studio_id,
+          submission_id
         `)
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
 
-      console.log('Pending materials query result:', { pendingData, pendingError });
+      console.log('Pending materials raw query result:', { pendingData, pendingError });
 
       if (pendingError) {
         console.error('Pending Error:', pendingError);
         throw pendingError;
       }
-      
-      // Process and validate pending data
-      const validPendingData = (pendingData || []).map((item: any) => ({
-        id: item.id,
-        name: item.name,
-        category: item.category,
-        status: item.status,
-        created_at: item.created_at,
-        approved_at: item.approved_at,
-        rejected_at: item.rejected_at,
-        rejection_reason: item.rejection_reason,
-        pdf_submissions: item.pdf_submissions,
-        studios: item.studios
-      })).filter(item => item.studios && item.studios.name);
+
+      // Fetch studio names separately
+      const studioIds = [...new Set((pendingData || []).map(item => item.studio_id))];
+      const { data: studiosData } = await supabase
+        .from('studios')
+        .select('id, name')
+        .in('id', studioIds);
+
+      // Fetch PDF submission info separately
+      const submissionIds = [...new Set((pendingData || []).filter(item => item.submission_id).map(item => item.submission_id))];
+      const { data: submissionsData } = await supabase
+        .from('pdf_submissions')
+        .select('id, file_name')
+        .in('id', submissionIds);
+
+      // Combine the data
+      const validPendingData = (pendingData || []).map((item: any) => {
+        const studio = studiosData?.find(s => s.id === item.studio_id);
+        const submission = submissionsData?.find(s => s.id === item.submission_id);
+        
+        return {
+          id: item.id,
+          name: item.name,
+          category: item.category,
+          status: item.status,
+          created_at: item.created_at,
+          approved_at: item.approved_at,
+          rejected_at: item.rejected_at,
+          rejection_reason: item.rejection_reason,
+          studio_id: item.studio_id,
+          submission_id: item.submission_id,
+          pdf_submissions: submission ? { file_name: submission.file_name } : null,
+          studios: studio ? { name: studio.name } : null
+        };
+      });
 
       console.log('Valid pending materials:', validPendingData);
       setPendingMaterials(validPendingData);
@@ -144,13 +163,8 @@ const MaterialApprovalQueue = () => {
           approved_at,
           rejected_at,
           rejection_reason,
-          submission_id,
-          pdf_submissions!pending_materials_submission_id_fkey (
-            file_name
-          ),
-          studios!pending_materials_studio_id_fkey (
-            name
-          )
+          studio_id,
+          submission_id
         `)
         .eq('status', 'approved')
         .order('approved_at', { ascending: false })
@@ -160,19 +174,27 @@ const MaterialApprovalQueue = () => {
         console.error('Approved Error:', approvedError);
         throw approvedError;
       }
-      
-      const validApprovedData = (approvedData || []).map((item: any) => ({
-        id: item.id,
-        name: item.name,
-        category: item.category,
-        status: item.status,
-        created_at: item.created_at,
-        approved_at: item.approved_at,
-        rejected_at: item.rejected_at,
-        rejection_reason: item.rejection_reason,
-        pdf_submissions: item.pdf_submissions,
-        studios: item.studios
-      })).filter(item => item.studios && item.studios.name);
+
+      // Combine approved data with studio info
+      const validApprovedData = (approvedData || []).map((item: any) => {
+        const studio = studiosData?.find(s => s.id === item.studio_id);
+        const submission = submissionsData?.find(s => s.id === item.submission_id);
+        
+        return {
+          id: item.id,
+          name: item.name,
+          category: item.category,
+          status: item.status,
+          created_at: item.created_at,
+          approved_at: item.approved_at,
+          rejected_at: item.rejected_at,
+          rejection_reason: item.rejection_reason,
+          studio_id: item.studio_id,
+          submission_id: item.submission_id,
+          pdf_submissions: submission ? { file_name: submission.file_name } : null,
+          studios: studio ? { name: studio.name } : null
+        };
+      });
 
       setApprovedMaterials(validApprovedData);
 
@@ -188,13 +210,8 @@ const MaterialApprovalQueue = () => {
           approved_at,
           rejected_at,
           rejection_reason,
-          submission_id,
-          pdf_submissions!pending_materials_submission_id_fkey (
-            file_name
-          ),
-          studios!pending_materials_studio_id_fkey (
-            name
-          )
+          studio_id,
+          submission_id
         `)
         .eq('status', 'rejected')
         .order('rejected_at', { ascending: false })
@@ -204,19 +221,27 @@ const MaterialApprovalQueue = () => {
         console.error('Rejected Error:', rejectedError);
         throw rejectedError;
       }
-      
-      const validRejectedData = (rejectedData || []).map((item: any) => ({
-        id: item.id,
-        name: item.name,
-        category: item.category,
-        status: item.status,
-        created_at: item.created_at,
-        approved_at: item.approved_at,
-        rejected_at: item.rejected_at,
-        rejection_reason: item.rejection_reason,
-        pdf_submissions: item.pdf_submissions,
-        studios: item.studios
-      })).filter(item => item.studios && item.studios.name);
+
+      // Combine rejected data with studio info
+      const validRejectedData = (rejectedData || []).map((item: any) => {
+        const studio = studiosData?.find(s => s.id === item.studio_id);
+        const submission = submissionsData?.find(s => s.id === item.submission_id);
+        
+        return {
+          id: item.id,
+          name: item.name,
+          category: item.category,
+          status: item.status,
+          created_at: item.created_at,
+          approved_at: item.approved_at,
+          rejected_at: item.rejected_at,
+          rejection_reason: item.rejection_reason,
+          studio_id: item.studio_id,
+          submission_id: item.submission_id,
+          pdf_submissions: submission ? { file_name: submission.file_name } : null,
+          studios: studio ? { name: studio.name } : null
+        };
+      });
 
       setRejectedMaterials(validRejectedData);
 
@@ -365,7 +390,7 @@ const MaterialApprovalQueue = () => {
                         <h3 className="font-semibold">{material.name}</h3>
                         <p className="text-sm text-gray-600">Category: {material.category}</p>
                         <p className="text-sm text-gray-600">
-                          From: {material.pdf_submissions?.file_name || 'Unknown PDF'}
+                          From: {material.pdf_submissions?.file_name || 'Direct submission'}
                         </p>
                         <p className="text-sm text-gray-600">
                           Studio: {material.studios?.name || 'Unknown Studio'}
@@ -405,7 +430,7 @@ const MaterialApprovalQueue = () => {
                         <h3 className="font-semibold">{material.name}</h3>
                         <p className="text-sm text-gray-600">Category: {material.category}</p>
                         <p className="text-sm text-gray-600">
-                          From: {material.pdf_submissions?.file_name || 'Unknown PDF'}
+                          From: {material.pdf_submissions?.file_name || 'Direct submission'}
                         </p>
                         <p className="text-sm text-gray-600">
                           Studio: {material.studios?.name || 'Unknown Studio'}
@@ -445,7 +470,7 @@ const MaterialApprovalQueue = () => {
                         <h3 className="font-semibold">{material.name}</h3>
                         <p className="text-sm text-gray-600">Category: {material.category}</p>
                         <p className="text-sm text-gray-600">
-                          From: {material.pdf_submissions?.file_name || 'Unknown PDF'}
+                          From: {material.pdf_submissions?.file_name || 'Direct submission'}
                         </p>
                         <p className="text-sm text-gray-600">
                           Studio: {material.studios?.name || 'Unknown Studio'}
