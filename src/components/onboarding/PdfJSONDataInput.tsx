@@ -167,6 +167,7 @@ const PdfJSONDataInput = ({ studioId, submissionId, projectId, clientId, onImpor
   const handleDuplicateResolution = async (results: any[]) => {
     console.log('=== HANDLE DUPLICATE RESOLUTION DEBUG ===');
     console.log('Results received:', results);
+    console.log('Current projectId:', projectId);
     
     setImporting(true);
     let pendingCount = 0;
@@ -221,10 +222,11 @@ const PdfJSONDataInput = ({ studioId, submissionId, projectId, clientId, onImpor
           pendingCount++;
 
         } else if (result.action === 'link' && result.selectedExistingId) {
-          console.log('Linking existing material:', result.selectedExistingId);
+          console.log('Linking existing material:', result.selectedExistingId, 'to project:', projectId);
           
-          // Check if material is already linked to this project
+          // Link existing material to project if projectId exists
           if (projectId) {
+            // Check if material is already linked to THIS SPECIFIC project
             const { data: existingLink, error: checkError } = await supabase
               .from('proj_materials')
               .select('id')
@@ -233,7 +235,10 @@ const PdfJSONDataInput = ({ studioId, submissionId, projectId, clientId, onImpor
               .eq('studio_id', studioId)
               .maybeSingle();
 
-            if (checkError) throw checkError;
+            if (checkError) {
+              console.error('Error checking existing link:', checkError);
+              throw checkError;
+            }
 
             if (existingLink) {
               console.log(`Material ${result.selectedExistingId} already linked to project ${projectId}, skipping...`);
@@ -241,7 +246,8 @@ const PdfJSONDataInput = ({ studioId, submissionId, projectId, clientId, onImpor
               continue;
             }
 
-            // Link existing material to project
+            // Link existing material to the current project
+            console.log(`Linking material ${result.selectedExistingId} to project ${projectId}`);
             const { error: projMaterialError } = await supabase
               .from('proj_materials')
               .insert([{
@@ -251,10 +257,16 @@ const PdfJSONDataInput = ({ studioId, submissionId, projectId, clientId, onImpor
                 notes: result.materialToImport.tag ? `Tag: ${result.materialToImport.tag}` : null
               }]);
 
-            if (projMaterialError) throw projMaterialError;
+            if (projMaterialError) {
+              console.error('Error linking material to project:', projMaterialError);
+              throw projMaterialError;
+            }
+            
+            console.log(`Successfully linked material ${result.selectedExistingId} to project ${projectId}`);
             linkedCount++;
           } else {
             // No project ID, just count as linked for messaging
+            console.log('No project ID provided, counting as linked');
             linkedCount++;
           }
         }
