@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { CheckCircle, XCircle, AlertCircle, Building, Phone, Mail, Globe, RefreshCw } from 'lucide-react';
+import { CheckCircle, XCircle, AlertCircle, Building, Phone, Mail, Globe } from 'lucide-react';
 
 interface ManufacturerToImport {
   name: string;
@@ -31,7 +31,7 @@ interface ExistingManufacturer {
 interface ManufacturerResolution {
   manufacturerToImport: ManufacturerToImport;
   existingManufacturers: ExistingManufacturer[];
-  action: 'create' | 'link' | 'replace';
+  action: 'create' | 'link';
   selectedExistingId?: string;
 }
 
@@ -113,7 +113,7 @@ const DuplicateManufacturerDetector = ({
     }
   };
 
-  const handleResolution = (index: number, action: 'create' | 'link' | 'replace', selectedExistingId?: string) => {
+  const handleResolution = (index: number, action: 'create' | 'link', selectedExistingId?: string) => {
     const updatedResolutions = [...resolutions];
     updatedResolutions[index] = {
       ...updatedResolutions[index],
@@ -125,17 +125,6 @@ const DuplicateManufacturerDetector = ({
 
   const handleComplete = () => {
     onResolutionComplete(resolutions);
-  };
-
-  const hasMoreDetailsToImport = (toImport: ManufacturerToImport, existing: ExistingManufacturer) => {
-    const importFields = [toImport.contact_name, toImport.email, toImport.phone, toImport.website, toImport.notes];
-    const existingFields = [existing.contact_name, existing.email, existing.phone, existing.website, existing.notes];
-    
-    // Count non-empty fields
-    const importCount = importFields.filter(field => field && field.trim()).length;
-    const existingCount = existingFields.filter(field => field && field.trim()).length;
-    
-    return importCount > existingCount;
   };
 
   const currentResolution = resolutions[currentIndex];
@@ -315,20 +304,6 @@ const DuplicateManufacturerDetector = ({
                       (Use existing: {currentResolution.existingManufacturers[0].name})
                     </span>
                   </Button>
-
-                  {hasMoreDetailsToImport(currentResolution.manufacturerToImport, currentResolution.existingManufacturers[0]) && (
-                    <Button
-                      onClick={() => handleResolution(currentIndex, 'replace', currentResolution.existingManufacturers[0].id)}
-                      variant={currentResolution.action === 'replace' ? 'default' : 'outline'}
-                      className="w-full justify-start"
-                    >
-                      <RefreshCw className="h-4 w-4 mr-2" />
-                      Replace Existing with New Details
-                      <span className="ml-2 text-sm opacity-70">
-                        (Update existing manufacturer with more complete information)
-                      </span>
-                    </Button>
-                  )}
                 </div>
               )}
             </div>
