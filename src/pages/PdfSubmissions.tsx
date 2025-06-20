@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,6 +9,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import PdfJSONDataInput from '@/components/onboarding/PdfJSONDataInput';
+import MaterialApprovalQueue from '@/components/dashboard/admin/MaterialApprovalQueue';
 
 const PdfSubmissions = () => {
   const { isAdmin } = useAuth();
@@ -137,12 +137,12 @@ const PdfSubmissions = () => {
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">PDF Submissions</h1>
         <p className="text-gray-600 mt-1">
-          View and download PDF documents uploaded by studios, and extract materials for onboarding
+          View and download PDF documents uploaded by studios, extract materials for onboarding, and manage material approvals
         </p>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="submissions">PDF Submissions</TabsTrigger>
           <TabsTrigger value="material-onboarding" disabled={!selectedSubmission}>
             Material Onboarding
@@ -152,6 +152,7 @@ const PdfSubmissions = () => {
               </Badge>
             )}
           </TabsTrigger>
+          <TabsTrigger value="approval-queue">Material Approval Queue</TabsTrigger>
         </TabsList>
 
         <TabsContent value="submissions" className="space-y-4 mt-6">
@@ -282,6 +283,10 @@ const PdfSubmissions = () => {
               </CardContent>
             </Card>
           )}
+        </TabsContent>
+
+        <TabsContent value="approval-queue" className="mt-6">
+          <MaterialApprovalQueue />
         </TabsContent>
       </Tabs>
     </div>
