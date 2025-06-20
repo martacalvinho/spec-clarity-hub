@@ -49,22 +49,11 @@ const PdfSubmissions = () => {
 
   const downloadPdf = async (submission: any) => {
     try {
-      console.log('Attempting to download:', submission.object_path);
-      
       const { data, error } = await supabase.storage
         .from('pdfs')
         .download(submission.object_path);
 
-      if (error) {
-        console.error('Download error details:', error);
-        throw error;
-      }
-
-      if (!data) {
-        throw new Error('No data received from download');
-      }
-
-      console.log('Download successful, creating blob URL...');
+      if (error) throw error;
 
       // Create download link
       const url = URL.createObjectURL(data);
@@ -76,25 +65,6 @@ const PdfSubmissions = () => {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      // Update submission status to processing when admin downloads it
-      if (submission.status === 'pending') {
-        const { error: updateError } = await supabase
-          .from('pdf_submissions')
-          .update({ 
-            status: 'processing',
-            processed_at: new Date().toISOString(),
-            processed_by: (await supabase.auth.getUser()).data.user?.id
-          })
-          .eq('id', submission.id);
-
-        if (updateError) {
-          console.error('Error updating submission status:', updateError);
-        } else {
-          // Refresh the submissions list
-          fetchSubmissions();
-        }
-      }
-
       toast({
         title: "Success",
         description: "PDF downloaded successfully"
@@ -103,7 +73,7 @@ const PdfSubmissions = () => {
       console.error('Error downloading PDF:', error);
       toast({
         title: "Download failed",
-        description: `Failed to download PDF: ${error.message || 'Storage access error'}`,
+        description: "Failed to download PDF",
         variant: "destructive"
       });
     }
@@ -118,17 +88,9 @@ const PdfSubmissions = () => {
       rejected: 'bg-red-100 text-red-800'
     };
 
-    const statusLabels = {
-      pending: 'Pending',
-      processing: 'Processing',
-      ready_for_review: 'Ready for Review',
-      completed: 'Approved',
-      rejected: 'Rejected'
-    };
-
     return (
       <Badge className={statusColors[status as keyof typeof statusColors] || 'bg-gray-100 text-gray-800'}>
-        {statusLabels[status as keyof typeof statusLabels] || status}
+        {status.replace('_', ' ').toUpperCase()}
       </Badge>
     );
   };

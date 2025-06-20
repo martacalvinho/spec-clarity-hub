@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Building, FileSpreadsheet, Code, FolderOpen, Users, FileText } from 'lucide-react';
+import { Building, FileSpreadsheet, Code, FolderOpen, Users } from 'lucide-react';
 import MaterialsDataGrid from '@/components/onboarding/MaterialsDataGrid';
 import JSONDataInput from '@/components/onboarding/JSONDataInput';
 import AddProjectForm from '@/components/forms/AddProjectForm';
@@ -30,27 +29,15 @@ interface Client {
   status: string;
 }
 
-interface PdfSubmission {
-  id: string;
-  file_name: string;
-  status: string;
-  project_id: string | null;
-  client_id: string | null;
-  projects?: { name: string } | null;
-  clients?: { name: string } | null;
-}
-
 const Onboarding = () => {
   const { isAdmin } = useAuth();
   const { toast } = useToast();
   const [selectedStudio, setSelectedStudio] = useState<string>('');
   const [selectedProject, setSelectedProject] = useState<string>('');
   const [selectedClient, setSelectedClient] = useState<string>('');
-  const [selectedPdfSubmission, setSelectedPdfSubmission] = useState<string>('');
   const [studios, setStudios] = useState<Studio[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
-  const [pdfSubmissions, setPdfSubmissions] = useState<PdfSubmission[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -61,27 +48,10 @@ const Onboarding = () => {
     if (selectedStudio) {
       fetchProjects();
       fetchClients();
-      fetchPdfSubmissions();
       setSelectedProject(''); // Reset project selection when studio changes
       setSelectedClient(''); // Reset client selection when studio changes
-      setSelectedPdfSubmission(''); // Reset PDF selection when studio changes
     }
   }, [selectedStudio]);
-
-  useEffect(() => {
-    // Auto-fill client and project when PDF is selected
-    if (selectedPdfSubmission) {
-      const selectedPdf = pdfSubmissions.find(pdf => pdf.id === selectedPdfSubmission);
-      if (selectedPdf) {
-        if (selectedPdf.client_id) {
-          setSelectedClient(selectedPdf.client_id);
-        }
-        if (selectedPdf.project_id) {
-          setSelectedProject(selectedPdf.project_id);
-        }
-      }
-    }
-  }, [selectedPdfSubmission, pdfSubmissions]);
 
   const fetchStudios = async () => {
     try {
@@ -143,37 +113,6 @@ const Onboarding = () => {
       toast({
         title: "Error",
         description: "Failed to load clients",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const fetchPdfSubmissions = async () => {
-    if (!selectedStudio) return;
-    
-    try {
-      const { data, error } = await supabase
-        .from('pdf_submissions')
-        .select(`
-          id, 
-          file_name, 
-          status,
-          project_id,
-          client_id,
-          projects(name),
-          clients(name)
-        `)
-        .eq('studio_id', selectedStudio)
-        .eq('status', 'processing')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setPdfSubmissions(data || []);
-    } catch (error) {
-      console.error('Error fetching PDF submissions:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load PDF submissions",
         variant: "destructive",
       });
     }
@@ -247,38 +186,6 @@ const Onboarding = () => {
           </CardContent>
         </Card>
 
-        {/* PDF Submission Selection */}
-        {selectedStudio && pdfSubmissions.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                Link to PDF Submission (Optional)
-              </CardTitle>
-              <CardDescription>
-                Select a processing PDF submission to link these materials to, or leave empty for general materials
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Select value={selectedPdfSubmission} onValueChange={setSelectedPdfSubmission}>
-                <SelectTrigger className="w-full max-w-md">
-                  <SelectValue placeholder="Select a PDF submission (optional)..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No specific PDF</SelectItem>
-                  {pdfSubmissions.map((submission) => (
-                    <SelectItem key={submission.id} value={submission.id}>
-                      {submission.file_name}
-                      {submission.projects?.name && ` - ${submission.projects.name}`}
-                      {submission.clients?.name && ` (${submission.clients.name})`}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </CardContent>
-          </Card>
-        )}
-
         {/* Client Selection */}
         {selectedStudio && (
           <Card>
@@ -289,11 +196,6 @@ const Onboarding = () => {
               </CardTitle>
               <CardDescription>
                 Choose a specific client to link materials to, or leave empty for general studio materials
-                {selectedPdfSubmission && selectedPdfSubmission !== "none" && (
-                  <span className="block mt-1 text-sm text-blue-600">
-                    Auto-filled from selected PDF submission
-                  </span>
-                )}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -327,11 +229,6 @@ const Onboarding = () => {
               </CardTitle>
               <CardDescription>
                 Choose a specific project to link materials to, or leave empty for general studio materials
-                {selectedPdfSubmission && selectedPdfSubmission !== "none" && (
-                  <span className="block mt-1 text-sm text-blue-600">
-                    Auto-filled from selected PDF submission
-                  </span>
-                )}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -372,11 +269,6 @@ const Onboarding = () => {
                     Data will be associated with the selected client
                   </span>
                 )}
-                {selectedPdfSubmission && selectedPdfSubmission !== "none" && (
-                  <span className="block mt-1 text-sm text-purple-600">
-                    Materials will be linked to the selected PDF submission
-                  </span>
-                )}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -395,16 +287,14 @@ const Onboarding = () => {
                 <TabsContent value="grid" className="mt-6">
                   <MaterialsDataGrid 
                     studioId={selectedStudio} 
-                    projectId={selectedProject === "none" ? undefined : selectedProject}
-                    pdfSubmissionId={selectedPdfSubmission === "none" ? undefined : selectedPdfSubmission}
+                    projectId={selectedProject === "none" ? undefined : selectedProject} 
                   />
                 </TabsContent>
                 
                 <TabsContent value="json" className="mt-6">
                   <JSONDataInput 
                     studioId={selectedStudio} 
-                    projectId={selectedProject === "none" ? undefined : selectedProject}
-                    pdfSubmissionId={selectedPdfSubmission === "none" ? undefined : selectedPdfSubmission}
+                    projectId={selectedProject === "none" ? undefined : selectedProject} 
                   />
                 </TabsContent>
               </Tabs>

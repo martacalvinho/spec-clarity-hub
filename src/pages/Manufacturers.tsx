@@ -31,7 +31,7 @@ const Manufacturers = () => {
         .from('manufacturers')
         .select(`
           *,
-          materials(id, name, updated_at)
+          materials(id, name)
         `)
         .eq('studio_id', studioId)
         .order('created_at', { ascending: false });
@@ -55,19 +55,6 @@ const Manufacturers = () => {
         const aMaterialCount = a.materials?.length || 0;
         const bMaterialCount = b.materials?.length || 0;
         return bMaterialCount - aMaterialCount;
-      } else if (sortBy === 'newest_first') {
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-      } else if (sortBy === 'last_updated') {
-        // Get the most recent material update for each manufacturer
-        const aLastUpdate = a.materials?.reduce((latest: string, material: any) => {
-          return material.updated_at > latest ? material.updated_at : latest;
-        }, a.updated_at) || a.updated_at;
-        
-        const bLastUpdate = b.materials?.reduce((latest: string, material: any) => {
-          return material.updated_at > latest ? material.updated_at : latest;
-        }, b.updated_at) || b.updated_at;
-        
-        return new Date(bLastUpdate).getTime() - new Date(aLastUpdate).getTime();
       }
       // Default alphabetical sorting
       return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
@@ -99,8 +86,6 @@ const Manufacturers = () => {
                 <SelectContent>
                   <SelectItem value="alphabetical">Alphabetical</SelectItem>
                   <SelectItem value="most_materials">Most Materials</SelectItem>
-                  <SelectItem value="newest_first">Newest First</SelectItem>
-                  <SelectItem value="last_updated">Last Updated</SelectItem>
                 </SelectContent>
               </Select>
               <div className="relative w-64">

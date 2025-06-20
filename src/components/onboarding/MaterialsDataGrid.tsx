@@ -41,7 +41,6 @@ interface ClientRow {
 interface MaterialsDataGridProps {
   studioId: string;
   projectId?: string;
-  pdfSubmissionId?: string;
 }
 
 const MATERIAL_CATEGORIES = [
@@ -56,7 +55,7 @@ const COMMON_LOCATIONS = [
   'Kitchen', 'Bathroom', 'Living room', 'Bedroom', 'Exterior', 'Commercial', 'Office', 'Hallway', 'Entrance', 'Outdoor'
 ];
 
-const MaterialsDataGrid = ({ studioId, projectId, pdfSubmissionId }: MaterialsDataGridProps) => {
+const MaterialsDataGrid = ({ studioId, projectId }: MaterialsDataGridProps) => {
   const { toast } = useToast();
   const [materials, setMaterials] = useState<MaterialRow[]>([]);
   const [manufacturers, setManufacturers] = useState<ManufacturerRow[]>([]);
@@ -220,41 +219,9 @@ const MaterialsDataGrid = ({ studioId, projectId, pdfSubmissionId }: MaterialsDa
         if (projMaterialError) throw projMaterialError;
       }
 
-      // If pdfSubmissionId is provided, create extracted materials records to link with the PDF
-      if (pdfSubmissionId && savedMaterials.length > 0) {
-        const extractedMaterialInserts = savedMaterials.map(material => ({
-          submission_id: pdfSubmissionId,
-          studio_id: studioId,
-          name: material.name,
-          category: material.category,
-          subcategory: material.subcategory,
-          manufacturer_name: savedManufacturers.find(sm => sm.id === material.manufacturer_id)?.name || null,
-          tag: material.tag,
-          location: material.location,
-          reference_sku: material.reference_sku,
-          dimensions: material.dimensions,
-          notes: material.notes,
-          status: 'ready_for_review'
-        }));
-
-        const { error: extractedError } = await supabase
-          .from('extracted_materials')
-          .insert(extractedMaterialInserts);
-
-        if (extractedError) throw extractedError;
-
-        // Update PDF submission status to ready_for_review
-        const { error: pdfUpdateError } = await supabase
-          .from('pdf_submissions')
-          .update({ status: 'ready_for_review' })
-          .eq('id', pdfSubmissionId);
-
-        if (pdfUpdateError) throw pdfUpdateError;
-      }
-
       toast({
         title: "Success",
-        description: `Imported ${materialInserts.length} materials, ${manufacturerInserts.length} manufacturers, and ${clientInserts.length} clients${projectId ? ' and linked to project' : ''}${pdfSubmissionId ? ' and linked to PDF submission' : ''}`,
+        description: `Imported ${materialInserts.length} materials, ${manufacturerInserts.length} manufacturers, and ${clientInserts.length} clients${projectId ? ' and linked to project' : ''}`,
       });
 
       // Clear the form
@@ -281,9 +248,6 @@ const MaterialsDataGrid = ({ studioId, projectId, pdfSubmissionId }: MaterialsDa
           Fill in the data below and click Save All to import to the database
           {projectId && (
             <span className="block text-blue-600">Materials will be automatically linked to the selected project</span>
-          )}
-          {pdfSubmissionId && (
-            <span className="block text-purple-600">Materials will be linked to the selected PDF submission</span>
           )}
         </p>
         <Button onClick={saveAllData} disabled={saving} className="bg-coral hover:bg-coral-600">
