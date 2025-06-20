@@ -11,6 +11,7 @@ import DuplicateMaterialDetector from './DuplicateMaterialDetector';
 interface JSONDataInputProps {
   studioId: string;
   projectId?: string;
+  pdfSubmissionId?: string;
 }
 
 const TEMPLATE_MATERIALS = [
@@ -68,7 +69,7 @@ const TEMPLATE_CLIENTS = [
   }
 ];
 
-const JSONDataInput = ({ studioId, projectId }: JSONDataInputProps) => {
+const JSONDataInput = ({ studioId, projectId, pdfSubmissionId }: JSONDataInputProps) => {
   const { toast } = useToast();
   const [jsonInput, setJsonInput] = useState('');
   const [importing, setImporting] = useState(false);
@@ -211,6 +212,30 @@ const JSONDataInput = ({ studioId, projectId }: JSONDataInputProps) => {
             if (projMaterialError) throw projMaterialError;
           }
 
+          // If pdfSubmissionId is provided, create extracted materials records to link with the PDF
+          if (pdfSubmissionId && materialData && materialData.length > 0) {
+            const extractedMaterialInsert = {
+              submission_id: pdfSubmissionId,
+              studio_id: studioId,
+              name: materialData[0].name,
+              category: materialData[0].category,
+              subcategory: materialData[0].subcategory,
+              manufacturer_name: selectedManufacturerId === 'none' ? null : manufacturers.find(m => m.id === selectedManufacturerId)?.name,
+              tag: materialData[0].tag,
+              location: materialData[0].location,
+              reference_sku: materialData[0].reference_sku,
+              dimensions: materialData[0].dimensions,
+              notes: materialData[0].notes,
+              status: 'ready_for_review'
+            };
+
+            const { error: extractedError } = await supabase
+              .from('extracted_materials')
+              .insert([extractedMaterialInsert]);
+
+            if (extractedError) throw extractedError;
+          }
+
           importedCount++;
         } else if (result.action === 'link' && result.selectedExistingId) {
           // Link existing material to project
@@ -230,9 +255,19 @@ const JSONDataInput = ({ studioId, projectId }: JSONDataInputProps) => {
         }
       }
 
+      // Update PDF submission status to ready_for_review if materials were linked
+      if (pdfSubmissionId && importedCount > 0) {
+        const { error: pdfUpdateError } = await supabase
+          .from('pdf_submissions')
+          .update({ status: 'ready_for_review' })
+          .eq('id', pdfSubmissionId);
+
+        if (pdfUpdateError) throw pdfUpdateError;
+      }
+
       toast({
         title: "Import successful",
-        description: `Created ${importedCount} new materials and linked ${linkedCount} existing materials${projectId ? ' to project' : ''}`,
+        description: `Created ${importedCount} new materials and linked ${linkedCount} existing materials${projectId ? ' to project' : ''}${pdfSubmissionId ? ' and linked to PDF submission' : ''}`,
       });
 
       setJsonInput('');
@@ -413,6 +448,16 @@ const JSONDataInput = ({ studioId, projectId }: JSONDataInputProps) => {
           <CardContent className="p-4">
             <p className="text-sm text-blue-700">
               <strong>Project Selected:</strong> Materials imported will be automatically linked to the selected project.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {pdfSubmissionId && (
+        <Card className="border-purple-200 bg-purple-50">
+          <CardContent className="p-4">
+            <p className="text-sm text-purple-700">
+              <strong>PDF Submission Selected:</strong> Materials imported will be linked to the selected PDF submission.
             </p>
           </CardContent>
         </Card>
