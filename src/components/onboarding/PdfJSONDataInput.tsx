@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -166,6 +165,9 @@ const PdfJSONDataInput = ({ studioId, submissionId, projectId, clientId, onImpor
   };
 
   const handleDuplicateResolution = async (results: any[]) => {
+    console.log('=== HANDLE DUPLICATE RESOLUTION DEBUG ===');
+    console.log('Results received:', results);
+    
     setImporting(true);
     let pendingCount = 0;
     let linkedCount = 0;
@@ -175,9 +177,14 @@ const PdfJSONDataInput = ({ studioId, submissionId, projectId, clientId, onImpor
       // Get current user ID once
       const { data: userData } = await supabase.auth.getUser();
       const currentUserId = userData.user?.id;
+      console.log('Current user ID:', currentUserId);
 
       for (const result of results) {
+        console.log('Processing result:', result);
+        
         if (result.action === 'create') {
+          console.log('Creating pending material for:', result.materialToImport);
+          
           // Create pending material for approval
           const pendingMaterial = {
             name: result.materialToImport.name,
@@ -198,14 +205,24 @@ const PdfJSONDataInput = ({ studioId, submissionId, projectId, clientId, onImpor
             created_by: currentUserId
           };
 
-          const { error: pendingError } = await supabase
-            .from('pending_materials')
-            .insert([pendingMaterial]);
+          console.log('Inserting pending material:', pendingMaterial);
 
-          if (pendingError) throw pendingError;
+          const { data: pendingData, error: pendingError } = await supabase
+            .from('pending_materials')
+            .insert([pendingMaterial])
+            .select();
+
+          if (pendingError) {
+            console.error('Error inserting pending material:', pendingError);
+            throw pendingError;
+          }
+          
+          console.log('Successfully inserted pending material:', pendingData);
           pendingCount++;
 
         } else if (result.action === 'link' && result.selectedExistingId) {
+          console.log('Linking existing material:', result.selectedExistingId);
+          
           // Check if material is already linked to this project
           if (projectId) {
             const { data: existingLink, error: checkError } = await supabase
@@ -254,6 +271,9 @@ const PdfJSONDataInput = ({ studioId, submissionId, projectId, clientId, onImpor
         message += `${skippedCount} materials were already linked to this project`;
       }
 
+      console.log('Final counts:', { pendingCount, linkedCount, skippedCount });
+      console.log('Final message:', message);
+
       toast({
         title: "Import successful",
         description: message,
@@ -274,6 +294,7 @@ const PdfJSONDataInput = ({ studioId, submissionId, projectId, clientId, onImpor
       });
     } finally {
       setImporting(false);
+      console.log('=== END HANDLE DUPLICATE RESOLUTION DEBUG ===');
     }
   };
 

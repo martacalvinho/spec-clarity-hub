@@ -178,6 +178,8 @@ const PdfDuplicateMaterialDetector = ({
   };
 
   const handleAction = (action: 'create' | 'link', existingId?: string) => {
+    console.log('HandleAction called with:', { action, existingId, currentMaterial });
+    
     const newResult: DuplicateDetectionResult = {
       materialToImport: currentMaterial,
       similarMaterials,
@@ -187,10 +189,13 @@ const PdfDuplicateMaterialDetector = ({
 
     const updatedResults = [...results, newResult];
     setResults(updatedResults);
+    
+    console.log('Updated results:', updatedResults);
 
     if (currentIndex < materialsToImport.length - 1) {
       setCurrentIndex(currentIndex + 1);
     } else {
+      console.log('Calling onResolutionComplete with results:', updatedResults);
       onResolutionComplete(updatedResults);
     }
   };
@@ -247,6 +252,9 @@ const PdfDuplicateMaterialDetector = ({
             )}
             {currentMaterial.dimensions && (
               <div><strong>Dimensions:</strong> {currentMaterial.dimensions}</div>
+            )}
+            {currentMaterial.tag && (
+              <div><strong>Tag:</strong> {currentMaterial.tag}</div>
             )}
           </div>
         </CardContent>
