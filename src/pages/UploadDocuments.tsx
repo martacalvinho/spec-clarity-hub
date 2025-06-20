@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { FileUpload } from '@/components/ui/file-upload';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Upload, FileText, Clock, CheckCircle, AlertCircle } from 'lucide-react';
+import { Upload, FileText, Clock, CheckCircle, AlertCircle, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -196,6 +195,45 @@ const UploadDocuments = () => {
       });
     } finally {
       setUploading(false);
+    }
+  };
+
+  const deleteSubmission = async (submissionId: string, objectPath: string) => {
+    try {
+      // Delete the file from storage
+      if (objectPath) {
+        const { error: storageError } = await supabase.storage
+          .from('pdfs')
+          .remove([objectPath]);
+
+        if (storageError) {
+          console.error('Error deleting file from storage:', storageError);
+          // Continue with database deletion even if storage deletion fails
+        }
+      }
+
+      // Delete the submission record from database
+      const { error: dbError } = await supabase
+        .from('pdf_submissions')
+        .delete()
+        .eq('id', submissionId);
+
+      if (dbError) throw dbError;
+
+      toast({
+        title: "Success",
+        description: "PDF submission deleted successfully"
+      });
+
+      // Refresh submission history
+      fetchSubmissionHistory();
+    } catch (error) {
+      console.error('Error deleting submission:', error);
+      toast({
+        title: "Delete failed",
+        description: "Failed to delete PDF submission. Please try again.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -400,11 +438,21 @@ const UploadDocuments = () => {
                           </div>
                         </div>
                       </div>
-                      <div className="flex flex-col items-end gap-2">
-                        {getStatusBadge(submission.status)}
-                        <div className="text-xs text-gray-500">
-                          {submission.file_size && `${Math.round(submission.file_size / 1024)} KB`}
+                      <div className="flex items-center gap-2">
+                        <div className="flex flex-col items-end gap-2">
+                          {getStatusBadge(submission.status)}
+                          <div className="text-xs text-gray-500">
+                            {submission.file_size && `${Math.round(submission.file_size / 1024)} KB`}
+                          </div>
                         </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => deleteSubmission(submission.id, submission.object_path)}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
                   ))}
