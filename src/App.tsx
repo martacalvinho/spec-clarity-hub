@@ -29,6 +29,8 @@ import Studios from "./pages/Studios";
 import Users from "./pages/Users";
 import AdminAlerts from "./pages/AdminAlerts";
 import Onboarding from "./pages/Onboarding";
+import UploadDocuments from "./pages/UploadDocuments";
+import PdfSubmissions from "./pages/PdfSubmissions";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -114,6 +116,13 @@ function App() {
                 </MaterialLimitsProvider>
               } />
               
+              {/* PDF Document Routes */}
+              <Route path="/upload-documents" element={
+                <MaterialLimitsProvider>
+                  <DashboardLayout><UploadDocuments /></DashboardLayout>
+                </MaterialLimitsProvider>
+              } />
+              
               {/* Admin Routes */}
               <Route path="/studios" element={
                 <MaterialLimitsProvider>
@@ -128,6 +137,11 @@ function App() {
               <Route path="/admin-alerts" element={
                 <MaterialLimitsProvider>
                   <DashboardLayout><AdminAlerts /></DashboardLayout>
+                </MaterialLimitsProvider>
+              } />
+              <Route path="/pdf-submissions" element={
+                <MaterialLimitsProvider>
+                  <DashboardLayout><PdfSubmissions /></DashboardLayout>
                 </MaterialLimitsProvider>
               } />
               <Route path="/onboarding" element={

@@ -11,7 +11,9 @@ import {
   Users, 
   Bell,
   Settings,
-  AlertTriangle
+  AlertTriangle,
+  Upload,
+  FileText
 } from 'lucide-react';
 import ChangePasswordForm from '@/components/forms/ChangePasswordForm';
 import ContactUsForm from '@/components/forms/ContactUsForm';
@@ -61,14 +63,16 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     { icon: Building, label: 'Studios', href: '/studios' },
     { icon: Users, label: 'Users', href: '/users' },
     { icon: AlertTriangle, label: 'Send Alerts', href: '/admin-alerts' },
+    { icon: FileText, label: 'View PDFs', href: '/pdf-submissions' },
     { icon: Settings, label: 'Onboarding', href: '/onboarding' },
   ] : [
     { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard' },
-    { icon: FolderOpen, label: 'Projects', href: '/projects' },
     { icon: Package, label: 'Materials', href: '/materials' },
-    { icon: Building, label: 'Manufacturers', href: '/manufacturers' },
+    { icon: FolderOpen, label: 'Projects', href: '/projects' },
     { icon: Users, label: 'Clients', href: '/clients' },
+    { icon: Building, label: 'Manufacturers', href: '/manufacturers' },
     { icon: Bell, label: 'Alerts', href: '/alerts' },
+    { icon: Upload, label: 'Upload Documents', href: '/upload-documents' },
   ];
 
   return (
