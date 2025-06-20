@@ -169,6 +169,7 @@ const PdfJSONDataInput = ({ studioId, submissionId, projectId, clientId, onImpor
     setImporting(true);
     let pendingCount = 0;
     let linkedCount = 0;
+    let skippedCount = 0;
 
     try {
       // Get current user ID once
@@ -205,25 +206,57 @@ const PdfJSONDataInput = ({ studioId, submissionId, projectId, clientId, onImpor
           pendingCount++;
 
         } else if (result.action === 'link' && result.selectedExistingId) {
-          // Link existing material to project if projectId exists
+          // Check if material is already linked to this project
           if (projectId) {
+            const { data: existingLink, error: checkError } = await supabase
+              .from('proj_materials')
+              .select('id')
+              .eq('project_id', projectId)
+              .eq('material_id', result.selectedExistingId)
+              .eq('studio_id', studioId)
+              .maybeSingle();
+
+            if (checkError) throw checkError;
+
+            if (existingLink) {
+              console.log(`Material ${result.selectedExistingId} already linked to project ${projectId}, skipping...`);
+              skippedCount++;
+              continue;
+            }
+
+            // Link existing material to project
             const { error: projMaterialError } = await supabase
               .from('proj_materials')
               .insert([{
                 project_id: projectId,
                 material_id: result.selectedExistingId,
-                studio_id: studioId
+                studio_id: studioId,
+                notes: result.materialToImport.tag ? `Tag: ${result.materialToImport.tag}` : null
               }]);
 
             if (projMaterialError) throw projMaterialError;
+            linkedCount++;
+          } else {
+            // No project ID, just count as linked for messaging
+            linkedCount++;
           }
-          linkedCount++;
         }
+      }
+
+      let message = '';
+      if (pendingCount > 0) message += `Added ${pendingCount} materials to approval queue`;
+      if (linkedCount > 0) {
+        if (message) message += ' and ';
+        message += `linked ${linkedCount} existing materials${projectId ? ' to project' : ''}`;
+      }
+      if (skippedCount > 0) {
+        if (message) message += '. ';
+        message += `${skippedCount} materials were already linked to this project`;
       }
 
       toast({
         title: "Import successful",
-        description: `Added ${pendingCount} materials to approval queue and linked ${linkedCount} existing materials${projectId ? ' to project' : ''}`,
+        description: message,
       });
 
       setJsonInput('');
