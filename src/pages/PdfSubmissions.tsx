@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Download, FileText, Eye, Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -48,6 +49,39 @@ const PdfSubmissions = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const updatePdfStatus = async (submissionId: string, newStatus: string) => {
+    try {
+      const { error } = await supabase
+        .from('pdf_submissions')
+        .update({ 
+          status: newStatus,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', submissionId);
+
+      if (error) throw error;
+
+      // Update local state
+      setSubmissions(prev => prev.map(sub => 
+        sub.id === submissionId 
+          ? { ...sub, status: newStatus }
+          : sub
+      ));
+
+      toast({
+        title: "Success",
+        description: `PDF status updated to ${newStatus}`
+      });
+    } catch (error) {
+      console.error('Error updating PDF status:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update PDF status",
+        variant: "destructive"
+      });
     }
   };
 
@@ -178,7 +212,22 @@ const PdfSubmissions = () => {
                         {format(new Date(submission.created_at), 'PPP')}
                       </CardDescription>
                     </div>
-                    {getStatusBadge(submission.status)}
+                    <div className="flex items-center gap-3">
+                      {getStatusBadge(submission.status)}
+                      <Select
+                        value={submission.status}
+                        onValueChange={(newStatus) => updatePdfStatus(submission.id, newStatus)}
+                      >
+                        <SelectTrigger className="w-32">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="pending">Pending</SelectItem>
+                          <SelectItem value="processing">Processing</SelectItem>
+                          <SelectItem value="completed">Complete</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent>
