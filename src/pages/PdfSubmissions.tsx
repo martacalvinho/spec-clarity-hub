@@ -3,17 +3,21 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Download, FileText, Eye } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Download, FileText, Eye, Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
+import PdfJSONDataInput from '@/components/onboarding/PdfJSONDataInput';
 
 const PdfSubmissions = () => {
   const { isAdmin } = useAuth();
   const { toast } = useToast();
   const [submissions, setSubmissions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('submissions');
+  const [selectedSubmission, setSelectedSubmission] = useState<any>(null);
 
   useEffect(() => {
     if (isAdmin) {
@@ -79,6 +83,20 @@ const PdfSubmissions = () => {
     }
   };
 
+  const handleMaterialOnboarding = (submission: any) => {
+    setSelectedSubmission(submission);
+    setActiveTab('material-onboarding');
+  };
+
+  const handleImportComplete = () => {
+    toast({
+      title: "Import completed",
+      description: "Materials have been added to the approval queue"
+    });
+    // Optionally switch back to submissions tab
+    setActiveTab('submissions');
+  };
+
   const getStatusBadge = (status: string) => {
     const statusColors = {
       pending: 'bg-yellow-100 text-yellow-800',
@@ -119,80 +137,153 @@ const PdfSubmissions = () => {
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">PDF Submissions</h1>
         <p className="text-gray-600 mt-1">
-          View and download PDF documents uploaded by studios
+          View and download PDF documents uploaded by studios, and extract materials for onboarding
         </p>
       </div>
 
-      <div className="space-y-4">
-        {submissions.length === 0 ? (
-          <Card>
-            <CardContent className="text-center py-8">
-              <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600">No PDF submissions found</p>
-            </CardContent>
-          </Card>
-        ) : (
-          submissions.map((submission) => (
-            <Card key={submission.id}>
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <FileText className="h-5 w-5" />
-                      {submission.file_name}
-                    </CardTitle>
-                    <CardDescription>
-                      Uploaded by {submission.studios?.name} on{' '}
-                      {format(new Date(submission.created_at), 'PPP')}
-                    </CardDescription>
-                  </div>
-                  {getStatusBadge(submission.status)}
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                  <div>
-                    <p className="text-sm font-medium text-gray-700">Project</p>
-                    <p className="text-sm text-gray-600">
-                      {submission.projects?.name || 'Not specified'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-700">Client</p>
-                    <p className="text-sm text-gray-600">
-                      {submission.clients?.name || 'Not specified'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-700">File Size</p>
-                    <p className="text-sm text-gray-600">
-                      {submission.file_size ? `${Math.round(submission.file_size / 1024)} KB` : 'Unknown'}
-                    </p>
-                  </div>
-                </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="submissions">PDF Submissions</TabsTrigger>
+          <TabsTrigger value="material-onboarding" disabled={!selectedSubmission}>
+            Material Onboarding
+            {selectedSubmission && (
+              <Badge variant="secondary" className="ml-2">
+                {selectedSubmission.studios?.name}
+              </Badge>
+            )}
+          </TabsTrigger>
+        </TabsList>
 
-                {submission.notes && (
-                  <div className="mb-4">
-                    <p className="text-sm font-medium text-gray-700">Notes</p>
-                    <p className="text-sm text-gray-600">{submission.notes}</p>
-                  </div>
-                )}
-
-                <div className="flex gap-2 pt-2">
-                  <Button
-                    onClick={() => downloadPdf(submission)}
-                    size="sm"
-                    className="flex items-center gap-2"
-                  >
-                    <Download className="h-4 w-4" />
-                    Download
-                  </Button>
-                </div>
+        <TabsContent value="submissions" className="space-y-4 mt-6">
+          {submissions.length === 0 ? (
+            <Card>
+              <CardContent className="text-center py-8">
+                <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-600">No PDF submissions found</p>
               </CardContent>
             </Card>
-          ))
-        )}
-      </div>
+          ) : (
+            submissions.map((submission) => (
+              <Card key={submission.id}>
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <FileText className="h-5 w-5" />
+                        {submission.file_name}
+                      </CardTitle>
+                      <CardDescription>
+                        Uploaded by {submission.studios?.name} on{' '}
+                        {format(new Date(submission.created_at), 'PPP')}
+                      </CardDescription>
+                    </div>
+                    {getStatusBadge(submission.status)}
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <div>
+                      <p className="text-sm font-medium text-gray-700">Project</p>
+                      <p className="text-sm text-gray-600">
+                        {submission.projects?.name || 'Not specified'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-700">Client</p>
+                      <p className="text-sm text-gray-600">
+                        {submission.clients?.name || 'Not specified'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-700">File Size</p>
+                      <p className="text-sm text-gray-600">
+                        {submission.file_size ? `${Math.round(submission.file_size / 1024)} KB` : 'Unknown'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {submission.notes && (
+                    <div className="mb-4">
+                      <p className="text-sm font-medium text-gray-700">Notes</p>
+                      <p className="text-sm text-gray-600">{submission.notes}</p>
+                    </div>
+                  )}
+
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      onClick={() => downloadPdf(submission)}
+                      size="sm"
+                      className="flex items-center gap-2"
+                    >
+                      <Download className="h-4 w-4" />
+                      Download
+                    </Button>
+                    <Button
+                      onClick={() => handleMaterialOnboarding(submission)}
+                      size="sm"
+                      variant="outline"
+                      className="flex items-center gap-2"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Material Onboarding
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </TabsContent>
+
+        <TabsContent value="material-onboarding" className="mt-6">
+          {selectedSubmission ? (
+            <div className="space-y-6">
+              <Card className="border-green-200 bg-green-50">
+                <CardHeader>
+                  <CardTitle className="text-green-800">PDF Selected for Material Onboarding</CardTitle>
+                  <CardDescription className="text-green-700">
+                    Pre-selected information from the PDF submission
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <p className="text-sm font-medium text-green-800">Studio</p>
+                      <p className="text-sm text-green-700">{selectedSubmission.studios?.name}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-green-800">Project</p>
+                      <p className="text-sm text-green-700">
+                        {selectedSubmission.projects?.name || 'Not specified'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-green-800">Client</p>
+                      <p className="text-sm text-green-700">
+                        {selectedSubmission.clients?.name || 'Not specified'}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <PdfJSONDataInput
+                studioId={selectedSubmission.studio_id}
+                submissionId={selectedSubmission.id}
+                projectId={selectedSubmission.project_id}
+                clientId={selectedSubmission.client_id}
+                onImportComplete={handleImportComplete}
+              />
+            </div>
+          ) : (
+            <Card>
+              <CardContent className="text-center py-8">
+                <Plus className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-600">Select a PDF submission first to start material onboarding</p>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

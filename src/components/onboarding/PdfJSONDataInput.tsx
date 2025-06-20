@@ -1,0 +1,442 @@
+
+import { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { FileText, Upload, Copy } from 'lucide-react';
+import PdfDuplicateMaterialDetector from './PdfDuplicateMaterialDetector';
+
+interface PdfJSONDataInputProps {
+  studioId: string;
+  submissionId: string;
+  projectId?: string;
+  clientId?: string;
+  onImportComplete: () => void;
+}
+
+const TEMPLATE_MATERIALS = [
+  {
+    name: "White Oak Flooring",
+    model: "NATURAL",
+    category: "Flooring",
+    subcategory: "Hardwood",
+    tag: "Premium",
+    location: "Living room",
+    reference_sku: "WO-3-NAT",
+    dimensions: "5\" x 3/4\" x RL",
+    notes: "Available in 3 finishes"
+  },
+  {
+    name: "Carrara Marble",
+    model: "CLASSIC",
+    category: "Stone", 
+    subcategory: "Marble",
+    tag: "Luxury",
+    location: "Kitchen",
+    reference_sku: "CAR-12-POL",
+    dimensions: "12\" x 24\" x 3/4\"",
+    notes: "Bookmatched slabs available"
+  }
+];
+
+const TEMPLATE_MANUFACTURERS = [
+  {
+    name: "Premium Woods Co",
+    contact_name: "John Smith",
+    email: "john@premiumwoods.com",
+    phone: "+1-555-0123",
+    website: "premiumwoods.com",
+    notes: "Lead time 4-6 weeks"
+  },
+  {
+    name: "Stone Masters",
+    contact_name: "Sarah Johnson", 
+    email: "sarah@stonemasters.com",
+    phone: "+1-555-0456",
+    website: "stonemasters.com",
+    notes: "Custom fabrication available"
+  }
+];
+
+const PdfJSONDataInput = ({ studioId, submissionId, projectId, clientId, onImportComplete }: PdfJSONDataInputProps) => {
+  const { toast } = useToast();
+  const [jsonInput, setJsonInput] = useState('');
+  const [importing, setImporting] = useState(false);
+  const [dataType, setDataType] = useState<'materials' | 'manufacturers'>('materials');
+  const [selectedManufacturerId, setSelectedManufacturerId] = useState<string>('');
+  const [manufacturers, setManufacturers] = useState<any[]>([]);
+  const [showDuplicateDetector, setShowDuplicateDetector] = useState(false);
+  const [materialsToCheck, setMaterialsToCheck] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (studioId && dataType === 'materials') {
+      fetchManufacturers();
+    }
+  }, [studioId, dataType]);
+
+  const fetchManufacturers = async () => {
+    try {
+      const { data } = await supabase
+        .from('manufacturers')
+        .select('id, name')
+        .eq('studio_id', studioId)
+        .order('name');
+      
+      setManufacturers(data || []);
+    } catch (error) {
+      console.error('Error fetching manufacturers:', error);
+    }
+  };
+
+  const getTemplate = () => {
+    switch (dataType) {
+      case 'materials':
+        return TEMPLATE_MATERIALS;
+      case 'manufacturers':
+        return TEMPLATE_MANUFACTURERS;
+    }
+  };
+
+  const copyTemplate = () => {
+    const templateString = JSON.stringify(getTemplate(), null, 2);
+    setJsonInput(templateString);
+    navigator.clipboard.writeText(templateString);
+    toast({
+      title: "Template copied",
+      description: `${dataType} template has been copied to the input field and clipboard`,
+    });
+  };
+
+  const validateAndParseJSON = (jsonString: string) => {
+    try {
+      const data = JSON.parse(jsonString);
+      
+      if (!Array.isArray(data)) {
+        throw new Error('JSON must be an array');
+      }
+
+      if (dataType === 'materials') {
+        data.forEach((item: any, index: number) => {
+          if (!item.name || !item.category) {
+            throw new Error(`Material at index ${index} must have name and category`);
+          }
+        });
+      } else if (dataType === 'manufacturers') {
+        data.forEach((item: any, index: number) => {
+          if (!item.name) {
+            throw new Error(`Manufacturer at index ${index} must have name`);
+          }
+        });
+      }
+
+      return data;
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const handleDuplicateResolution = async (results: any[]) => {
+    setImporting(true);
+    let pendingCount = 0;
+    let linkedCount = 0;
+
+    try {
+      for (const result of results) {
+        if (result.action === 'create') {
+          // Create pending material for approval
+          const pendingMaterial = {
+            name: result.materialToImport.name,
+            category: result.materialToImport.category,
+            subcategory: result.materialToImport.subcategory || null,
+            manufacturer_name: result.materialToImport.manufacturer_name || null,
+            manufacturer_id: selectedManufacturerId === 'none' ? null : selectedManufacturerId,
+            model: result.materialToImport.model || null,
+            tag: result.materialToImport.tag || null,
+            location: result.materialToImport.location || null,
+            reference_sku: result.materialToImport.reference_sku || null,
+            dimensions: result.materialToImport.dimensions || null,
+            notes: result.materialToImport.notes || null,
+            studio_id: studioId,
+            submission_id: submissionId,
+            project_id: projectId || null,
+            client_id: clientId || null,
+            created_by: (await supabase.auth.getUser()).data.user?.id
+          };
+
+          const { error: pendingError } = await supabase
+            .from('pending_materials')
+            .insert([pendingMaterial]);
+
+          if (pendingError) throw pendingError;
+          pendingCount++;
+
+        } else if (result.action === 'link' && result.selectedExistingId) {
+          // Link existing material to project if projectId exists
+          if (projectId) {
+            const { error: projMaterialError } = await supabase
+              .from('proj_materials')
+              .insert([{
+                project_id: projectId,
+                material_id: result.selectedExistingId,
+                studio_id: studioId
+              }]);
+
+            if (projMaterialError) throw projMaterialError;
+          }
+          linkedCount++;
+        }
+      }
+
+      toast({
+        title: "Import successful",
+        description: `Added ${pendingCount} materials to approval queue and linked ${linkedCount} existing materials${projectId ? ' to project' : ''}`,
+      });
+
+      setJsonInput('');
+      setSelectedManufacturerId('');
+      setShowDuplicateDetector(false);
+      setMaterialsToCheck([]);
+      onImportComplete();
+
+    } catch (error: any) {
+      console.error('Import error:', error);
+      toast({
+        title: "Import failed",
+        description: error.message || "Failed to import materials",
+        variant: "destructive",
+      });
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const importData = async () => {
+    if (!jsonInput.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter JSON data to import",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (dataType === 'materials' && !selectedManufacturerId) {
+      toast({
+        title: "Error",
+        description: "Please select a manufacturer for these materials",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const data = validateAndParseJSON(jsonInput);
+
+      if (dataType === 'materials') {
+        // For materials, start duplicate detection process
+        const validMaterials = data.filter((m: any) => m.name && m.name.trim() && m.category && m.category.trim());
+        
+        if (validMaterials.length === 0) {
+          toast({
+            title: "Error",
+            description: "No valid materials found in the JSON data",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        setMaterialsToCheck(validMaterials);
+        setShowDuplicateDetector(true);
+        return;
+      }
+
+      // For manufacturers, create pending entries directly
+      setImporting(true);
+      let pendingCount = 0;
+
+      const manufacturerInserts = data
+        .filter((m: any) => m.name && m.name.trim())
+        .map((m: any) => ({
+          name: m.name,
+          contact_name: m.contact_name || null,
+          email: m.email || null,
+          phone: m.phone || null,
+          website: m.website || null,
+          notes: m.notes || null,
+          studio_id: studioId,
+          submission_id: submissionId,
+          created_by: (await supabase.auth.getUser()).data.user?.id
+        }));
+
+      if (manufacturerInserts.length > 0) {
+        const { data: pendingData, error: pendingError } = await supabase
+          .from('pending_manufacturers')
+          .insert(manufacturerInserts)
+          .select();
+
+        if (pendingError) throw pendingError;
+        pendingCount = pendingData?.length || 0;
+      }
+
+      toast({
+        title: "Import successful",
+        description: `Added ${pendingCount} ${dataType} to approval queue`,
+      });
+
+      setJsonInput('');
+      onImportComplete();
+
+    } catch (error: any) {
+      console.error('Import error:', error);
+      toast({
+        title: "Import failed",
+        description: error.message || "Failed to import data. Please check your JSON format.",
+        variant: "destructive",
+      });
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  if (showDuplicateDetector) {
+    return (
+      <PdfDuplicateMaterialDetector
+        materialsToImport={materialsToCheck}
+        studioId={studioId}
+        submissionId={submissionId}
+        projectId={projectId}
+        clientId={clientId}
+        onResolutionComplete={handleDuplicateResolution}
+        onCancel={() => {
+          setShowDuplicateDetector(false);
+          setMaterialsToCheck([]);
+        }}
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <Card className="border-blue-200 bg-blue-50">
+        <CardContent className="p-4">
+          <p className="text-sm text-blue-700">
+            <strong>PDF Import Mode:</strong> All imported items will be added to your approval queue before being added to the main database.
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Data Type Selection */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Select Data Type</CardTitle>
+          <CardDescription>
+            Choose what type of data you want to import from this PDF
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Select value={dataType} onValueChange={(value: 'materials' | 'manufacturers') => {
+            setDataType(value);
+            setJsonInput('');
+            setSelectedManufacturerId('');
+          }}>
+            <SelectTrigger className="w-full max-w-md">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="materials">Materials</SelectItem>
+              <SelectItem value="manufacturers">Manufacturers</SelectItem>
+            </SelectContent>
+          </Select>
+        </CardContent>
+      </Card>
+
+      {/* Manufacturer Selection for Materials */}
+      {dataType === 'materials' && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Select Manufacturer</CardTitle>
+            <CardDescription>
+              Choose which manufacturer these materials belong to, or select "NONE" if no manufacturer is specified
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <Select value={selectedManufacturerId} onValueChange={setSelectedManufacturerId}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select a manufacturer..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">*NONE*</SelectItem>
+                  {manufacturers.map((manufacturer) => (
+                    <SelectItem key={manufacturer.id} value={manufacturer.id}>
+                      {manufacturer.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="grid md:grid-cols-2 gap-6">
+        {/* Template */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              JSON Template for {dataType}
+            </CardTitle>
+            <CardDescription>
+              Use this template format for your {dataType} data
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <pre className="bg-gray-50 p-4 rounded-lg text-xs overflow-auto max-h-96">
+                {JSON.stringify(getTemplate(), null, 2)}
+              </pre>
+              <Button onClick={copyTemplate} variant="outline" className="w-full">
+                <Copy className="h-4 w-4 mr-2" />
+                Copy Template to Input
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Input */}
+        <Card>
+          <CardHeader>
+            <CardTitle>JSON Data Input</CardTitle>
+            <CardDescription>
+              Paste your {dataType} JSON data here following the template format
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <Textarea
+                value={jsonInput}
+                onChange={(e) => setJsonInput(e.target.value)}
+                placeholder={`Paste your ${dataType} JSON data here...`}
+                className="min-h-96 font-mono text-sm"
+              />
+              <Button 
+                onClick={importData} 
+                disabled={importing || !jsonInput.trim() || (dataType === 'materials' && !selectedManufacturerId)}
+                className="w-full bg-coral hover:bg-coral-600"
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                {importing ? 'Processing...' : `Import ${dataType} for Approval`}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+};
+
+export default PdfJSONDataInput;

@@ -933,6 +933,172 @@ export type Database = {
           },
         ]
       }
+      pending_manufacturers: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          contact_name: string | null
+          created_at: string
+          created_by: string
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+          status: string
+          studio_id: string
+          submission_id: string | null
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          contact_name?: string | null
+          created_at?: string
+          created_by: string
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+          status?: string
+          studio_id: string
+          submission_id?: string | null
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          contact_name?: string | null
+          created_at?: string
+          created_by?: string
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          status?: string
+          studio_id?: string
+          submission_id?: string | null
+          updated_at?: string
+          website?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pending_manufacturers_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "pdf_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pending_materials: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          category: string
+          client_id: string | null
+          created_at: string
+          created_by: string
+          dimensions: string | null
+          id: string
+          location: string | null
+          manufacturer_id: string | null
+          manufacturer_name: string | null
+          model: string | null
+          name: string
+          notes: string | null
+          project_id: string | null
+          reference_sku: string | null
+          status: string
+          studio_id: string
+          subcategory: string | null
+          submission_id: string | null
+          tag: string | null
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          category: string
+          client_id?: string | null
+          created_at?: string
+          created_by: string
+          dimensions?: string | null
+          id?: string
+          location?: string | null
+          manufacturer_id?: string | null
+          manufacturer_name?: string | null
+          model?: string | null
+          name: string
+          notes?: string | null
+          project_id?: string | null
+          reference_sku?: string | null
+          status?: string
+          studio_id: string
+          subcategory?: string | null
+          submission_id?: string | null
+          tag?: string | null
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          category?: string
+          client_id?: string | null
+          created_at?: string
+          created_by?: string
+          dimensions?: string | null
+          id?: string
+          location?: string | null
+          manufacturer_id?: string | null
+          manufacturer_name?: string | null
+          model?: string | null
+          name?: string
+          notes?: string | null
+          project_id?: string | null
+          reference_sku?: string | null
+          status?: string
+          studio_id?: string
+          subcategory?: string | null
+          submission_id?: string | null
+          tag?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pending_materials_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pending_materials_manufacturer_id_fkey"
+            columns: ["manufacturer_id"]
+            isOneToOne: false
+            referencedRelation: "manufacturers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pending_materials_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pending_materials_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "pdf_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       proj_materials: {
         Row: {
           cost_per_sqft: number | null
