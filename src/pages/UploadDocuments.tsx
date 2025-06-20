@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -75,60 +74,35 @@ const UploadDocuments = () => {
   };
 
   const handleUpload = async () => {
-    if (!selectedFile || !studioId) {
-      console.log('Missing file or studio ID:', { selectedFile: !!selectedFile, studioId });
-      return;
-    }
+    if (!selectedFile || !studioId) return;
 
     setUploading(true);
     try {
-      console.log('Starting upload process...');
-      
       // Upload file to storage
       const fileName = `${Date.now()}_${selectedFile.name}`;
       const filePath = `${studioId}/${fileName}`;
       
-      console.log('Uploading to path:', filePath);
-      
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('pdfs')
-        .upload(filePath, selectedFile, {
-          cacheControl: '3600',
-          upsert: false
-        });
+        .upload(filePath, selectedFile);
 
-      if (uploadError) {
-        console.error('Upload error:', uploadError);
-        throw uploadError;
-      }
-
-      console.log('Upload successful:', uploadData);
+      if (uploadError) throw uploadError;
 
       // Create PDF submission record
-      const submissionData = {
-        studio_id: studioId,
-        project_id: selectedProject || null,
-        client_id: selectedClient || null,
-        file_name: selectedFile.name,
-        file_size: selectedFile.size,
-        object_path: filePath,
-        notes: notes || null,
-        status: 'pending'
-      };
-
-      console.log('Creating submission record:', submissionData);
-
-      const { data: dbData, error: dbError } = await supabase
+      const { error: dbError } = await supabase
         .from('pdf_submissions')
-        .insert(submissionData)
-        .select();
+        .insert({
+          studio_id: studioId,
+          project_id: selectedProject || null,
+          client_id: selectedClient || null,
+          file_name: selectedFile.name,
+          file_size: selectedFile.size,
+          object_path: filePath,
+          notes: notes || null,
+          status: 'pending'
+        });
 
-      if (dbError) {
-        console.error('Database error:', dbError);
-        throw dbError;
-      }
-
-      console.log('Submission record created:', dbData);
+      if (dbError) throw dbError;
 
       toast({
         title: "Success",
@@ -140,12 +114,14 @@ const UploadDocuments = () => {
       setSelectedProject('');
       setSelectedClient('');
       setNotes('');
+      const fileInput = document.getElementById('pdf-upload') as HTMLInputElement;
+      if (fileInput) fileInput.value = '';
 
     } catch (error) {
       console.error('Error uploading PDF:', error);
       toast({
         title: "Upload failed",
-        description: `Failed to upload PDF: ${error.message || 'Unknown error'}`,
+        description: "Failed to upload PDF. Please try again.",
         variant: "destructive"
       });
     } finally {

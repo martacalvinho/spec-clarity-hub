@@ -49,22 +49,11 @@ const PdfSubmissions = () => {
 
   const downloadPdf = async (submission: any) => {
     try {
-      console.log('Attempting to download:', submission.object_path);
-      
       const { data, error } = await supabase.storage
         .from('pdfs')
         .download(submission.object_path);
 
-      if (error) {
-        console.error('Download error details:', error);
-        throw error;
-      }
-
-      if (!data) {
-        throw new Error('No data received from download');
-      }
-
-      console.log('Download successful, creating blob URL...');
+      if (error) throw error;
 
       // Create download link
       const url = URL.createObjectURL(data);
@@ -84,7 +73,7 @@ const PdfSubmissions = () => {
       console.error('Error downloading PDF:', error);
       toast({
         title: "Download failed",
-        description: `Failed to download PDF: ${error.message || 'Storage access error'}`,
+        description: "Failed to download PDF",
         variant: "destructive"
       });
     }

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,7 +17,7 @@ const Clients = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterBy, setFilterBy] = useState('all');
-  const [sortBy, setSortBy] = useState('newest_first');
+  const [sortBy, setSortBy] = useState('alphabetical');
 
   useEffect(() => {
     if (studioId) {
@@ -52,9 +53,6 @@ const Clients = () => {
       return matchesSearch && client.status === filterBy;
     })
     .sort((a, b) => {
-      if (sortBy === 'newest_first') {
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-      }
       if (sortBy === 'most_projects') {
         const aProjectCount = a.projects?.length || 0;
         const bProjectCount = b.projects?.length || 0;
@@ -108,7 +106,6 @@ const Clients = () => {
                   <SelectValue placeholder="Sort by..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="newest_first">Newest First</SelectItem>
                   <SelectItem value="alphabetical">Alphabetical</SelectItem>
                   <SelectItem value="most_projects">Most Projects</SelectItem>
                 </SelectContent>
