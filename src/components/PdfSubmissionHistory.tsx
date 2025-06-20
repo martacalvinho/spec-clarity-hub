@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -55,45 +54,67 @@ const PdfSubmissionHistory = () => {
 
     setDeleting(submission.id);
     try {
+      console.log('Deleting submission:', submission.id, 'with path:', submission.object_path);
+      
       // First delete the file from storage if it exists
       if (submission.object_path) {
+        console.log('Attempting to delete file from storage:', submission.object_path);
         const { error: storageError } = await supabase.storage
           .from('pdfs')
           .remove([submission.object_path]);
         
         if (storageError) {
           console.warn('Could not delete file from storage:', storageError);
+          // Continue with deletion even if storage fails
+        } else {
+          console.log('File deleted from storage successfully');
         }
       }
 
       // Delete extracted materials associated with this submission
-      await supabase
+      console.log('Deleting extracted materials for submission:', submission.id);
+      const { error: materialsError } = await supabase
         .from('extracted_materials')
         .delete()
         .eq('submission_id', submission.id);
 
+      if (materialsError) {
+        console.warn('Could not delete extracted materials:', materialsError);
+        // Continue with deletion
+      }
+
       // Delete the submission record
+      console.log('Deleting submission record:', submission.id);
       const { error } = await supabase
         .from('pdf_submissions')
         .delete()
-        .eq('id', submission.id);
+        .eq('id', submission.id)
+        .eq('studio_id', studioId); // Extra safety check
 
       if (error) throw error;
 
+      console.log('Submission deleted successfully');
+      
+      // Remove the submission from local state immediately
+      setSubmissions(prevSubmissions => 
+        prevSubmissions.filter(sub => sub.id !== submission.id)
+      );
+      
       toast({
         title: "Success",
         description: "PDF submission deleted successfully"
       });
 
-      // Refresh the list
-      fetchSubmissions();
     } catch (error) {
       console.error('Error deleting PDF:', error);
       toast({
         title: "Error",
-        description: "Failed to delete PDF submission",
+        description: `Failed to delete PDF submission: ${error.message}`,
         variant: "destructive"
       });
+      
+      // Refresh the list in case of error to show current state
+      fetchSubmissions();
     } finally {
       setDeleting(null);
     }
@@ -182,7 +203,11 @@ const PdfSubmissionHistory = () => {
                       disabled={deleting === submission.id}
                       className="text-red-600 hover:text-red-800 hover:bg-red-50"
                     >
-                      <Trash2 className="h-4 w-4" />
+                      {deleting === submission.id ? (
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
                     </Button>
                   </div>
                 </div>
