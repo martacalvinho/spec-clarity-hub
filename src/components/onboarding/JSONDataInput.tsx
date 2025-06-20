@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { FileText, Upload, Copy, Plus } from 'lucide-react';
 import DuplicateMaterialDetector from './DuplicateMaterialDetector';
+import DuplicateManufacturerDetector from './DuplicateManufacturerDetector';
 
 interface JSONDataInputProps {
   studioId: string;
@@ -78,6 +79,8 @@ const JSONDataInput = ({ studioId, projectId, pdfSubmissionId }: JSONDataInputPr
   const [manufacturers, setManufacturers] = useState<any[]>([]);
   const [showDuplicateDetector, setShowDuplicateDetector] = useState(false);
   const [materialsToCheck, setMaterialsToCheck] = useState<any[]>([]);
+  const [showDuplicateManufacturerDetector, setShowDuplicateManufacturerDetector] = useState(false);
+  const [manufacturersToCheck, setManufacturersToCheck] = useState<any[]>([]);
 
   useEffect(() => {
     if (studioId && dataType === 'materials') {
@@ -287,6 +290,57 @@ const JSONDataInput = ({ studioId, projectId, pdfSubmissionId }: JSONDataInputPr
     }
   };
 
+  const handleManufacturerDuplicateResolution = async (results: any[]) => {
+    setImporting(true);
+    let importedCount = 0;
+
+    try {
+      for (const result of results) {
+        if (result.action === 'create') {
+          // Create new manufacturer
+          const manufacturerInsert = {
+            name: result.manufacturerToImport.name,
+            contact_name: result.manufacturerToImport.contact_name || null,
+            email: result.manufacturerToImport.email || null,
+            phone: result.manufacturerToImport.phone || null,
+            website: result.manufacturerToImport.website || null,
+            notes: result.manufacturerToImport.notes || null,
+            studio_id: studioId
+          };
+
+          const { data: manufacturerData, error: manufacturerError } = await supabase
+            .from('manufacturers')
+            .insert([manufacturerInsert])
+            .select();
+
+          if (manufacturerError) throw manufacturerError;
+          importedCount++;
+        }
+        // If action is 'link', we skip creating the manufacturer as it already exists
+      }
+
+      toast({
+        title: "Import successful",
+        description: `Created ${importedCount} new manufacturers`,
+      });
+
+      setJsonInput('');
+      setShowDuplicateManufacturerDetector(false);
+      setManufacturersToCheck([]);
+      fetchManufacturers(); // Refresh the manufacturers list
+
+    } catch (error: any) {
+      console.error('Import error:', error);
+      toast({
+        title: "Import failed",
+        description: error.message || "Failed to import manufacturers",
+        variant: "destructive",
+      });
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const importData = async () => {
     if (!jsonInput.trim()) {
       toast({
@@ -327,35 +381,29 @@ const JSONDataInput = ({ studioId, projectId, pdfSubmissionId }: JSONDataInputPr
         return;
       }
 
-      // For non-materials, proceed with original import logic
+      if (dataType === 'manufacturers') {
+        // For manufacturers, start duplicate detection process
+        const validManufacturers = data.filter((m: any) => m.name && m.name.trim());
+        
+        if (validManufacturers.length === 0) {
+          toast({
+            title: "Error",
+            description: "No valid manufacturers found in the JSON data",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        setManufacturersToCheck(validManufacturers);
+        setShowDuplicateManufacturerDetector(true);
+        return;
+      }
+
+      // For clients, proceed with original import logic
       setImporting(true);
       let importedCount = 0;
 
-      if (dataType === 'manufacturers') {
-        const manufacturerInserts = data
-          .filter((m: any) => m.name && m.name.trim())
-          .map((m: any) => ({
-            name: m.name,
-            contact_name: m.contact_name || null,
-            email: m.email || null,
-            phone: m.phone || null,
-            website: m.website || null,
-            notes: m.notes || null,
-            studio_id: studioId
-          }));
-
-        if (manufacturerInserts.length > 0) {
-          const { data: manufacturerData, error: manufacturerError } = await supabase
-            .from('manufacturers')
-            .insert(manufacturerInserts)
-            .select();
-
-          if (manufacturerError) throw manufacturerError;
-          importedCount = manufacturerData?.length || 0;
-          
-          fetchManufacturers();
-        }
-      } else if (dataType === 'clients') {
+      if (dataType === 'clients') {
         const clientInserts = data
           .filter((c: any) => c.name && c.name.trim())
           .map((c: any) => ({
@@ -436,6 +484,20 @@ const JSONDataInput = ({ studioId, projectId, pdfSubmissionId }: JSONDataInputPr
         onCancel={() => {
           setShowDuplicateDetector(false);
           setMaterialsToCheck([]);
+        }}
+      />
+    );
+  }
+
+  if (showDuplicateManufacturerDetector) {
+    return (
+      <DuplicateManufacturerDetector
+        manufacturersToImport={manufacturersToCheck}
+        studioId={studioId}
+        onResolutionComplete={handleManufacturerDuplicateResolution}
+        onCancel={() => {
+          setShowDuplicateManufacturerDetector(false);
+          setManufacturersToCheck([]);
         }}
       />
     );
@@ -559,6 +621,11 @@ const JSONDataInput = ({ studioId, projectId, pdfSubmissionId }: JSONDataInputPr
                   ⚠️ Smart duplicate detection enabled - we'll check for similar materials before importing
                 </span>
               )}
+              {dataType === 'manufacturers' && (
+                <span className="block mt-2 text-sm font-medium text-orange-600">
+                  ⚠️ Smart duplicate detection enabled - we'll check for similar manufacturers before importing
+                </span>
+              )}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -575,7 +642,7 @@ const JSONDataInput = ({ studioId, projectId, pdfSubmissionId }: JSONDataInputPr
                 className="w-full bg-coral hover:bg-coral-600"
               >
                 <Upload className="h-4 w-4 mr-2" />
-                {importing ? 'Processing...' : `Import ${dataType}${dataType === 'materials' ? ' (with duplicate check)' : ''}`}
+                {importing ? 'Processing...' : `Import ${dataType}${dataType === 'materials' || dataType === 'manufacturers' ? ' (with duplicate check)' : ''}`}
               </Button>
             </div>
           </CardContent>
