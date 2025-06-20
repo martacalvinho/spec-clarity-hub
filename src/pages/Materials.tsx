@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -45,7 +46,6 @@ const Materials = () => {
         .select(`
           *,
           manufacturers(name),
-          users!materials_created_by_fkey(first_name, last_name),
           proj_materials(
             project_id, 
             projects(
@@ -278,9 +278,7 @@ const Materials = () => {
                             <span>•</span>
                           </>
                         )}
-                        {material.users && (
-                          <span>Added by: {material.users.first_name} {material.users.last_name}</span>
-                        )}
+                        <span>Added: {new Date(material.created_at).toLocaleDateString()}</span>
                       </div>
                       
                       {/* Projects and Clients */}
