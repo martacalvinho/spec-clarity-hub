@@ -1149,23 +1149,6 @@ export type Database = {
         Args: { text1: string; text2: string }
         Returns: number
       }
-      find_similar_manufacturers: {
-        Args: {
-          studio_id_param: string
-          manufacturer_name_param: string
-          similarity_threshold?: number
-        }
-        Returns: {
-          id: string
-          name: string
-          contact_name: string
-          email: string
-          phone: string
-          website: string
-          notes: string
-          similarity_score: number
-        }[]
-      }
       find_similar_materials: {
         Args: {
           studio_id_param: string
