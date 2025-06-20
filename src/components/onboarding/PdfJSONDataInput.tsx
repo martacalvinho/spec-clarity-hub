@@ -169,6 +169,7 @@ const PdfJSONDataInput = ({ studioId, submissionId, projectId, clientId, onImpor
     console.log('=== HANDLE DUPLICATE RESOLUTION DEBUG ===');
     console.log('Results received:', results);
     console.log('Current projectId:', projectId);
+    console.log('Current studioId:', studioId);
     
     setImporting(true);
     let pendingCount = 0;
@@ -176,10 +177,32 @@ const PdfJSONDataInput = ({ studioId, submissionId, projectId, clientId, onImpor
     let skippedCount = 0;
 
     try {
-      // Get current user ID once
-      const { data: userData } = await supabase.auth.getUser();
-      const currentUserId = userData.user?.id;
+      // Get current user ID and verify authentication
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      if (userError || !userData.user) {
+        console.error('Authentication error:', userError);
+        throw new Error('User not authenticated');
+      }
+      
+      const currentUserId = userData.user.id;
       console.log('Current user ID:', currentUserId);
+
+      // Verify user has access to this studio
+      const { data: userProfile, error: profileError } = await supabase
+        .from('users')
+        .select('studio_id')
+        .eq('id', currentUserId)
+        .single();
+
+      if (profileError || !userProfile) {
+        console.error('Profile error:', profileError);
+        throw new Error('Could not verify user profile');
+      }
+
+      if (userProfile.studio_id !== studioId) {
+        console.error('Studio ID mismatch:', { userStudioId: userProfile.studio_id, expectedStudioId: studioId });
+        throw new Error('User does not have access to this studio');
+      }
 
       for (const result of results) {
         console.log('Processing result:', result);
@@ -379,9 +402,31 @@ const PdfJSONDataInput = ({ studioId, submissionId, projectId, clientId, onImpor
       setImporting(true);
       let pendingCount = 0;
 
-      // Get current user ID once before mapping
-      const { data: userData } = await supabase.auth.getUser();
-      const currentUserId = userData.user?.id;
+      // Get current user ID and verify authentication
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      if (userError || !userData.user) {
+        console.error('Authentication error:', userError);
+        throw new Error('User not authenticated');
+      }
+      
+      const currentUserId = userData.user.id;
+
+      // Verify user has access to this studio
+      const { data: userProfile, error: profileError } = await supabase
+        .from('users')
+        .select('studio_id')
+        .eq('id', currentUserId)
+        .single();
+
+      if (profileError || !userProfile) {
+        console.error('Profile error:', profileError);
+        throw new Error('Could not verify user profile');
+      }
+
+      if (userProfile.studio_id !== studioId) {
+        console.error('Studio ID mismatch:', { userStudioId: userProfile.studio_id, expectedStudioId: studioId });
+        throw new Error('User does not have access to this studio');
+      }
 
       const manufacturerInserts = data
         .filter((m: any) => m.name && m.name.trim())
