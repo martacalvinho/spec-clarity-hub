@@ -71,9 +71,11 @@ const PendingMaterialCard = ({ material, onApprove, onEdit }: PendingMaterialCar
 
   const findSimilarMaterials = async () => {
     try {
-      console.log('Finding duplicates for:', {
+      console.log('=== DUPLICATE DETECTION DEBUG ===');
+      console.log('Searching for duplicates with:', {
         manufacturer_name: material.manufacturer_name,
-        reference_sku: material.reference_sku
+        reference_sku: material.reference_sku,
+        studio_id: material.studio_id
       });
 
       if (!material.manufacturer_name || !material.reference_sku) {
@@ -82,6 +84,28 @@ const PendingMaterialCard = ({ material, onApprove, onEdit }: PendingMaterialCar
         setLoading(false);
         return;
       }
+
+      // First, let's see what manufacturers exist in the database
+      const { data: allManufacturers } = await supabase
+        .from('manufacturers')
+        .select('id, name')
+        .eq('studio_id', material.studio_id);
+      
+      console.log('All manufacturers in database:', allManufacturers);
+
+      // Let's also check what materials exist with any SKU
+      const { data: allMaterialsWithSku } = await supabase
+        .from('materials')
+        .select(`
+          id,
+          name,
+          reference_sku,
+          manufacturers(name)
+        `)
+        .eq('studio_id', material.studio_id)
+        .not('reference_sku', 'is', null);
+      
+      console.log('All materials with SKUs:', allMaterialsWithSku);
 
       // Direct query for exact manufacturer + SKU match
       const { data: duplicateData, error } = await supabase
@@ -98,6 +122,8 @@ const PendingMaterialCard = ({ material, onApprove, onEdit }: PendingMaterialCar
         .eq('reference_sku', material.reference_sku)
         .ilike('manufacturers.name', material.manufacturer_name);
 
+      console.log('Duplicate query result:', { duplicateData, error });
+
       if (error) {
         console.error('Error finding duplicates:', error);
         setSimilarMaterials([]);
@@ -108,6 +134,7 @@ const PendingMaterialCard = ({ material, onApprove, onEdit }: PendingMaterialCar
       console.log('Found potential duplicates:', duplicateData);
 
       if (!duplicateData || duplicateData.length === 0) {
+        console.log('No duplicates found');
         setSimilarMaterials([]);
         setLoading(false);
         return;
@@ -139,6 +166,7 @@ const PendingMaterialCard = ({ material, onApprove, onEdit }: PendingMaterialCar
 
       setSimilarMaterials(materialsWithProjects);
       console.log('Final duplicates with projects:', materialsWithProjects);
+      console.log('=== END DUPLICATE DETECTION DEBUG ===');
 
     } catch (error) {
       console.error('Error finding similar materials:', error);
