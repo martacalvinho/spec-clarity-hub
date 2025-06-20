@@ -77,16 +77,98 @@ const PdfDuplicateMaterialDetector = ({
     
     setLoading(true);
     try {
+      console.log('=== PDF DUPLICATE DETECTION DEBUG ===');
+      console.log('Searching for duplicates with:', {
+        name: currentMaterial.name,
+        category: currentMaterial.category,
+        manufacturer_name: currentMaterial.manufacturer_name,
+        reference_sku: currentMaterial.reference_sku,
+        studio_id: studioId
+      });
+
+      // Check what manufacturers exist
+      const { data: allManufacturers } = await supabase
+        .from('manufacturers')
+        .select('id, name')
+        .eq('studio_id', studioId);
+      
+      console.log('All manufacturers in database:', allManufacturers);
+
+      // Check what materials exist with SKUs
+      const { data: allMaterialsWithSku } = await supabase
+        .from('materials')
+        .select(`
+          id,
+          name,
+          reference_sku,
+          manufacturers(name)
+        `)
+        .eq('studio_id', studioId)
+        .not('reference_sku', 'is', null);
+      
+      console.log('All materials with SKUs:', allMaterialsWithSku);
+
+      // Find manufacturer ID if exists
+      let manufacturerId = null;
+      if (currentMaterial.manufacturer_name) {
+        const manufacturer = allManufacturers?.find(m => 
+          m.name.toLowerCase().trim() === currentMaterial.manufacturer_name.toLowerCase().trim()
+        );
+        manufacturerId = manufacturer?.id || null;
+        console.log('Found manufacturer ID:', manufacturerId, 'for name:', currentMaterial.manufacturer_name);
+      }
+
+      // Direct search for exact manufacturer + SKU match
+      if (currentMaterial.manufacturer_name && currentMaterial.reference_sku) {
+        const { data: exactMatches, error } = await supabase
+          .from('materials')
+          .select(`
+            id,
+            name,
+            category,
+            subcategory,
+            reference_sku,
+            manufacturers!inner(name)
+          `)
+          .eq('studio_id', studioId)
+          .eq('reference_sku', currentMaterial.reference_sku)
+          .ilike('manufacturers.name', currentMaterial.manufacturer_name);
+
+        console.log('Exact SKU + manufacturer match query:', { exactMatches, error });
+
+        if (exactMatches && exactMatches.length > 0) {
+          const formattedMatches = exactMatches.map(match => ({
+            id: match.id,
+            name: match.name,
+            category: match.category,
+            subcategory: match.subcategory,
+            manufacturer_name: match.manufacturers?.name || 'No Manufacturer',
+            reference_sku: match.reference_sku,
+            similarity_score: 0.99 // Exact match
+          }));
+
+          console.log('Found exact matches:', formattedMatches);
+          setSimilarMaterials(formattedMatches);
+          setLoading(false);
+          return;
+        }
+      }
+
+      // If no exact matches, try the RPC function
+      console.log('No exact matches found, trying RPC function...');
       const { data, error } = await supabase.rpc('find_similar_materials', {
         studio_id_param: studioId,
         material_name_param: currentMaterial.name,
         category_param: currentMaterial.category,
-        manufacturer_id_param: currentMaterial.manufacturer_id || null,
+        manufacturer_id_param: manufacturerId,
         similarity_threshold: 0.6
       });
 
+      console.log('RPC function result:', { data, error });
+
       if (error) throw error;
       setSimilarMaterials(data || []);
+      console.log('=== END PDF DUPLICATE DETECTION DEBUG ===');
     } catch (error) {
       console.error('Error finding similar materials:', error);
       setSimilarMaterials([]);
