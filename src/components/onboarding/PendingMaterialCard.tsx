@@ -76,8 +76,15 @@ const PendingMaterialCard = ({ material, onApprove, onEdit }: PendingMaterialCar
         reference_sku: material.reference_sku
       });
 
-      // Simple direct query - match manufacturer name and SKU
-      let query = supabase
+      if (!material.manufacturer_name || !material.reference_sku) {
+        console.log('Missing manufacturer or SKU, skipping duplicate check');
+        setSimilarMaterials([]);
+        setLoading(false);
+        return;
+      }
+
+      // Direct query for exact manufacturer + SKU match
+      const { data: duplicateData, error } = await supabase
         .from('materials')
         .select(`
           id,
@@ -85,26 +92,16 @@ const PendingMaterialCard = ({ material, onApprove, onEdit }: PendingMaterialCar
           category,
           subcategory,
           reference_sku,
-          manufacturer_id,
           manufacturers!inner(name)
         `)
-        .eq('studio_id', material.studio_id);
-
-      // Add manufacturer name filter if we have it
-      if (material.manufacturer_name && material.manufacturer_name.trim()) {
-        query = query.ilike('manufacturers.name', material.manufacturer_name.trim());
-      }
-
-      // Add SKU filter if we have it
-      if (material.reference_sku && material.reference_sku.trim()) {
-        query = query.eq('reference_sku', material.reference_sku.trim());
-      }
-
-      const { data: duplicateData, error } = await query;
+        .eq('studio_id', material.studio_id)
+        .eq('reference_sku', material.reference_sku)
+        .ilike('manufacturers.name', material.manufacturer_name);
 
       if (error) {
         console.error('Error finding duplicates:', error);
         setSimilarMaterials([]);
+        setLoading(false);
         return;
       }
 
@@ -112,6 +109,7 @@ const PendingMaterialCard = ({ material, onApprove, onEdit }: PendingMaterialCar
 
       if (!duplicateData || duplicateData.length === 0) {
         setSimilarMaterials([]);
+        setLoading(false);
         return;
       }
 
@@ -133,7 +131,7 @@ const PendingMaterialCard = ({ material, onApprove, onEdit }: PendingMaterialCar
             subcategory: duplicate.subcategory,
             reference_sku: duplicate.reference_sku,
             manufacturer_name: duplicate.manufacturers?.name || 'No Manufacturer',
-            similarity_score: 0.99, // High score since it's an exact match
+            similarity_score: 0.99, // Exact match
             projects: projectData?.map(p => p.projects).filter(Boolean) || []
           };
         })
