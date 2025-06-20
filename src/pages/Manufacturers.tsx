@@ -2,17 +2,19 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, Edit, Building, Mail, Phone, Globe } from 'lucide-react';
+import { Search, Building, Mail, Phone, Globe } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useToast } from '@/hooks/use-toast';
 import AddManufacturerForm from '@/components/forms/AddManufacturerForm';
 import EditManufacturerForm from '@/components/forms/EditManufacturerForm';
+import { DeleteConfirmationDialog } from '@/components/ui/delete-confirmation-dialog';
 
 const Manufacturers = () => {
   const { studioId } = useAuth();
+  const { toast } = useToast();
   const [manufacturers, setManufacturers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -42,6 +44,32 @@ const Manufacturers = () => {
       console.error('Error fetching manufacturers:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteManufacturer = async (manufacturerId: string) => {
+    try {
+      const { error } = await supabase
+        .from('manufacturers')
+        .delete()
+        .eq('id', manufacturerId)
+        .eq('studio_id', studioId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Manufacturer deleted successfully",
+      });
+
+      fetchManufacturers();
+    } catch (error) {
+      console.error('Error deleting manufacturer:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete manufacturer",
+        variant: "destructive",
+      });
     }
   };
 
@@ -149,6 +177,12 @@ const Manufacturers = () => {
                   </div>
                   <div className="flex items-center gap-2">
                     <EditManufacturerForm manufacturer={manufacturer} onManufacturerUpdated={fetchManufacturers} />
+                    <DeleteConfirmationDialog
+                      title="Delete Manufacturer"
+                      description="Are you sure you want to delete this manufacturer? This action cannot be undone."
+                      itemName={manufacturer.name}
+                      onConfirm={() => handleDeleteManufacturer(manufacturer.id)}
+                    />
                   </div>
                 </div>
               );

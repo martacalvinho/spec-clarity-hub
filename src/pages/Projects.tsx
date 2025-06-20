@@ -9,11 +9,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { Search, FolderOpen, Calendar, User } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
+import { useToast } from '@/hooks/use-toast';
 import AddProjectForm from '@/components/forms/AddProjectForm';
 import EditProjectForm from '@/components/forms/EditProjectForm';
+import { DeleteConfirmationDialog } from '@/components/ui/delete-confirmation-dialog';
 
 const Projects = () => {
   const { studioId } = useAuth();
+  const { toast } = useToast();
   const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -46,6 +49,32 @@ const Projects = () => {
       console.error('Error fetching projects:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteProject = async (projectId: string) => {
+    try {
+      const { error } = await supabase
+        .from('projects')
+        .delete()
+        .eq('id', projectId)
+        .eq('studio_id', studioId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Project deleted successfully",
+      });
+
+      fetchProjects();
+    } catch (error) {
+      console.error('Error deleting project:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete project",
+        variant: "destructive",
+      });
     }
   };
 
@@ -222,6 +251,12 @@ const Projects = () => {
                   </div>
                   <div className="flex items-center gap-2">
                     <EditProjectForm project={project} onProjectUpdated={fetchProjects} />
+                    <DeleteConfirmationDialog
+                      title="Delete Project"
+                      description="Are you sure you want to delete this project? This action cannot be undone."
+                      itemName={project.name}
+                      onConfirm={() => handleDeleteProject(project.id)}
+                    />
                   </div>
                 </div>
               );

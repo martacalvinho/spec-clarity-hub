@@ -8,11 +8,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { supabase } from '@/integrations/supabase/client';
 import { Search, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useToast } from '@/hooks/use-toast';
 import AddClientForm from '@/components/forms/AddClientForm';
 import EditClientForm from '@/components/forms/EditClientForm';
+import { DeleteConfirmationDialog } from '@/components/ui/delete-confirmation-dialog';
 
 const Clients = () => {
   const { studioId } = useAuth();
+  const { toast } = useToast();
   const [clients, setClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -43,6 +46,32 @@ const Clients = () => {
       console.error('Error fetching clients:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteClient = async (clientId: string) => {
+    try {
+      const { error } = await supabase
+        .from('clients')
+        .delete()
+        .eq('id', clientId)
+        .eq('studio_id', studioId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Client deleted successfully",
+      });
+
+      fetchClients();
+    } catch (error) {
+      console.error('Error deleting client:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete client",
+        variant: "destructive",
+      });
     }
   };
 
@@ -159,6 +188,12 @@ const Clients = () => {
                   </div>
                   <div className="flex items-center gap-2">
                     <EditClientForm client={client} onClientUpdated={fetchClients} />
+                    <DeleteConfirmationDialog
+                      title="Delete Client"
+                      description="Are you sure you want to delete this client? This action cannot be undone."
+                      itemName={client.name}
+                      onConfirm={() => handleDeleteClient(client.id)}
+                    />
                   </div>
                 </div>
               );
