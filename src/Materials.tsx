@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { Search, Package } from 'lucide-react';
 import AddMaterialForm from '@/components/forms/AddMaterialForm';
@@ -15,6 +16,7 @@ const Materials = () => {
   const [materials, setMaterials] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState('newest_first');
 
   useEffect(() => {
     if (studioId) {
@@ -53,12 +55,24 @@ const Materials = () => {
     }
   };
 
-  const filteredMaterials = materials.filter(material =>
-    material.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    material.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    material.model?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    material.manufacturers?.name?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredAndSortedMaterials = materials
+    .filter(material =>
+      material.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      material.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      material.model?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      material.manufacturers?.name?.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    .sort((a, b) => {
+      if (sortBy === 'alphabetical') {
+        return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+      } else if (sortBy === 'category') {
+        return a.category.toLowerCase().localeCompare(b.category.toLowerCase());
+      } else if (sortBy === 'last_updated') {
+        return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+      }
+      // Default newest first
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
 
   if (loading) {
     return <div className="p-6">Loading materials...</div>;
@@ -78,20 +92,33 @@ const Materials = () => {
               <CardTitle>All Materials</CardTitle>
               <CardDescription>Manage your materials library</CardDescription>
             </div>
-            <div className="relative w-64">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="Search materials..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
+            <div className="flex items-center gap-4">
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Sort by..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="newest_first">Newest First</SelectItem>
+                  <SelectItem value="last_updated">Last Updated</SelectItem>
+                  <SelectItem value="alphabetical">Alphabetical</SelectItem>
+                  <SelectItem value="category">Category</SelectItem>
+                </SelectContent>
+              </Select>
+              <div className="relative w-64">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Search materials..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
             </div>
           </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {filteredMaterials.map((material) => {
+            {filteredAndSortedMaterials.map((material) => {
               const projects = material.proj_materials || [];
               
               return (
@@ -188,7 +215,7 @@ const Materials = () => {
                 </div>
               );
             })}
-            {filteredMaterials.length === 0 && (
+            {filteredAndSortedMaterials.length === 0 && (
               <div className="text-center py-8 text-gray-500">
                 {searchTerm ? 'No materials found matching your search.' : 'No materials yet. Create your first material!'}
               </div>
