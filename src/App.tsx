@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { MaterialLimitsProvider } from "@/hooks/useMaterialLimits";
+import { UnitProvider } from "@/hooks/useUnitToggle";
 import Index from "./pages/Index";
 import About from "./pages/About";
 import Terms from "./pages/Terms";
@@ -39,121 +40,123 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/about" element={<About />} />
-              <Route path="/terms" element={<Terms />} />
-              <Route path="/privacy" element={<Privacy />} />
-              <Route path="/get-started" element={<GetStarted />} />
-              <Route path="/login" element={<LoginPage />} />
-              
-              {/* Protected Dashboard Routes - Wrapped with MaterialLimitsProvider */}
-              <Route path="/dashboard" element={
-                <MaterialLimitsProvider>
-                  <DashboardLayout><Dashboard /></DashboardLayout>
-                </MaterialLimitsProvider>
-              } />
-              
-              {/* Studio-specific dashboard route for admin users */}
-              <Route path="/studios/:studioId/dashboard" element={
-                <MaterialLimitsProvider>
-                  <DashboardLayout><StudioSpecificDashboard /></DashboardLayout>
-                </MaterialLimitsProvider>
-              } />
-              
-              <Route path="/materials" element={
-                <MaterialLimitsProvider>
-                  <DashboardLayout><Materials /></DashboardLayout>
-                </MaterialLimitsProvider>
-              } />
-              <Route path="/materials/:id" element={
-                <MaterialLimitsProvider>
-                  <DashboardLayout><MaterialDetails /></DashboardLayout>
-                </MaterialLimitsProvider>
-              } />
-              <Route path="/materials/category/:category" element={
-                <MaterialLimitsProvider>
-                  <DashboardLayout><MaterialsByCategory /></DashboardLayout>
-                </MaterialLimitsProvider>
-              } />
-              <Route path="/projects" element={
-                <MaterialLimitsProvider>
-                  <DashboardLayout><Projects /></DashboardLayout>
-                </MaterialLimitsProvider>
-              } />
-              <Route path="/projects/:id" element={
-                <MaterialLimitsProvider>
-                  <DashboardLayout><ProjectDetails /></DashboardLayout>
-                </MaterialLimitsProvider>
-              } />
-              <Route path="/manufacturers" element={
-                <MaterialLimitsProvider>
-                  <DashboardLayout><Manufacturers /></DashboardLayout>
-                </MaterialLimitsProvider>
-              } />
-              <Route path="/manufacturers/:id" element={
-                <MaterialLimitsProvider>
-                  <DashboardLayout><ManufacturerDetails /></DashboardLayout>
-                </MaterialLimitsProvider>
-              } />
-              <Route path="/clients" element={
-                <MaterialLimitsProvider>
-                  <DashboardLayout><Clients /></DashboardLayout>
-                </MaterialLimitsProvider>
-              } />
-              <Route path="/clients/:id" element={
-                <MaterialLimitsProvider>
-                  <DashboardLayout><ClientDetails /></DashboardLayout>
-                </MaterialLimitsProvider>
-              } />
-              <Route path="/alerts" element={
-                <MaterialLimitsProvider>
-                  <DashboardLayout><Alerts /></DashboardLayout>
-                </MaterialLimitsProvider>
-              } />
-              
-              {/* PDF Document Routes */}
-              <Route path="/upload-documents" element={
-                <MaterialLimitsProvider>
-                  <DashboardLayout><UploadDocuments /></DashboardLayout>
-                </MaterialLimitsProvider>
-              } />
-              
-              {/* Admin Routes */}
-              <Route path="/studios" element={
-                <MaterialLimitsProvider>
-                  <DashboardLayout><Studios /></DashboardLayout>
-                </MaterialLimitsProvider>
-              } />
-              <Route path="/users" element={
-                <MaterialLimitsProvider>
-                  <DashboardLayout><Users /></DashboardLayout>
-                </MaterialLimitsProvider>
-              } />
-              <Route path="/admin-alerts" element={
-                <MaterialLimitsProvider>
-                  <DashboardLayout><AdminAlerts /></DashboardLayout>
-                </MaterialLimitsProvider>
-              } />
-              <Route path="/pdf-submissions" element={
-                <MaterialLimitsProvider>
-                  <DashboardLayout><PdfSubmissions /></DashboardLayout>
-                </MaterialLimitsProvider>
-              } />
-              <Route path="/onboarding" element={
-                <MaterialLimitsProvider>
-                  <DashboardLayout><Onboarding /></DashboardLayout>
-                </MaterialLimitsProvider>
-              } />
-              
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-        </TooltipProvider>
+        <UnitProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/about" element={<About />} />
+                <Route path="/terms" element={<Terms />} />
+                <Route path="/privacy" element={<Privacy />} />
+                <Route path="/get-started" element={<GetStarted />} />
+                <Route path="/login" element={<LoginPage />} />
+                
+                {/* Protected Dashboard Routes - Wrapped with MaterialLimitsProvider */}
+                <Route path="/dashboard" element={
+                  <MaterialLimitsProvider>
+                    <DashboardLayout><Dashboard /></DashboardLayout>
+                  </MaterialLimitsProvider>
+                } />
+                
+                {/* Studio-specific dashboard route for admin users */}
+                <Route path="/studios/:studioId/dashboard" element={
+                  <MaterialLimitsProvider>
+                    <DashboardLayout><StudioSpecificDashboard /></DashboardLayout>
+                  </MaterialLimitsProvider>
+                } />
+                
+                <Route path="/materials" element={
+                  <MaterialLimitsProvider>
+                    <DashboardLayout><Materials /></DashboardLayout>
+                  </MaterialLimitsProvider>
+                } />
+                <Route path="/materials/:id" element={
+                  <MaterialLimitsProvider>
+                    <DashboardLayout><MaterialDetails /></DashboardLayout>
+                  </MaterialLimitsProvider>
+                } />
+                <Route path="/materials/category/:category" element={
+                  <MaterialLimitsProvider>
+                    <DashboardLayout><MaterialsByCategory /></DashboardLayout>
+                  </MaterialLimitsProvider>
+                } />
+                <Route path="/projects" element={
+                  <MaterialLimitsProvider>
+                    <DashboardLayout><Projects /></DashboardLayout>
+                  </MaterialLimitsProvider>
+                } />
+                <Route path="/projects/:id" element={
+                  <MaterialLimitsProvider>
+                    <DashboardLayout><ProjectDetails /></DashboardLayout>
+                  </MaterialLimitsProvider>
+                } />
+                <Route path="/manufacturers" element={
+                  <MaterialLimitsProvider>
+                    <DashboardLayout><Manufacturers /></DashboardLayout>
+                  </MaterialLimitsProvider>
+                } />
+                <Route path="/manufacturers/:id" element={
+                  <MaterialLimitsProvider>
+                    <DashboardLayout><ManufacturerDetails /></DashboardLayout>
+                  </MaterialLimitsProvider>
+                } />
+                <Route path="/clients" element={
+                  <MaterialLimitsProvider>
+                    <DashboardLayout><Clients /></DashboardLayout>
+                  </MaterialLimitsProvider>
+                } />
+                <Route path="/clients/:id" element={
+                  <MaterialLimitsProvider>
+                    <DashboardLayout><ClientDetails /></DashboardLayout>
+                  </MaterialLimitsProvider>
+                } />
+                <Route path="/alerts" element={
+                  <MaterialLimitsProvider>
+                    <DashboardLayout><Alerts /></DashboardLayout>
+                  </MaterialLimitsProvider>
+                } />
+                
+                {/* PDF Document Routes */}
+                <Route path="/upload-documents" element={
+                  <MaterialLimitsProvider>
+                    <DashboardLayout><UploadDocuments /></DashboardLayout>
+                  </MaterialLimitsProvider>
+                } />
+                
+                {/* Admin Routes */}
+                <Route path="/studios" element={
+                  <MaterialLimitsProvider>
+                    <DashboardLayout><Studios /></DashboardLayout>
+                  </MaterialLimitsProvider>
+                } />
+                <Route path="/users" element={
+                  <MaterialLimitsProvider>
+                    <DashboardLayout><Users /></DashboardLayout>
+                  </MaterialLimitsProvider>
+                }/>
+                <Route path="/admin-alerts" element={
+                  <MaterialLimitsProvider>
+                    <DashboardLayout><AdminAlerts /></DashboardLayout>
+                  </MaterialLimitsProvider>
+                } />
+                <Route path="/pdf-submissions" element={
+                  <MaterialLimitsProvider>
+                    <DashboardLayout><PdfSubmissions /></DashboardLayout>
+                  </MaterialLimitsProvider>
+                } />
+                <Route path="/onboarding" element={
+                  <MaterialLimitsProvider>
+                    <DashboardLayout><Onboarding /></DashboardLayout>
+                  </MaterialLimitsProvider>
+                } />
+                
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </BrowserRouter>
+          </TooltipProvider>
+        </UnitProvider>
       </AuthProvider>
     </QueryClientProvider>
   );
