@@ -187,10 +187,10 @@ const PdfJSONDataInput = ({ studioId, submissionId, projectId, clientId, onImpor
       const currentUserId = userData.user.id;
       console.log('Current user ID:', currentUserId);
 
-      // Verify user has access to this studio
+      // Check if user is admin or has access to this studio
       const { data: userProfile, error: profileError } = await supabase
         .from('users')
-        .select('studio_id')
+        .select('studio_id, role')
         .eq('id', currentUserId)
         .single();
 
@@ -199,10 +199,21 @@ const PdfJSONDataInput = ({ studioId, submissionId, projectId, clientId, onImpor
         throw new Error('Could not verify user profile');
       }
 
-      if (userProfile.studio_id !== studioId) {
-        console.error('Studio ID mismatch:', { userStudioId: userProfile.studio_id, expectedStudioId: studioId });
+      // Allow admins to work with any studio, or regular users with their own studio
+      const isAdmin = userProfile.role === 'admin';
+      const hasStudioAccess = isAdmin || userProfile.studio_id === studioId;
+      
+      if (!hasStudioAccess) {
+        console.error('Studio access denied:', { 
+          userRole: userProfile.role, 
+          userStudioId: userProfile.studio_id, 
+          targetStudioId: studioId,
+          isAdmin 
+        });
         throw new Error('User does not have access to this studio');
       }
+
+      console.log('Access granted:', { isAdmin, userRole: userProfile.role });
 
       for (const result of results) {
         console.log('Processing result:', result);
@@ -411,10 +422,10 @@ const PdfJSONDataInput = ({ studioId, submissionId, projectId, clientId, onImpor
       
       const currentUserId = userData.user.id;
 
-      // Verify user has access to this studio
+      // Check if user is admin or has access to this studio
       const { data: userProfile, error: profileError } = await supabase
         .from('users')
-        .select('studio_id')
+        .select('studio_id, role')
         .eq('id', currentUserId)
         .single();
 
@@ -423,8 +434,17 @@ const PdfJSONDataInput = ({ studioId, submissionId, projectId, clientId, onImpor
         throw new Error('Could not verify user profile');
       }
 
-      if (userProfile.studio_id !== studioId) {
-        console.error('Studio ID mismatch:', { userStudioId: userProfile.studio_id, expectedStudioId: studioId });
+      // Allow admins to work with any studio, or regular users with their own studio
+      const isAdmin = userProfile.role === 'admin';
+      const hasStudioAccess = isAdmin || userProfile.studio_id === studioId;
+      
+      if (!hasStudioAccess) {
+        console.error('Studio access denied:', { 
+          userRole: userProfile.role, 
+          userStudioId: userProfile.studio_id, 
+          targetStudioId: studioId,
+          isAdmin 
+        });
         throw new Error('User does not have access to this studio');
       }
 
