@@ -494,7 +494,7 @@ const JSONDataInput = ({ studioId, projectId, pdfSubmissionId }: JSONDataInputPr
     }
   };
 
-  const handleMaterialResolution = async (resolutions: any[]) => {
+  const handleMaterialResolution = async (resolutions: MaterialDuplicateResult[]) => {
     setLoading(true);
     try {
       const result = await processMaterials(materialsData, resolutions);
@@ -527,12 +527,37 @@ const JSONDataInput = ({ studioId, projectId, pdfSubmissionId }: JSONDataInputPr
     }
   };
 
+  const handleManufacturerResolution = async (resolutions: ManufacturerResolution[]) => {
+    setLoading(true);
+    try {
+      const results = await processManufacturers(manufacturersData, resolutions);
+      
+      toast({
+        title: "Manufacturers Processed",
+        description: `Successfully processed ${results.length} manufacturers.`,
+      });
+
+      setShowManufacturerDuplicateDetector(false);
+      setManufacturersData([]);
+      // Refresh manufacturers list
+      fetchManufacturers();
+    } catch (error) {
+      console.error('Error processing manufacturer resolutions:', error);
+      toast({
+        title: "Error",
+        description: "Failed to process manufacturers",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (showMaterialDuplicateDetector) {
     return (
       <DuplicateMaterialDetector
         materialsToImport={materialsData}
         studioId={studioId}
-        projectId={projectId}
         onResolutionComplete={handleMaterialResolution}
         onCancel={() => {
           setShowMaterialDuplicateDetector(false);

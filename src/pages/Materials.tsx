@@ -13,6 +13,7 @@ import { Link } from 'react-router-dom';
 import AddMaterialForm from '@/components/forms/AddMaterialForm';
 import EditMaterialForm from '@/components/forms/EditMaterialForm';
 import DeleteMaterialForm from '@/components/forms/DeleteMaterialForm';
+import MaterialStatsCards from '@/components/MaterialStatsCards';
 
 const Materials = () => {
   const { studioId } = useAuth();
@@ -148,6 +149,8 @@ const Materials = () => {
         </div>
       </div>
 
+      <MaterialStatsCards />
+
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -247,16 +250,26 @@ const Materials = () => {
                         <h3 className="font-semibold text-lg hover:underline">{material.name}</h3>
                       </Link>
                       <div className="flex items-center gap-4 mt-1">
-                        <Badge variant="outline">{material.category}</Badge>
+                        <Link 
+                          to={`/materials/category/${encodeURIComponent(material.category)}`}
+                          className="hover:text-coral hover:underline"
+                        >
+                          <Badge variant="outline">{material.category}</Badge>
+                        </Link>
                         {material.subcategory && (
                           <span className="text-sm text-gray-500">• {material.subcategory}</span>
                         )}
                         {material.model && (
                           <span className="text-sm text-gray-500">• Model: {material.model}</span>
                         )}
-                        <span className="text-sm text-gray-500">
-                          {material.manufacturers?.name || 'No manufacturer'}
-                        </span>
+                        {material.manufacturers?.name && (
+                          <Link 
+                            to={`/manufacturers/${material.manufacturer_id}`}
+                            className="text-sm text-gray-500 hover:text-coral hover:underline"
+                          >
+                            {material.manufacturers.name}
+                          </Link>
+                        )}
                         {material.price_per_sqft && (
                           <span className="text-sm text-green-600 font-medium">
                             ${material.price_per_sqft}/{formatArea(1).split(' ')[1]}
@@ -274,7 +287,12 @@ const Materials = () => {
                         )}
                         {material.location && (
                           <>
-                            <span>Location: {material.location}</span>
+                            <button
+                              onClick={() => setSearchTerm(material.location)}
+                              className="hover:text-coral hover:underline cursor-pointer"
+                            >
+                              Location: {material.location}
+                            </button>
                             <span>•</span>
                           </>
                         )}
