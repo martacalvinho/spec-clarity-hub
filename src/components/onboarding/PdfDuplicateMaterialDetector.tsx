@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -200,6 +199,26 @@ const PdfDuplicateMaterialDetector = ({
     }
   };
 
+  const handleCreateAllNewMaterials = () => {
+    // Create results for all remaining materials with 'create' action
+    const allResults: DuplicateDetectionResult[] = [];
+    
+    // Add existing results
+    allResults.push(...results);
+    
+    // Add 'create' results for all remaining materials
+    for (let i = currentIndex; i < materialsToImport.length; i++) {
+      allResults.push({
+        materialToImport: materialsToImport[i],
+        similarMaterials: [],
+        action: 'create'
+      });
+    }
+    
+    console.log('Creating all new materials, total results:', allResults);
+    onResolutionComplete(allResults);
+  };
+
   const getSimilarityColor = (score: number) => {
     if (score >= 0.9) return 'bg-red-100 text-red-800';
     if (score >= 0.8) return 'bg-orange-100 text-orange-800';
@@ -225,9 +244,20 @@ const PdfDuplicateMaterialDetector = ({
             Reviewing material {currentIndex + 1} of {materialsToImport.length}
           </p>
         </div>
-        <Button variant="outline" onClick={onCancel}>
-          Cancel Import
-        </Button>
+        <div className="flex gap-2">
+          {similarMaterials.length === 0 && !loading && (
+            <Button 
+              onClick={handleCreateAllNewMaterials}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Create All New Materials ({materialsToImport.length - currentIndex})
+            </Button>
+          )}
+          <Button variant="outline" onClick={onCancel}>
+            Cancel Import
+          </Button>
+        </div>
       </div>
 
       <Card>
