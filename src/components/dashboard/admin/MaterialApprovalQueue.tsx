@@ -39,10 +39,10 @@ interface PendingMaterial {
   rejection_reason: string | null;
   pdf_submissions: {
     file_name: string;
-  };
+  } | null;
   studios: {
     name: string;
-  };
+  } | null;
 }
 
 const MaterialApprovalQueue = () => {
@@ -90,7 +90,12 @@ const MaterialApprovalQueue = () => {
         .order('created_at', { ascending: false });
 
       if (pendingError) throw pendingError;
-      setPendingMaterials(pendingData || []);
+      
+      // Filter out any records with missing studios data
+      const validPendingData = (pendingData || []).filter(item => 
+        item.studios && typeof item.studios === 'object' && 'name' in item.studios
+      );
+      setPendingMaterials(validPendingData);
 
       // Fetch approved materials
       const { data: approvedData, error: approvedError } = await supabase
@@ -105,7 +110,11 @@ const MaterialApprovalQueue = () => {
         .limit(50);
 
       if (approvedError) throw approvedError;
-      setApprovedMaterials(approvedData || []);
+      
+      const validApprovedData = (approvedData || []).filter(item => 
+        item.studios && typeof item.studios === 'object' && 'name' in item.studios
+      );
+      setApprovedMaterials(validApprovedData);
 
       // Fetch rejected materials
       const { data: rejectedData, error: rejectedError } = await supabase
@@ -120,7 +129,11 @@ const MaterialApprovalQueue = () => {
         .limit(50);
 
       if (rejectedError) throw rejectedError;
-      setRejectedMaterials(rejectedData || []);
+      
+      const validRejectedData = (rejectedData || []).filter(item => 
+        item.studios && typeof item.studios === 'object' && 'name' in item.studios
+      );
+      setRejectedMaterials(validRejectedData);
 
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -262,10 +275,10 @@ const MaterialApprovalQueue = () => {
                         <h3 className="font-semibold">{material.name}</h3>
                         <p className="text-sm text-gray-600">Category: {material.category}</p>
                         <p className="text-sm text-gray-600">
-                          From: {material.pdf_submissions?.file_name}
+                          From: {material.pdf_submissions?.file_name || 'Unknown PDF'}
                         </p>
                         <p className="text-sm text-gray-600">
-                          Studio: {material.studios?.name}
+                          Studio: {material.studios?.name || 'Unknown Studio'}
                         </p>
                         <p className="text-sm text-gray-600">
                           Submitted: {format(new Date(material.created_at), 'PPP')}
@@ -302,10 +315,10 @@ const MaterialApprovalQueue = () => {
                         <h3 className="font-semibold">{material.name}</h3>
                         <p className="text-sm text-gray-600">Category: {material.category}</p>
                         <p className="text-sm text-gray-600">
-                          From: {material.pdf_submissions?.file_name}
+                          From: {material.pdf_submissions?.file_name || 'Unknown PDF'}
                         </p>
                         <p className="text-sm text-gray-600">
-                          Studio: {material.studios?.name}
+                          Studio: {material.studios?.name || 'Unknown Studio'}
                         </p>
                         <p className="text-sm text-gray-600">
                           Approved: {material.approved_at ? format(new Date(material.approved_at), 'PPP') : 'N/A'}
@@ -342,10 +355,10 @@ const MaterialApprovalQueue = () => {
                         <h3 className="font-semibold">{material.name}</h3>
                         <p className="text-sm text-gray-600">Category: {material.category}</p>
                         <p className="text-sm text-gray-600">
-                          From: {material.pdf_submissions?.file_name}
+                          From: {material.pdf_submissions?.file_name || 'Unknown PDF'}
                         </p>
                         <p className="text-sm text-gray-600">
-                          Studio: {material.studios?.name}
+                          Studio: {material.studios?.name || 'Unknown Studio'}
                         </p>
                         <p className="text-sm text-gray-600">
                           Rejected: {material.rejected_at ? format(new Date(material.rejected_at), 'PPP') : 'N/A'}

@@ -4,7 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { CheckCircle, Edit, AlertTriangle, Link2, FileText, User, Building } from 'lucide-react';
+import { CheckCircle, Edit, AlertTriangle, Link2, FileText, User, Building, XCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface SimilarMaterial {
@@ -24,10 +24,11 @@ interface SimilarMaterial {
 interface PendingMaterialCardProps {
   material: any;
   onApprove: (materialId: string) => void;
+  onReject: (materialId: string, reason?: string) => void;
   onEdit: (material: any, duplicates: SimilarMaterial[]) => void;
 }
 
-const PendingMaterialCard = ({ material, onApprove, onEdit }: PendingMaterialCardProps) => {
+const PendingMaterialCard = ({ material, onApprove, onReject, onEdit }: PendingMaterialCardProps) => {
   const [similarMaterials, setSimilarMaterials] = useState<SimilarMaterial[]>([]);
   const [loading, setLoading] = useState(true);
   const [projectName, setProjectName] = useState<string>('');
@@ -194,6 +195,11 @@ const PendingMaterialCard = ({ material, onApprove, onEdit }: PendingMaterialCar
 
   const handleEdit = () => {
     onEdit(material, similarMaterials);
+  };
+
+  const handleReject = () => {
+    const reason = window.prompt('Please provide a reason for rejection (optional):');
+    onReject(material.id, reason || undefined);
   };
 
   return (
@@ -364,6 +370,14 @@ const PendingMaterialCard = ({ material, onApprove, onEdit }: PendingMaterialCar
               {similarMaterials.length > 0 && (
                 <span className="ml-1 text-xs text-orange-600">(Has Duplicates)</span>
               )}
+            </Button>
+            <Button 
+              onClick={handleReject}
+              variant="outline"
+              className="border-red-200 text-red-600 hover:bg-red-50"
+            >
+              <XCircle className="h-4 w-4 mr-2" />
+              Reject
             </Button>
           </div>
         </div>

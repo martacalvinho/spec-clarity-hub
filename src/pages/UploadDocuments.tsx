@@ -305,91 +305,167 @@ const UploadDocuments = () => {
 
   const approveMaterial = async (materialId: string) => {
     try {
+      console.log('=== APPROVING MATERIAL ===');
+      console.log('Material ID:', materialId);
+
       // Get current user ID once
       const { data: userData } = await supabase.auth.getUser();
       const currentUserId = userData.user?.id;
 
-      // Try to get the pending material first
+      if (!currentUserId) {
+        throw new Error('No authenticated user found');
+      }
+
+      console.log('Current user ID:', currentUserId);
+
+      // Get the pending material first
       const { data: pendingMaterial, error: fetchError } = await supabase
         .from('pending_materials')
         .select('*')
         .eq('id', materialId)
         .single();
 
-      if (fetchError || !pendingMaterial) {
-        // Fallback to extracted_materials if not found in pending_materials
-        const { error } = await supabase
-          .from('extracted_materials')
-          .update({ 
-            status: 'approved',
-            approved_by: currentUserId,
-            approved_at: new Date().toISOString()
-          })
-          .eq('id', materialId);
+      console.log('Fetched pending material:', pendingMaterial);
+      console.log('Fetch error:', fetchError);
 
-        if (error) throw error;
-      } else {
-        // Update the pending material status first
-        const { error: updateError } = await supabase
-          .from('pending_materials')
-          .update({
-            status: 'approved',
-            approved_by: currentUserId,
-            approved_at: new Date().toISOString()
-          })
-          .eq('id', materialId);
+      if (fetchError) {
+        if (fetchError.code === 'PGRST116') {
+          // Material not found in pending_materials, try extracted_materials
+          const { error } = await supabase
+            .from('extracted_materials')
+            .update({ 
+              status: 'approved',
+              approved_by: currentUserId,
+              approved_at: new Date().toISOString()
+            })
+            .eq('id', materialId);
 
-        if (updateError) throw updateError;
+          if (error) throw error;
 
-        // Move from pending_materials to materials table
-        const { data: newMaterial, error: insertError } = await supabase
-          .from('materials')
-          .insert({
-            name: pendingMaterial.name,
-            category: pendingMaterial.category,
-            subcategory: pendingMaterial.subcategory,
-            manufacturer_name: pendingMaterial.manufacturer_name,
-            manufacturer_id: pendingMaterial.manufacturer_id,
-            model: pendingMaterial.model,
-            tag: pendingMaterial.tag,
-            location: pendingMaterial.location,
-            reference_sku: pendingMaterial.reference_sku,
-            dimensions: pendingMaterial.dimensions,
-            notes: pendingMaterial.notes,
-            studio_id: pendingMaterial.studio_id,
-            created_by: currentUserId
-          })
-          .select()
+          toast({
+            title: "Success",
+            description: "Material approved"
+          });
+
+          fetchApprovedMaterials();
+          fetchPendingApproval();
+          return;
+        } else {
+          throw fetchError;
+        }
+      }
+
+      if (!pendingMaterial) {
+        throw new Error('Material not found');
+      }
+
+      console.log('Processing pending material:', pendingMaterial);
+
+      // First, find or create the manufacturer if we have manufacturer_name
+      let manufacturerId = pendingMaterial.manufacturer_id;
+      
+      if (!manufacturerId && pendingMaterial.manufacturer_name) {
+        console.log('Creating manufacturer:', pendingMaterial.manufacturer_name);
+        
+        // Check if manufacturer already exists
+        const { data: existingManufacturer } = await supabase
+          .from('manufacturers')
+          .select('id')
+          .eq('studio_id', pendingMaterial.studio_id)
+          .ilike('name', pendingMaterial.manufacturer_name)
           .single();
 
-        if (insertError) throw insertError;
-
-        // Link to project if project_id exists
-        if (pendingMaterial.project_id && newMaterial) {
-          const { error: linkError } = await supabase
-            .from('proj_materials')
+        if (existingManufacturer) {
+          manufacturerId = existingManufacturer.id;
+        } else {
+          // Create new manufacturer
+          const { data: newManufacturer, error: manufacturerError } = await supabase
+            .from('manufacturers')
             .insert({
-              project_id: pendingMaterial.project_id,
-              material_id: newMaterial.id,
-              studio_id: pendingMaterial.studio_id,
-              notes: pendingMaterial.tag ? `Tag: ${pendingMaterial.tag}` : null
-            });
+              name: pendingMaterial.manufacturer_name,
+              studio_id: pendingMaterial.studio_id
+            })
+            .select()
+            .single();
 
-          if (linkError) {
-            console.error('Error linking material to project:', linkError);
-            // Don't throw error here as the material was successfully created
+          if (manufacturerError) {
+            console.error('Error creating manufacturer:', manufacturerError);
+            // Continue without manufacturer_id if creation fails
+          } else {
+            manufacturerId = newManufacturer.id;
           }
         }
+      }
 
-        // Delete from pending_materials after successful approval
-        const { error: deleteError } = await supabase
-          .from('pending_materials')
-          .delete()
-          .eq('id', materialId);
+      console.log('Final manufacturer ID:', manufacturerId);
 
-        if (deleteError) {
-          console.error('Error deleting from pending_materials:', deleteError);
-          // Don't throw error here as the material was successfully moved
+      // Update the pending material status first
+      const { error: updateError } = await supabase
+        .from('pending_materials')
+        .update({
+          status: 'approved',
+          approved_by: currentUserId,
+          approved_at: new Date().toISOString(),
+          manufacturer_id: manufacturerId
+        })
+        .eq('id', materialId);
+
+      if (updateError) {
+        console.error('Error updating pending material:', updateError);
+        throw updateError;
+      }
+
+      console.log('Updated pending material status to approved');
+
+      // Now move from pending_materials to materials table
+      const materialData = {
+        name: pendingMaterial.name,
+        category: pendingMaterial.category,
+        subcategory: pendingMaterial.subcategory,
+        manufacturer_id: manufacturerId,
+        model: pendingMaterial.model,
+        tag: pendingMaterial.tag,
+        location: pendingMaterial.location,
+        reference_sku: pendingMaterial.reference_sku,
+        dimensions: pendingMaterial.dimensions,
+        notes: pendingMaterial.notes,
+        studio_id: pendingMaterial.studio_id,
+        created_by: currentUserId
+      };
+
+      console.log('Creating material with data:', materialData);
+
+      const { data: newMaterial, error: insertError } = await supabase
+        .from('materials')
+        .insert(materialData)
+        .select()
+        .single();
+
+      if (insertError) {
+        console.error('Error creating material:', insertError);
+        throw insertError;
+      }
+
+      console.log('Created new material:', newMaterial);
+
+      // Link to project if project_id exists
+      if (pendingMaterial.project_id && newMaterial) {
+        console.log('Linking material to project:', pendingMaterial.project_id);
+        
+        const { error: linkError } = await supabase
+          .from('proj_materials')
+          .insert({
+            project_id: pendingMaterial.project_id,
+            material_id: newMaterial.id,
+            studio_id: pendingMaterial.studio_id,
+            notes: pendingMaterial.tag ? `Tag: ${pendingMaterial.tag}` : null
+          });
+
+        if (linkError) {
+          console.error('Error linking material to project:', linkError);
+          // Don't throw error here as the material was successfully created
+        } else {
+          console.log('Successfully linked material to project');
         }
       }
 
@@ -398,6 +474,8 @@ const UploadDocuments = () => {
         description: "Material approved and moved to materials library"
       });
 
+      console.log('=== MATERIAL APPROVAL COMPLETE ===');
+
       // Refresh all data
       fetchApprovedMaterials();
       fetchPendingApproval();
@@ -405,7 +483,7 @@ const UploadDocuments = () => {
       console.error('Error approving material:', error);
       toast({
         title: "Error",
-        description: "Failed to approve material",
+        description: error instanceof Error ? error.message : "Failed to approve material",
         variant: "destructive"
       });
     }
