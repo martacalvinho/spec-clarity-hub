@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -59,7 +58,7 @@ interface ExistingManufacturer {
   similarity_score: number;
 }
 
-interface DuplicateDetectionResult {
+interface MaterialDuplicateResult {
   materialToImport: MaterialToImport;
   existingMaterials: ExistingMaterial[];
   action: 'create' | 'link';
@@ -191,7 +190,7 @@ const JSONDataInput = ({ studioId, projectId, pdfSubmissionId }: JSONDataInputPr
     }
   };
 
-  const processMaterials = async (materialsToProcess: MaterialToImport[], materialResolutions?: DuplicateDetectionResult[]) => {
+  const processMaterials = async (materialsToProcess: MaterialToImport[], materialResolutions?: MaterialDuplicateResult[]) => {
     console.log('Processing materials:', materialsToProcess.length);
     
     try {
@@ -211,49 +210,83 @@ const JSONDataInput = ({ studioId, projectId, pdfSubmissionId }: JSONDataInputPr
       const errors: string[] = [];
       let created = 0;
 
-      // Process materials one by one to handle potential duplicates gracefully
-      for (const material of materialsToCreate) {
-        try {
-          // Check if material already exists to prevent duplicate key violation
-          const { data: existingMaterial } = await supabase
-            .from('materials')
-            .select('id, name')
-            .eq('studio_id', studioId)
-            .eq('name', material.name)
-            .maybeSingle();
+      // If this is for PDF submission, create extracted materials instead
+      if (pdfSubmissionId) {
+        for (const material of materialsToCreate) {
+          try {
+            const { error } = await supabase
+              .from('extracted_materials')
+              .insert({
+                submission_id: pdfSubmissionId,
+                studio_id: studioId,
+                name: material.name,
+                category: material.category,
+                subcategory: material.subcategory || null,
+                notes: material.notes || null,
+                reference_sku: material.reference_sku || null,
+                dimensions: material.dimensions || null,
+                location: material.location || null,
+                manufacturer_name: material.manufacturer_name || null,
+                tag: material.tag || null
+              });
 
-          if (existingMaterial) {
-            console.log(`Material "${material.name}" already exists, skipping...`);
-            continue;
+            if (error) {
+              console.error(`Error creating extracted material "${material.name}":`, error);
+              errors.push(`${material.name}: ${error.message}`);
+            } else {
+              created++;
+              console.log(`Successfully created extracted material: ${material.name}`);
+            }
+          } catch (error) {
+            console.error(`Unexpected error processing material "${material.name}":`, error);
+            errors.push(`${material.name}: Unexpected error`);
           }
+        }
+      } else {
+        // Process materials one by one to handle potential duplicates gracefully
+        for (const material of materialsToCreate) {
+          try {
+            // Check if material already exists to prevent duplicate key violation
+            const { data: existingMaterial } = await supabase
+              .from('materials')
+              .select('id, name')
+              .eq('studio_id', studioId)
+              .eq('name', material.name)
+              .maybeSingle();
 
-          const materialData = {
-            studio_id: studioId,
-            name: material.name,
-            category: material.category,
-            subcategory: material.subcategory || null,
-            notes: material.notes || null,
-            reference_sku: material.reference_sku || null,
-            dimensions: material.dimensions || null,
-            location: material.location || null,
-            manufacturer_id: material.manufacturer_id || null,
-            tag: material.tag || null
-          };
+            if (existingMaterial) {
+              console.log(`Material "${material.name}" already exists, skipping...`);
+              continue;
+            }
 
-          const { error } = await supabase
-            .from('materials')
-            .insert(materialData);
+            const materialData = {
+              studio_id: studioId,
+              name: material.name,
+              category: material.category,
+              subcategory: material.subcategory || null,
+              notes: material.notes || null,
+              reference_sku: material.reference_sku || null,
+              dimensions: material.dimensions || null,
+              location: material.location || null,
+              manufacturer_id: material.manufacturer_id || null,
+              tag: material.tag || null
+            };
 
-          if (error) {
-            console.error(`Error creating material "${material.name}":`, error);
-            errors.push(`${material.name}: ${error.message}`);
-          } else {
-            created++;
-            console.log(`Successfully created material: ${material.name}`);
+            const { error } = await supabase
+              .from('materials')
+              .insert(materialData);
+
+            if (error) {
+              console.error(`Error creating material "${material.name}":`, error);
+              errors.push(`${material.name}: ${error.message}`);
+            } else {
+              created++;
+              console.log(`Successfully created material: ${material.name}`);
+            }
+          } catch (error) {
+            console.error(`Unexpected error processing material "${material.name}":`, error);
+            errors.push(`${material.name}: Unexpected error`);
           }
-        } catch (error) {
-          console.error(`Unexpected error processing material "${material.name}":`, error);
-          errors.push(`${material.name}: Unexpected error`);
         }
       }
 
@@ -379,9 +412,10 @@ const JSONDataInput = ({ studioId, projectId, pdfSubmissionId }: JSONDataInputPr
         // Auto-process materials since no duplicates
         const result = await processMaterials(materialsData);
         if (result.success) {
+          const destination = pdfSubmissionId ? "material approval section" : "your library";
           toast({
             title: "Materials Added",
-            description: `Successfully added ${result.created} materials to your library.`,
+            description: `Successfully added ${result.created} materials to ${destination}.`,
           });
           setMaterialsData([]);
         } else {
@@ -486,15 +520,16 @@ const JSONDataInput = ({ studioId, projectId, pdfSubmissionId }: JSONDataInputPr
     }
   };
 
-  const handleMaterialResolution = async (resolutions: DuplicateDetectionResult[]) => {
+  const handleMaterialResolution = async (resolutions: MaterialDuplicateResult[]) => {
     setLoading(true);
     try {
       const result = await processMaterials(materialsData, resolutions);
       
       if (result.success) {
+        const destination = pdfSubmissionId ? "material approval section" : "your library";
         toast({
           title: "Materials Processed",
-          description: `Successfully processed ${result.created} materials.`,
+          description: `Successfully processed ${result.created} materials and added them to ${destination}.`,
         });
       } else {
         toast({
@@ -554,7 +589,7 @@ const JSONDataInput = ({ studioId, projectId, pdfSubmissionId }: JSONDataInputPr
           <div className="flex items-center gap-2">
             <CheckCircle className="h-5 w-5 text-blue-600" />
             <p className="text-blue-800 font-medium">
-              Materials from PDF submission will be automatically linked
+              Materials from PDF submission will be sent to approval first
             </p>
           </div>
         </div>

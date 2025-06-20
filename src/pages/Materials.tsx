@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -39,6 +38,8 @@ const Materials = () => {
   const fetchMaterials = async () => {
     try {
       setLoading(true);
+      console.log('Fetching materials for studio:', studioId);
+      
       const { data, error } = await supabase
         .from('materials')
         .select(`
@@ -58,10 +59,16 @@ const Materials = () => {
         .eq('studio_id', studioId)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching materials:', error);
+        throw error;
+      }
+      
+      console.log('Fetched materials:', data?.length || 0);
       setMaterials(data || []);
     } catch (error) {
       console.error('Error fetching materials:', error);
+      setMaterials([]);
     } finally {
       setLoading(false);
     }
@@ -125,6 +132,10 @@ const Materials = () => {
 
   if (loading) {
     return <div className="p-6">Loading materials...</div>;
+  }
+
+  if (!studioId) {
+    return <div className="p-6">No studio selected</div>;
   }
 
   return (
