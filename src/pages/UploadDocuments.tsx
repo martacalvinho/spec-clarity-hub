@@ -26,6 +26,7 @@ const UploadDocuments = () => {
   const [submissionHistory, setSubmissionHistory] = useState<any[]>([]);
   const [approvedMaterials, setApprovedMaterials] = useState<any[]>([]);
   const [pendingApproval, setPendingApproval] = useState<any[]>([]);
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   useEffect(() => {
     if (studioId) {
@@ -199,8 +200,17 @@ const UploadDocuments = () => {
   };
 
   const deleteSubmission = async (submissionId: string, objectPath: string) => {
+    if (!submissionId) {
+      console.error('No submission ID provided');
+      return;
+    }
+
+    setDeleting(submissionId);
+    
     try {
-      // Delete the file from storage
+      console.log('Deleting submission:', submissionId, 'Object path:', objectPath);
+      
+      // Delete the file from storage first if object path exists
       if (objectPath) {
         const { error: storageError } = await supabase.storage
           .from('pdfs')
@@ -209,6 +219,8 @@ const UploadDocuments = () => {
         if (storageError) {
           console.error('Error deleting file from storage:', storageError);
           // Continue with database deletion even if storage deletion fails
+        } else {
+          console.log('File deleted from storage successfully');
         }
       }
 
@@ -218,7 +230,12 @@ const UploadDocuments = () => {
         .delete()
         .eq('id', submissionId);
 
-      if (dbError) throw dbError;
+      if (dbError) {
+        console.error('Database deletion error:', dbError);
+        throw dbError;
+      }
+
+      console.log('Database record deleted successfully');
 
       toast({
         title: "Success",
@@ -226,7 +243,8 @@ const UploadDocuments = () => {
       });
 
       // Refresh submission history
-      fetchSubmissionHistory();
+      await fetchSubmissionHistory();
+      
     } catch (error) {
       console.error('Error deleting submission:', error);
       toast({
@@ -234,6 +252,8 @@ const UploadDocuments = () => {
         description: "Failed to delete PDF submission. Please try again.",
         variant: "destructive"
       });
+    } finally {
+      setDeleting(null);
     }
   };
 
@@ -449,9 +469,14 @@ const UploadDocuments = () => {
                           variant="outline"
                           size="sm"
                           onClick={() => deleteSubmission(submission.id, submission.object_path)}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          disabled={deleting === submission.id}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50 disabled:opacity-50"
                         >
-                          <Trash2 className="h-4 w-4" />
+                          {deleting === submission.id ? (
+                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-red-600 border-t-transparent" />
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
+                          )}
                         </Button>
                       </div>
                     </div>
