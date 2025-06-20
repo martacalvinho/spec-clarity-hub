@@ -144,6 +144,10 @@ const PdfJSONDataInput = ({ studioId, submissionId, projectId, clientId, onImpor
     let linkedCount = 0;
 
     try {
+      // Get current user ID once
+      const { data: userData } = await supabase.auth.getUser();
+      const currentUserId = userData.user?.id;
+
       for (const result of results) {
         if (result.action === 'create') {
           // Create pending material for approval
@@ -163,7 +167,7 @@ const PdfJSONDataInput = ({ studioId, submissionId, projectId, clientId, onImpor
             submission_id: submissionId,
             project_id: projectId || null,
             client_id: clientId || null,
-            created_by: (await supabase.auth.getUser()).data.user?.id
+            created_by: currentUserId
           };
 
           const { error: pendingError } = await supabase
@@ -257,6 +261,10 @@ const PdfJSONDataInput = ({ studioId, submissionId, projectId, clientId, onImpor
       setImporting(true);
       let pendingCount = 0;
 
+      // Get current user ID once before mapping
+      const { data: userData } = await supabase.auth.getUser();
+      const currentUserId = userData.user?.id;
+
       const manufacturerInserts = data
         .filter((m: any) => m.name && m.name.trim())
         .map((m: any) => ({
@@ -268,7 +276,7 @@ const PdfJSONDataInput = ({ studioId, submissionId, projectId, clientId, onImpor
           notes: m.notes || null,
           studio_id: studioId,
           submission_id: submissionId,
-          created_by: (await supabase.auth.getUser()).data.user?.id
+          created_by: currentUserId
         }));
 
       if (manufacturerInserts.length > 0) {
