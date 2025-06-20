@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -61,6 +60,8 @@ const MaterialApprovalQueue = () => {
     try {
       setLoading(true);
       
+      console.log('=== FETCHING MATERIAL APPROVAL DATA ===');
+      
       // Fetch PDF statuses
       const { data: pdfStatusData, error: pdfError } = await supabase
         .from('pdf_material_status')
@@ -75,65 +76,154 @@ const MaterialApprovalQueue = () => {
         `)
         .order('created_at', { ascending: false });
 
-      if (pdfError) throw pdfError;
+      if (pdfError) {
+        console.error('PDF Status Error:', pdfError);
+        throw pdfError;
+      }
+      
+      console.log('PDF Status Data:', pdfStatusData);
       setPdfStatuses(pdfStatusData || []);
 
-      // Fetch pending materials
+      // Fetch pending materials - simplified query first
+      console.log('Fetching pending materials...');
       const { data: pendingData, error: pendingError } = await supabase
         .from('pending_materials')
         .select(`
-          *,
-          pdf_submissions (file_name),
-          studios (name)
+          id,
+          name,
+          category,
+          status,
+          created_at,
+          approved_at,
+          rejected_at,
+          rejection_reason,
+          submission_id,
+          pdf_submissions!pending_materials_submission_id_fkey (
+            file_name
+          ),
+          studios!pending_materials_studio_id_fkey (
+            name
+          )
         `)
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
 
-      if (pendingError) throw pendingError;
+      console.log('Pending materials query result:', { pendingData, pendingError });
+
+      if (pendingError) {
+        console.error('Pending Error:', pendingError);
+        throw pendingError;
+      }
       
-      // Filter out any records with missing studios data and convert type safely
-      const validPendingData = (pendingData || []).filter((item: any) => 
-        item.studios && typeof item.studios === 'object' && item.studios.name
-      ) as unknown as PendingMaterial[];
+      // Process and validate pending data
+      const validPendingData = (pendingData || []).map((item: any) => ({
+        id: item.id,
+        name: item.name,
+        category: item.category,
+        status: item.status,
+        created_at: item.created_at,
+        approved_at: item.approved_at,
+        rejected_at: item.rejected_at,
+        rejection_reason: item.rejection_reason,
+        pdf_submissions: item.pdf_submissions,
+        studios: item.studios
+      })).filter(item => item.studios && item.studios.name);
+
+      console.log('Valid pending materials:', validPendingData);
       setPendingMaterials(validPendingData);
 
       // Fetch approved materials
       const { data: approvedData, error: approvedError } = await supabase
         .from('pending_materials')
         .select(`
-          *,
-          pdf_submissions (file_name),
-          studios (name)
+          id,
+          name,
+          category,
+          status,
+          created_at,
+          approved_at,
+          rejected_at,
+          rejection_reason,
+          submission_id,
+          pdf_submissions!pending_materials_submission_id_fkey (
+            file_name
+          ),
+          studios!pending_materials_studio_id_fkey (
+            name
+          )
         `)
         .eq('status', 'approved')
         .order('approved_at', { ascending: false })
         .limit(50);
 
-      if (approvedError) throw approvedError;
+      if (approvedError) {
+        console.error('Approved Error:', approvedError);
+        throw approvedError;
+      }
       
-      const validApprovedData = (approvedData || []).filter((item: any) => 
-        item.studios && typeof item.studios === 'object' && item.studios.name
-      ) as unknown as PendingMaterial[];
+      const validApprovedData = (approvedData || []).map((item: any) => ({
+        id: item.id,
+        name: item.name,
+        category: item.category,
+        status: item.status,
+        created_at: item.created_at,
+        approved_at: item.approved_at,
+        rejected_at: item.rejected_at,
+        rejection_reason: item.rejection_reason,
+        pdf_submissions: item.pdf_submissions,
+        studios: item.studios
+      })).filter(item => item.studios && item.studios.name);
+
       setApprovedMaterials(validApprovedData);
 
       // Fetch rejected materials
       const { data: rejectedData, error: rejectedError } = await supabase
         .from('pending_materials')
         .select(`
-          *,
-          pdf_submissions (file_name),
-          studios (name)
+          id,
+          name,
+          category,
+          status,
+          created_at,
+          approved_at,
+          rejected_at,
+          rejection_reason,
+          submission_id,
+          pdf_submissions!pending_materials_submission_id_fkey (
+            file_name
+          ),
+          studios!pending_materials_studio_id_fkey (
+            name
+          )
         `)
         .eq('status', 'rejected')
         .order('rejected_at', { ascending: false })
         .limit(50);
 
-      if (rejectedError) throw rejectedError;
+      if (rejectedError) {
+        console.error('Rejected Error:', rejectedError);
+        throw rejectedError;
+      }
       
-      const validRejectedData = (rejectedData || []).filter((item: any) => 
-        item.studios && typeof item.studios === 'object' && item.studios.name
-      ) as unknown as PendingMaterial[];
+      const validRejectedData = (rejectedData || []).map((item: any) => ({
+        id: item.id,
+        name: item.name,
+        category: item.category,
+        status: item.status,
+        created_at: item.created_at,
+        approved_at: item.approved_at,
+        rejected_at: item.rejected_at,
+        rejection_reason: item.rejection_reason,
+        pdf_submissions: item.pdf_submissions,
+        studios: item.studios
+      })).filter(item => item.studios && item.studios.name);
+
       setRejectedMaterials(validRejectedData);
+
+      console.log('=== FINAL COUNTS ===');
+      console.log('Pending:', validPendingData.length);
+      console.log('Approved:', validApprovedData.length);
+      console.log('Rejected:', validRejectedData.length);
 
     } catch (error) {
       console.error('Error fetching data:', error);
