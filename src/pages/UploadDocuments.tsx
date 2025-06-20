@@ -108,7 +108,21 @@ const UploadDocuments = () => {
 
   const fetchPendingApproval = async () => {
     try {
-      const { data, error } = await supabase
+      // Fetch from pending_materials table instead of extracted_materials
+      const { data: pendingMaterialsData, error: pendingMaterialsError } = await supabase
+        .from('pending_materials')
+        .select(`
+          *,
+          pdf_submissions(file_name, created_at)
+        `)
+        .eq('studio_id', studioId)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+
+      if (pendingMaterialsError) throw pendingMaterialsError;
+
+      // Also fetch from extracted_materials for backward compatibility
+      const { data: extractedMaterialsData, error: extractedMaterialsError } = await supabase
         .from('extracted_materials')
         .select(`
           *,
@@ -117,9 +131,16 @@ const UploadDocuments = () => {
         .eq('studio_id', studioId)
         .in('status', ['pending', 'ready_for_review'])
         .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      setPendingApproval(data || []);
+
+      if (extractedMaterialsError) throw extractedMaterialsError;
+
+      // Combine both datasets
+      const allPendingMaterials = [
+        ...(pendingMaterialsData || []),
+        ...(extractedMaterialsData || [])
+      ];
+
+      setPendingApproval(allPendingMaterials);
     } catch (error) {
       console.error('Error fetching pending approval materials:', error);
     }
@@ -279,16 +300,78 @@ const UploadDocuments = () => {
 
   const approveMaterial = async (materialId: string) => {
     try {
-      const { error } = await supabase
-        .from('extracted_materials')
-        .update({ 
-          status: 'approved',
-          approved_by: userProfile?.id,
-          approved_at: new Date().toISOString()
-        })
-        .eq('id', materialId);
+      // Try to approve from pending_materials first
+      const { data: pendingMaterial } = await supabase
+        .from('pending_materials')
+        .select('*')
+        .eq('id', materialId)
+        .single();
 
-      if (error) throw error;
+      if (pendingMaterial) {
+        // Move from pending_materials to materials table
+        const { error: insertError } = await supabase
+          .from('materials')
+          .insert({
+            name: pendingMaterial.name,
+            category: pendingMaterial.category,
+            subcategory: pendingMaterial.subcategory,
+            manufacturer_name: pendingMaterial.manufacturer_name,
+            manufacturer_id: pendingMaterial.manufacturer_id,
+            model: pendingMaterial.model,
+            tag: pendingMaterial.tag,
+            location: pendingMaterial.location,
+            reference_sku: pendingMaterial.reference_sku,
+            dimensions: pendingMaterial.dimensions,
+            notes: pendingMaterial.notes,
+            studio_id: pendingMaterial.studio_id,
+            created_by: pendingMaterial.created_by
+          });
+
+        if (insertError) throw insertError;
+
+        // Delete from pending_materials
+        const { error: deleteError } = await supabase
+          .from('pending_materials')
+          .delete()
+          .eq('id', materialId);
+
+        if (deleteError) throw deleteError;
+
+        // Link to project if project_id exists
+        if (pendingMaterial.project_id) {
+          const { data: newMaterial } = await supabase
+            .from('materials')
+            .select('id')
+            .eq('studio_id', pendingMaterial.studio_id)
+            .eq('name', pendingMaterial.name)
+            .eq('category', pendingMaterial.category)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+
+          if (newMaterial) {
+            await supabase
+              .from('proj_materials')
+              .insert({
+                project_id: pendingMaterial.project_id,
+                material_id: newMaterial.id,
+                studio_id: pendingMaterial.studio_id
+              });
+          }
+        }
+      } else {
+        // Fallback to original extracted_materials logic
+        const { error } = await supabase
+          .from('extracted_materials')
+          .update({ 
+            status: 'approved',
+            approved_by: userProfile?.id,
+            approved_at: new Date().toISOString()
+          })
+          .eq('id', materialId);
+
+        if (error) throw error;
+      }
 
       toast({
         title: "Success",
@@ -309,22 +392,13 @@ const UploadDocuments = () => {
 
   const approveAllMaterials = async () => {
     try {
-      const materialIds = pendingApproval.map(m => m.id);
-      
-      const { error } = await supabase
-        .from('extracted_materials')
-        .update({ 
-          status: 'approved',
-          approved_by: userProfile?.id,
-          approved_at: new Date().toISOString()
-        })
-        .in('id', materialIds);
-
-      if (error) throw error;
+      for (const material of pendingApproval) {
+        await approveMaterial(material.id);
+      }
 
       toast({
         title: "Success",
-        description: `${materialIds.length} materials approved successfully`
+        description: `${pendingApproval.length} materials approved successfully`
       });
 
       fetchApprovedMaterials();

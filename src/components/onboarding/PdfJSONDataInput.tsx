@@ -110,12 +110,39 @@ const PdfJSONDataInput = ({ studioId, submissionId, projectId, clientId, onImpor
     });
   };
 
+  const flattenNestedJSON = (data: any): any[] => {
+    // Handle nested structure like { "MANUFACTURER": [...] } or flat array
+    if (Array.isArray(data)) {
+      return data;
+    }
+    
+    if (typeof data === 'object' && data !== null) {
+      const allItems: any[] = [];
+      Object.keys(data).forEach(key => {
+        const items = data[key];
+        if (Array.isArray(items)) {
+          // Add manufacturer info to each item if not present
+          items.forEach(item => {
+            if (!item.manufacturer_name && dataType === 'materials') {
+              item.manufacturer_name = key;
+            }
+          });
+          allItems.push(...items);
+        }
+      });
+      return allItems;
+    }
+    
+    return [];
+  };
+
   const validateAndParseJSON = (jsonString: string) => {
     try {
-      const data = JSON.parse(jsonString);
+      const rawData = JSON.parse(jsonString);
+      const data = flattenNestedJSON(rawData);
       
-      if (!Array.isArray(data)) {
-        throw new Error('JSON must be an array');
+      if (!Array.isArray(data) || data.length === 0) {
+        throw new Error('JSON must contain an array of items or be a nested object with arrays');
       }
 
       if (dataType === 'materials') {
@@ -238,6 +265,7 @@ const PdfJSONDataInput = ({ studioId, submissionId, projectId, clientId, onImpor
 
     try {
       const data = validateAndParseJSON(jsonInput);
+      console.log('Parsed data:', data);
 
       if (dataType === 'materials') {
         // For materials, start duplicate detection process
@@ -252,6 +280,7 @@ const PdfJSONDataInput = ({ studioId, submissionId, projectId, clientId, onImpor
           return;
         }
 
+        console.log('Valid materials for duplicate check:', validMaterials);
         setMaterialsToCheck(validMaterials);
         setShowDuplicateDetector(true);
         return;
@@ -399,7 +428,7 @@ const PdfJSONDataInput = ({ studioId, submissionId, projectId, clientId, onImpor
               JSON Template for {dataType}
             </CardTitle>
             <CardDescription>
-              Use this template format for your {dataType} data
+              Use this template format for your {dataType} data. You can also use nested format like {`{"MANUFACTURER_NAME": [...]}`}
             </CardDescription>
           </CardHeader>
           <CardContent>
