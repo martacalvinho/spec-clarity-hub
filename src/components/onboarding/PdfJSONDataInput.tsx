@@ -227,15 +227,30 @@ const PdfJSONDataInput = ({ studioId, submissionId, projectId, clientId, onImpor
           
           // Link existing material to project if projectId exists
           if (projectId) {
-            // First, let's check what exists in the database currently
+            // Enhanced logging - let's check ALL links for this material across ALL projects
+            console.log('=== ENHANCED LINK DEBUGGING ===');
+            const { data: allLinksForMaterial, error: allLinksError } = await supabase
+              .from('proj_materials')
+              .select('id, project_id, material_id, studio_id, created_at')
+              .eq('material_id', result.selectedExistingId)
+              .eq('studio_id', studioId);
+
+            console.log('ALL links for this material across all projects:', { allLinksForMaterial, allLinksError });
+
+            // Now check specifically for THIS project
             const { data: currentLinks, error: checkError } = await supabase
               .from('proj_materials')
-              .select('id, project_id, material_id')
+              .select('id, project_id, material_id, studio_id, created_at')
               .eq('project_id', projectId)
               .eq('material_id', result.selectedExistingId)
               .eq('studio_id', studioId);
 
-            console.log('Current links query result:', { currentLinks, checkError });
+            console.log('Links for THIS specific project:', { currentLinks, checkError });
+            console.log('Query parameters used:', {
+              project_id: projectId,
+              material_id: result.selectedExistingId,
+              studio_id: studioId
+            });
 
             if (checkError) {
               console.error('Error checking existing link:', checkError);
@@ -244,6 +259,7 @@ const PdfJSONDataInput = ({ studioId, submissionId, projectId, clientId, onImpor
 
             if (currentLinks && currentLinks.length > 0) {
               console.log(`Material ${result.selectedExistingId} already linked to project ${projectId}:`, currentLinks);
+              console.log('Link details:', currentLinks[0]);
               console.log('Skipping link creation...');
               skippedCount++;
               continue;
@@ -251,14 +267,17 @@ const PdfJSONDataInput = ({ studioId, submissionId, projectId, clientId, onImpor
 
             // No existing link found, create the link
             console.log(`Creating new link: material ${result.selectedExistingId} to project ${projectId}`);
+            const linkToInsert = {
+              project_id: projectId,
+              material_id: result.selectedExistingId,
+              studio_id: studioId,
+              notes: result.materialToImport.tag ? `Tag: ${result.materialToImport.tag}` : null
+            };
+            console.log('Link object to insert:', linkToInsert);
+
             const { data: linkData, error: projMaterialError } = await supabase
               .from('proj_materials')
-              .insert([{
-                project_id: projectId,
-                material_id: result.selectedExistingId,
-                studio_id: studioId,
-                notes: result.materialToImport.tag ? `Tag: ${result.materialToImport.tag}` : null
-              }])
+              .insert([linkToInsert])
               .select();
 
             if (projMaterialError) {
