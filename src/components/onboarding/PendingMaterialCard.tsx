@@ -71,16 +71,23 @@ const PendingMaterialCard = ({ material, onApprove, onEdit }: PendingMaterialCar
 
   const findSimilarMaterials = async () => {
     try {
+      console.log('Finding similar materials for:', {
+        name: material.name,
+        category: material.category,
+        manufacturer_id: material.manufacturer_id,
+        reference_sku: material.reference_sku
+      });
+
       // Enhanced duplicate detection - check both by name similarity and by SKU match
       const queries = [];
       
-      // First check by name and category similarity
+      // First check by name and category similarity with manufacturer
       const nameQuery = supabase.rpc('find_similar_materials', {
         studio_id_param: material.studio_id,
         material_name_param: material.name,
         category_param: material.category,
         manufacturer_id_param: material.manufacturer_id || null,
-        similarity_threshold: 0.6 // Lower threshold for better detection
+        similarity_threshold: 0.5 // Lower threshold for better detection
       });
       
       queries.push(nameQuery);
@@ -110,7 +117,10 @@ const PendingMaterialCard = ({ material, onApprove, onEdit }: PendingMaterialCar
 
       // Process name similarity results
       if (results[0].data && !results[0].error) {
+        console.log('Name similarity results:', results[0].data);
         allSimilarMaterials.push(...results[0].data);
+      } else if (results[0].error) {
+        console.error('Name similarity error:', results[0].error);
       }
 
       // Process SKU match results
@@ -126,6 +136,7 @@ const PendingMaterialCard = ({ material, onApprove, onEdit }: PendingMaterialCar
           dimensions: null,
           similarity_score: 0.98 // Very high score for exact SKU match
         }));
+        console.log('SKU match results:', skuMatches);
         allSimilarMaterials.push(...skuMatches);
       }
 
@@ -144,6 +155,8 @@ const PendingMaterialCard = ({ material, onApprove, onEdit }: PendingMaterialCar
 
       // Sort by similarity score
       uniqueMaterials.sort((a, b) => b.similarity_score - a.similarity_score);
+
+      console.log('Final unique similar materials:', uniqueMaterials);
 
       // For each similar material, get the projects it's associated with
       const materialsWithProjects = await Promise.all(
