@@ -1,13 +1,74 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { supabase } from '@/integrations/supabase/client';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { FileText, Upload, Copy, Plus } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { CheckCircle, Package, Building } from 'lucide-react';
 import DuplicateMaterialDetector from './DuplicateMaterialDetector';
 import DuplicateManufacturerDetector from './DuplicateManufacturerDetector';
+
+interface MaterialToImport {
+  name: string;
+  category: string;
+  subcategory?: string;
+  notes?: string;
+  reference_sku?: string;
+  dimensions?: string;
+  location?: string;
+  manufacturer_id?: string;
+  manufacturer_name?: string;
+  tag?: string;
+}
+
+interface ManufacturerToImport {
+  name: string;
+  contact_name?: string;
+  email?: string;
+  phone?: string;
+  website?: string;
+  notes?: string;
+}
+
+interface ExistingMaterial {
+  id: string;
+  name: string;
+  category: string;
+  subcategory?: string;
+  notes?: string;
+  reference_sku?: string;
+  dimensions?: string;
+  location?: string;
+  manufacturer_id?: string;
+  manufacturer_name?: string;
+  tag?: string;
+  similarity_score: number;
+}
+
+interface ExistingManufacturer {
+  id: string;
+  name: string;
+  contact_name?: string;
+  email?: string;
+  phone?: string;
+  website?: string;
+  notes?: string;
+  similarity_score: number;
+}
+
+interface MaterialResolution {
+  materialToImport: MaterialToImport;
+  existingMaterials: ExistingMaterial[];
+  action: 'create' | 'link';
+  selectedExistingId?: string;
+}
+
+interface ManufacturerResolution {
+  manufacturerToImport: ManufacturerToImport;
+  existingManufacturers: ExistingManufacturer[];
+  action: 'create' | 'link' | 'replace';
+  selectedExistingId?: string;
+}
 
 interface JSONDataInputProps {
   studioId: string;
@@ -15,489 +76,371 @@ interface JSONDataInputProps {
   pdfSubmissionId?: string;
 }
 
-const TEMPLATE_MATERIALS = [
-  {
-    name: "White Oak Flooring",
-    model: "NATURAL",
-    category: "Flooring",
-    subcategory: "Hardwood",
-    tag: "Premium",
-    location: "Living room",
-    reference_sku: "WO-3-NAT",
-    dimensions: "5\" x 3/4\" x RL",
-    notes: "Available in 3 finishes"
-  },
-  {
-    name: "Carrara Marble",
-    model: "CLASSIC",
-    category: "Stone", 
-    subcategory: "Marble",
-    tag: "Luxury",
-    location: "Kitchen",
-    reference_sku: "CAR-12-POL",
-    dimensions: "12\" x 24\" x 3/4\"",
-    notes: "Bookmatched slabs available"
-  }
-];
-
-const TEMPLATE_MANUFACTURERS = [
-  {
-    name: "Premium Woods Co",
-    contact_name: "John Smith",
-    email: "john@premiumwoods.com",
-    phone: "+1-555-0123",
-    website: "premiumwoods.com",
-    notes: "Lead time 4-6 weeks"
-  },
-  {
-    name: "Stone Masters",
-    contact_name: "Sarah Johnson", 
-    email: "sarah@stonemasters.com",
-    phone: "+1-555-0456",
-    website: "stonemasters.com",
-    notes: "Custom fabrication available"
-  }
-];
-
-const TEMPLATE_CLIENTS = [
-  {
-    name: "Smith Residence",
-    notes: "High-end residential project"
-  },
-  {
-    name: "Downtown Office Building",
-    notes: "Commercial office space renovation"
-  }
-];
-
 const JSONDataInput = ({ studioId, projectId, pdfSubmissionId }: JSONDataInputProps) => {
   const { toast } = useToast();
-  const [jsonInput, setJsonInput] = useState('');
-  const [importing, setImporting] = useState(false);
-  const [dataType, setDataType] = useState<'materials' | 'manufacturers' | 'clients'>('materials');
-  const [selectedManufacturerId, setSelectedManufacturerId] = useState<string>('');
-  const [manufacturers, setManufacturers] = useState<any[]>([]);
-  const [showDuplicateDetector, setShowDuplicateDetector] = useState(false);
-  const [materialsToCheck, setMaterialsToCheck] = useState<any[]>([]);
-  const [showDuplicateManufacturerDetector, setShowDuplicateManufacturerDetector] = useState(false);
-  const [manufacturersToCheck, setManufacturersToCheck] = useState<any[]>([]);
+  const [materialsData, setMaterialsData] = useState<MaterialToImport[]>([]);
+  const [manufacturersData, setManufacturersData] = useState<ManufacturerToImport[]>([]);
+  const [showMaterialDuplicateDetector, setShowMaterialDuplicateDetector] = useState(false);
+  const [showManufacturerDuplicateDetector, setShowManufacturerDuplicateDetector] = useState(false);
+  const [materialDuplicatesChecked, setMaterialDuplicatesChecked] = useState(false);
+  const [manufacturerDuplicatesChecked, setManufacturerDuplicatesChecked] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (studioId && dataType === 'materials') {
-      fetchManufacturers();
-    }
-  }, [studioId, dataType]);
-
-  const fetchManufacturers = async () => {
+  const processMaterials = async (materialsToProcess: MaterialToImport[], materialResolutions?: MaterialResolution[]) => {
+    console.log('Processing materials:', materialsToProcess.length);
+    
     try {
-      const { data } = await supabase
-        .from('manufacturers')
-        .select('id, name')
-        .eq('studio_id', studioId)
-        .order('name');
-      
-      setManufacturers(data || []);
-    } catch (error) {
-      console.error('Error fetching manufacturers:', error);
-    }
-  };
+      const materialsToCreate = materialResolutions 
+        ? materialResolutions
+            .filter(resolution => resolution.action === 'create')
+            .map(resolution => resolution.materialToImport)
+        : materialsToProcess;
 
-  const checkForExistingMaterials = async (materialNames: string[]) => {
-    try {
-      const { data: existingMaterials } = await supabase
-        .from('materials')
-        .select('name')
-        .eq('studio_id', studioId)
-        .in('name', materialNames);
+      console.log('Materials to create:', materialsToCreate.length);
 
-      return existingMaterials?.map(m => m.name) || [];
-    } catch (error) {
-      console.error('Error checking existing materials:', error);
-      return [];
-    }
-  };
-
-  const getTemplate = () => {
-    switch (dataType) {
-      case 'materials':
-        return TEMPLATE_MATERIALS;
-      case 'manufacturers':
-        return TEMPLATE_MANUFACTURERS;
-      case 'clients':
-        return TEMPLATE_CLIENTS;
-    }
-  };
-
-  const copyTemplate = () => {
-    const templateString = JSON.stringify(getTemplate(), null, 2);
-    setJsonInput(templateString);
-    navigator.clipboard.writeText(templateString);
-    toast({
-      title: "Template copied",
-      description: `${dataType} template has been copied to the input field and clipboard`,
-    });
-  };
-
-  const validateAndParseJSON = (jsonString: string) => {
-    try {
-      const data = JSON.parse(jsonString);
-      
-      if (!Array.isArray(data)) {
-        throw new Error('JSON must be an array');
+      if (materialsToCreate.length === 0) {
+        console.log('No materials to create');
+        return { success: true, created: 0, errors: [] };
       }
 
-      // Validate based on data type
-      if (dataType === 'materials') {
-        data.forEach((item: any, index: number) => {
-          if (!item.name || !item.category) {
-            throw new Error(`Material at index ${index} must have name and category`);
+      const errors: string[] = [];
+      let created = 0;
+
+      // Process materials one by one to handle potential duplicates gracefully
+      for (const material of materialsToCreate) {
+        try {
+          // Check if material already exists to prevent duplicate key violation
+          const { data: existingMaterial } = await supabase
+            .from('materials')
+            .select('id, name')
+            .eq('studio_id', studioId)
+            .eq('name', material.name)
+            .maybeSingle();
+
+          if (existingMaterial) {
+            console.log(`Material "${material.name}" already exists, skipping...`);
+            continue;
           }
-        });
-      } else if (dataType === 'manufacturers') {
-        data.forEach((item: any, index: number) => {
-          if (!item.name) {
-            throw new Error(`Manufacturer at index ${index} must have name`);
+
+          const materialData = {
+            studio_id: studioId,
+            name: material.name,
+            category: material.category,
+            subcategory: material.subcategory || null,
+            notes: material.notes || null,
+            reference_sku: material.reference_sku || null,
+            dimensions: material.dimensions || null,
+            location: material.location || null,
+            manufacturer_id: material.manufacturer_id || null,
+            tag: material.tag || null
+          };
+
+          const { error } = await supabase
+            .from('materials')
+            .insert(materialData);
+
+          if (error) {
+            console.error(`Error creating material "${material.name}":`, error);
+            errors.push(`${material.name}: ${error.message}`);
+          } else {
+            created++;
+            console.log(`Successfully created material: ${material.name}`);
           }
-        });
-      } else if (dataType === 'clients') {
-        data.forEach((item: any, index: number) => {
-          if (!item.name) {
-            throw new Error(`Client at index ${index} must have name`);
-          }
-        });
+        } catch (error) {
+          console.error(`Unexpected error processing material "${material.name}":`, error);
+          errors.push(`${material.name}: Unexpected error`);
+        }
       }
 
-      return data;
+      return { success: errors.length === 0, created, errors };
     } catch (error) {
+      console.error('Error in processMaterials:', error);
+      return { success: false, created: 0, errors: [error.message || 'Unknown error'] };
+    }
+  };
+
+  const processManufacturers = async (manufacturersToProcess: ManufacturerToImport[], manufacturerResolutions?: ManufacturerResolution[]) => {
+    console.log('Processing manufacturers:', manufacturersToProcess.length);
+    
+    try {
+      if (!manufacturerResolutions) {
+        // No duplicates found, create all manufacturers
+        const manufacturerPromises = manufacturersToProcess.map(async (manufacturer) => {
+          const { data, error } = await supabase
+            .from('manufacturers')
+            .insert({
+              studio_id: studioId,
+              name: manufacturer.name,
+              contact_name: manufacturer.contact_name || null,
+              email: manufacturer.email || null,
+              phone: manufacturer.phone || null,
+              website: manufacturer.website || null,
+              notes: manufacturer.notes || null
+            })
+            .select('id, name')
+            .single();
+
+          if (error) throw error;
+          return { name: manufacturer.name, id: data.id };
+        });
+
+        const results = await Promise.all(manufacturerPromises);
+        console.log('Created manufacturers:', results);
+        return results;
+      }
+
+      const results: { name: string; id: string }[] = [];
+
+      for (const resolution of manufacturerResolutions) {
+        if (resolution.action === 'create') {
+          // Create new manufacturer
+          const { data, error } = await supabase
+            .from('manufacturers')
+            .insert({
+              studio_id: studioId,
+              name: resolution.manufacturerToImport.name,
+              contact_name: resolution.manufacturerToImport.contact_name || null,
+              email: resolution.manufacturerToImport.email || null,
+              phone: resolution.manufacturerToImport.phone || null,
+              website: resolution.manufacturerToImport.website || null,
+              notes: resolution.manufacturerToImport.notes || null
+            })
+            .select('id, name')
+            .single();
+
+          if (error) throw error;
+          results.push({ name: resolution.manufacturerToImport.name, id: data.id });
+        } else if (resolution.action === 'replace' && resolution.selectedExistingId) {
+          // Update existing manufacturer with new details
+          const { error } = await supabase
+            .from('manufacturers')
+            .update({
+              name: resolution.manufacturerToImport.name,
+              contact_name: resolution.manufacturerToImport.contact_name || null,
+              email: resolution.manufacturerToImport.email || null,
+              phone: resolution.manufacturerToImport.phone || null,
+              website: resolution.manufacturerToImport.website || null,
+              notes: resolution.manufacturerToImport.notes || null
+            })
+            .eq('id', resolution.selectedExistingId)
+            .eq('studio_id', studioId);
+
+          if (error) throw error;
+          results.push({ name: resolution.manufacturerToImport.name, id: resolution.selectedExistingId });
+        } else if (resolution.action === 'link' && resolution.selectedExistingId) {
+          // Use existing manufacturer
+          results.push({ name: resolution.manufacturerToImport.name, id: resolution.selectedExistingId });
+        }
+      }
+
+      return results;
+    } catch (error) {
+      console.error('Error processing manufacturers:', error);
       throw error;
     }
   };
 
-  const handleDuplicateResolution = async (results: any[]) => {
-    setImporting(true);
-    let importedCount = 0;
-    let linkedCount = 0;
-
+  const checkForMaterialDuplicates = async () => {
+    if (materialsData.length === 0) return;
+    
+    setLoading(true);
     try {
-      for (const result of results) {
-        if (result.action === 'create') {
-          // Create new material
-          const materialInsert = {
-            name: result.materialToImport.name,
-            model: result.materialToImport.model || null,
-            category: result.materialToImport.category,
-            subcategory: result.materialToImport.subcategory || null,
-            manufacturer_id: selectedManufacturerId === 'none' ? null : selectedManufacturerId,
-            tag: result.materialToImport.tag || null,
-            location: result.materialToImport.location || null,
-            reference_sku: result.materialToImport.reference_sku || null,
-            dimensions: result.materialToImport.dimensions || null,
-            notes: result.materialToImport.notes || null,
-            studio_id: studioId
+      const duplicateChecks = await Promise.all(
+        materialsData.map(async (material) => {
+          const { data: similarMaterials } = await supabase
+            .rpc('find_similar_materials', {
+              studio_id_param: studioId,
+              material_name_param: material.name,
+              category_param: material.category,
+              similarity_threshold: 0.7
+            });
+          
+          return {
+            material,
+            duplicates: similarMaterials || []
           };
+        })
+      );
 
-          const { data: materialData, error: materialError } = await supabase
-            .from('materials')
-            .insert([materialInsert])
-            .select();
-
-          if (materialError) throw materialError;
-
-          if (projectId && materialData && materialData.length > 0) {
-            const { error: projMaterialError } = await supabase
-              .from('proj_materials')
-              .insert([{
-                project_id: projectId,
-                material_id: materialData[0].id,
-                studio_id: studioId
-              }]);
-
-            if (projMaterialError) throw projMaterialError;
-          }
-
-          // If pdfSubmissionId is provided, create extracted materials records to link with the PDF
-          if (pdfSubmissionId && materialData && materialData.length > 0) {
-            const extractedMaterialInsert = {
-              submission_id: pdfSubmissionId,
-              studio_id: studioId,
-              name: materialData[0].name,
-              category: materialData[0].category,
-              subcategory: materialData[0].subcategory,
-              manufacturer_name: selectedManufacturerId === 'none' ? null : manufacturers.find(m => m.id === selectedManufacturerId)?.name,
-              tag: materialData[0].tag,
-              location: materialData[0].location,
-              reference_sku: materialData[0].reference_sku,
-              dimensions: materialData[0].dimensions,
-              notes: materialData[0].notes,
-              status: 'ready_for_review'
-            };
-
-            const { error: extractedError } = await supabase
-              .from('extracted_materials')
-              .insert([extractedMaterialInsert]);
-
-            if (extractedError) throw extractedError;
-          }
-
-          importedCount++;
-        } else if (result.action === 'link' && result.selectedExistingId) {
-          // Link existing material to project
-          if (projectId) {
-            const { error: projMaterialError } = await supabase
-              .from('proj_materials')
-              .insert([{
-                project_id: projectId,
-                material_id: result.selectedExistingId,
-                studio_id: studioId
-              }]);
-
-            if (projMaterialError) throw projMaterialError;
-          }
-
-          linkedCount++;
+      const materialsWithDuplicates = duplicateChecks.filter(check => check.duplicates.length > 0);
+      
+      if (materialsWithDuplicates.length === 0) {
+        // No duplicates found, show success message and proceed
+        toast({
+          title: "No Duplicates Found",
+          description: `All ${materialsData.length} materials appear to be new. They will all be added to your library.`,
+        });
+        
+        setMaterialDuplicatesChecked(true);
+        
+        // Auto-process materials since no duplicates
+        const result = await processMaterials(materialsData);
+        if (result.success) {
+          toast({
+            title: "Materials Added",
+            description: `Successfully added ${result.created} materials to your library.`,
+          });
+          setMaterialsData([]);
+        } else {
+          toast({
+            title: "Import Completed with Issues",
+            description: `Added ${result.created} materials. ${result.errors.length} had issues.`,
+            variant: "destructive"
+          });
         }
+      } else {
+        setShowMaterialDuplicateDetector(true);
       }
-
-      // Update PDF submission status to ready_for_review if materials were linked
-      if (pdfSubmissionId && importedCount > 0) {
-        const { error: pdfUpdateError } = await supabase
-          .from('pdf_submissions')
-          .update({ status: 'ready_for_review' })
-          .eq('id', pdfSubmissionId);
-
-        if (pdfUpdateError) throw pdfUpdateError;
-      }
-
-      toast({
-        title: "Import successful",
-        description: `Created ${importedCount} new materials and linked ${linkedCount} existing materials${projectId ? ' to project' : ''}${pdfSubmissionId ? ' and linked to PDF submission' : ''}`,
-      });
-
-      setJsonInput('');
-      setSelectedManufacturerId('');
-      setShowDuplicateDetector(false);
-      setMaterialsToCheck([]);
-
-    } catch (error: any) {
-      console.error('Import error:', error);
-      toast({
-        title: "Import failed",
-        description: error.message || "Failed to import materials",
-        variant: "destructive",
-      });
-    } finally {
-      setImporting(false);
-    }
-  };
-
-  const handleManufacturerDuplicateResolution = async (results: any[]) => {
-    setImporting(true);
-    let importedCount = 0;
-
-    try {
-      for (const result of results) {
-        if (result.action === 'create') {
-          // Create new manufacturer
-          const manufacturerInsert = {
-            name: result.manufacturerToImport.name,
-            contact_name: result.manufacturerToImport.contact_name || null,
-            email: result.manufacturerToImport.email || null,
-            phone: result.manufacturerToImport.phone || null,
-            website: result.manufacturerToImport.website || null,
-            notes: result.manufacturerToImport.notes || null,
-            studio_id: studioId
-          };
-
-          const { data: manufacturerData, error: manufacturerError } = await supabase
-            .from('manufacturers')
-            .insert([manufacturerInsert])
-            .select();
-
-          if (manufacturerError) throw manufacturerError;
-          importedCount++;
-        }
-        // If action is 'link', we skip creating the manufacturer as it already exists
-      }
-
-      toast({
-        title: "Import successful",
-        description: `Created ${importedCount} new manufacturers`,
-      });
-
-      setJsonInput('');
-      setShowDuplicateManufacturerDetector(false);
-      setManufacturersToCheck([]);
-      fetchManufacturers(); // Refresh the manufacturers list
-
-    } catch (error: any) {
-      console.error('Import error:', error);
-      toast({
-        title: "Import failed",
-        description: error.message || "Failed to import manufacturers",
-        variant: "destructive",
-      });
-    } finally {
-      setImporting(false);
-    }
-  };
-
-  const importData = async () => {
-    if (!jsonInput.trim()) {
+    } catch (error) {
+      console.error('Error checking for duplicates:', error);
       toast({
         title: "Error",
-        description: "Please enter JSON data to import",
-        variant: "destructive",
+        description: "Failed to check for duplicates. Proceeding with import.",
+        variant: "destructive"
       });
-      return;
+      setMaterialDuplicatesChecked(true);
+    } finally {
+      setLoading(false);
     }
+  };
 
-    if (dataType === 'materials' && !selectedManufacturerId) {
+  const checkForManufacturerDuplicates = async () => {
+    if (manufacturersData.length === 0) return;
+    
+    setLoading(true);
+    try {
+      const duplicateChecks = await Promise.all(
+        manufacturersData.map(async (manufacturer) => {
+          const { data: similarManufacturers } = await supabase
+            .rpc('find_similar_manufacturers', {
+              studio_id_param: studioId,
+              manufacturer_name_param: manufacturer.name,
+              similarity_threshold: 0.6
+            });
+          
+          return {
+            manufacturer,
+            duplicates: similarManufacturers || []
+          };
+        })
+      );
+
+      const manufacturersWithDuplicates = duplicateChecks.filter(check => check.duplicates.length > 0);
+      
+      if (manufacturersWithDuplicates.length === 0) {
+        // No duplicates found, proceed with creation
+        toast({
+          title: "No Duplicates Found",
+          description: `All ${manufacturersData.length} manufacturers appear to be new. They will all be added.`,
+        });
+        
+        setManufacturerDuplicatesChecked(true);
+        
+        // Auto-process manufacturers since no duplicates
+        const results = await processManufacturers(manufacturersData);
+        toast({
+          title: "Manufacturers Added",
+          description: `Successfully added ${results.length} manufacturers.`,
+        });
+        setManufacturersData([]);
+      } else {
+        setShowManufacturerDuplicateDetector(true);
+      }
+    } catch (error) {
+      console.error('Error checking for manufacturer duplicates:', error);
       toast({
         title: "Error",
-        description: "Please select a manufacturer for these materials",
-        variant: "destructive",
+        description: "Failed to check for duplicates. Proceeding with import.",
+        variant: "destructive"
       });
-      return;
+      setManufacturerDuplicatesChecked(true);
+    } finally {
+      setLoading(false);
     }
+  };
 
+  const handleManufacturerResolution = async (resolutions: ManufacturerResolution[]) => {
+    setLoading(true);
     try {
-      const data = validateAndParseJSON(jsonInput);
-
-      if (dataType === 'materials') {
-        // For materials, start duplicate detection process
-        const validMaterials = data.filter((m: any) => m.name && m.name.trim() && m.category && m.category.trim());
-        
-        if (validMaterials.length === 0) {
-          toast({
-            title: "Error",
-            description: "No valid materials found in the JSON data",
-            variant: "destructive",
-          });
-          return;
-        }
-
-        setMaterialsToCheck(validMaterials);
-        setShowDuplicateDetector(true);
-        return;
-      }
-
-      if (dataType === 'manufacturers') {
-        // For manufacturers, start duplicate detection process
-        const validManufacturers = data.filter((m: any) => m.name && m.name.trim());
-        
-        if (validManufacturers.length === 0) {
-          toast({
-            title: "Error",
-            description: "No valid manufacturers found in the JSON data",
-            variant: "destructive",
-          });
-          return;
-        }
-
-        setManufacturersToCheck(validManufacturers);
-        setShowDuplicateManufacturerDetector(true);
-        return;
-      }
-
-      // For clients, proceed with original import logic
-      setImporting(true);
-      let importedCount = 0;
-
-      if (dataType === 'clients') {
-        const clientInserts = data
-          .filter((c: any) => c.name && c.name.trim())
-          .map((c: any) => ({
-            name: c.name,
-            notes: c.notes || null,
-            studio_id: studioId
-          }));
-
-        if (clientInserts.length > 0) {
-          const { data: clientData, error: clientError } = await supabase
-            .from('clients')
-            .insert(clientInserts)
-            .select();
-
-          if (clientError) throw clientError;
-          importedCount = clientData?.length || 0;
-        }
-      }
-
+      const results = await processManufacturers(manufacturersData, resolutions);
+      
       toast({
-        title: "Import successful",
-        description: `Imported ${importedCount} ${dataType}`,
+        title: "Manufacturers Processed",
+        description: `Successfully processed ${results.length} manufacturers.`,
       });
 
-      setJsonInput('');
-
-    } catch (error: any) {
-      console.error('Import error:', error);
+      setShowManufacturerDuplicateDetector(false);
+      setManufacturerDuplicatesChecked(true);
+      setManufacturersData([]);
+    } catch (error) {
+      console.error('Error processing manufacturer resolutions:', error);
       toast({
-        title: "Import failed",
-        description: error.message || "Failed to import data. Please check your JSON format.",
-        variant: "destructive",
+        title: "Error",
+        description: "Failed to process manufacturers",
+        variant: "destructive"
       });
     } finally {
-      setImporting(false);
+      setLoading(false);
     }
   };
 
-  const getInstructions = () => {
-    switch (dataType) {
-      case 'materials':
-        return (
-          <div className="space-y-2 text-sm">
-            <p><strong>Required fields:</strong> name and category</p>
-            <p><strong>Optional fields:</strong> model, subcategory, tag, location, reference_sku, dimensions, notes</p>
-            <p className="text-orange-600 font-medium">Note: Manufacturer will be set to the selected manufacturer above. No need to include manufacturer_name in JSON.</p>
-            <p className="mt-4"><strong>Available categories:</strong></p>
-            <p className="text-gray-600">Flooring, Surface, Tile, Stone, Wood, Metal, Glass, Fabric, Lighting, Hardware, Other</p>
-            <p className="mt-4"><strong>Common tags:</strong></p>
-            <p className="text-gray-600">Sustainable, Premium, Fire-rated, Water-resistant, Low-maintenance, Custom, Standard, Luxury, Budget-friendly, Eco-friendly</p>
-            <p className="mt-4"><strong>Common locations:</strong></p>
-            <p className="text-gray-600">Kitchen, Bathroom, Living room, Bedroom, Exterior, Commercial, Office, Hallway, Entrance, Outdoor</p>
-          </div>
-        );
-      case 'manufacturers':
-        return (
-          <div className="space-y-2 text-sm">
-            <p><strong>Required fields:</strong> name</p>
-            <p><strong>Optional fields:</strong> contact_name, email, phone, website, notes</p>
-          </div>
-        );
-      case 'clients':
-        return (
-          <div className="space-y-2 text-sm">
-            <p><strong>Required fields:</strong> name</p>
-            <p><strong>Optional fields:</strong> notes</p>
-          </div>
-        );
+  const handleMaterialResolution = async (resolutions: MaterialResolution[]) => {
+    setLoading(true);
+    try {
+      const result = await processMaterials(materialsData, resolutions);
+      
+      if (result.success) {
+        toast({
+          title: "Materials Processed",
+          description: `Successfully processed ${result.created} materials.`,
+        });
+      } else {
+        toast({
+          title: "Import Completed with Issues",
+          description: `Added ${result.created} materials. ${result.errors.length} had issues: ${result.errors.slice(0, 3).join(', ')}${result.errors.length > 3 ? '...' : ''}`,
+          variant: "destructive"
+        });
+      }
+
+      setShowMaterialDuplicateDetector(false);
+      setMaterialDuplicatesChecked(true);
+      setMaterialsData([]);
+    } catch (error) {
+      console.error('Error processing material resolutions:', error);
+      toast({
+        title: "Error",
+        description: "Failed to process materials",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
-  if (showDuplicateDetector) {
+  if (showMaterialDuplicateDetector) {
     return (
       <DuplicateMaterialDetector
-        materialsToImport={materialsToCheck}
+        materialsToImport={materialsData}
         studioId={studioId}
-        onResolutionComplete={handleDuplicateResolution}
+        projectId={projectId}
+        onResolutionComplete={handleMaterialResolution}
         onCancel={() => {
-          setShowDuplicateDetector(false);
-          setMaterialsToCheck([]);
+          setShowMaterialDuplicateDetector(false);
+          setMaterialsData([]);
         }}
       />
     );
   }
 
-  if (showDuplicateManufacturerDetector) {
+  if (showManufacturerDuplicateDetector) {
     return (
       <DuplicateManufacturerDetector
-        manufacturersToImport={manufacturersToCheck}
+        manufacturersToImport={manufacturersData}
         studioId={studioId}
-        onResolutionComplete={handleManufacturerDuplicateResolution}
+        onResolutionComplete={handleManufacturerResolution}
         onCancel={() => {
-          setShowDuplicateManufacturerDetector(false);
-          setManufacturersToCheck([]);
+          setShowManufacturerDuplicateDetector(false);
+          setManufacturersData([]);
         }}
       />
     );
@@ -505,157 +448,104 @@ const JSONDataInput = ({ studioId, projectId, pdfSubmissionId }: JSONDataInputPr
 
   return (
     <div className="space-y-6">
-      {projectId && (
-        <Card className="border-blue-200 bg-blue-50">
-          <CardContent className="p-4">
-            <p className="text-sm text-blue-700">
-              <strong>Project Selected:</strong> Materials imported will be automatically linked to the selected project.
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
       {pdfSubmissionId && (
-        <Card className="border-purple-200 bg-purple-50">
-          <CardContent className="p-4">
-            <p className="text-sm text-purple-700">
-              <strong>PDF Submission Selected:</strong> Materials imported will be linked to the selected PDF submission.
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-center gap-2">
+            <CheckCircle className="h-5 w-5 text-blue-600" />
+            <p className="text-blue-800 font-medium">
+              Materials from PDF submission will be automatically linked
             </p>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
 
-      {/* Data Type Selection */}
+      {/* Materials Section */}
       <Card>
         <CardHeader>
-          <CardTitle>Select Data Type</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <Package className="h-5 w-5" />
+            Materials Import
+          </CardTitle>
           <CardDescription>
-            Choose what type of data you want to import
+            Add your materials data in JSON format. Each material should include name, category, and any additional details.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <Select value={dataType} onValueChange={(value: 'materials' | 'manufacturers' | 'clients') => {
-            setDataType(value);
-            setJsonInput('');
-            setSelectedManufacturerId('');
-          }}>
-            <SelectTrigger className="w-full max-w-md">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="materials">Materials</SelectItem>
-              <SelectItem value="manufacturers">Manufacturers</SelectItem>
-              <SelectItem value="clients">Clients</SelectItem>
-            </SelectContent>
-          </Select>
+        <CardContent className="space-y-4">
+          {materialsData.length > 0 && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-green-800 font-medium">
+                    {materialsData.length} materials ready for import
+                  </p>
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {materialsData.slice(0, 5).map((material, index) => (
+                      <Badge key={index} variant="secondary" className="text-xs">
+                        {material.name}
+                      </Badge>
+                    ))}
+                    {materialsData.length > 5 && (
+                      <Badge variant="secondary" className="text-xs">
+                        +{materialsData.length - 5} more
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+                <Button
+                  onClick={checkForMaterialDuplicates}
+                  disabled={loading}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  {loading ? 'Checking...' : 'Import Materials'}
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* Manufacturer Selection for Materials */}
-      {dataType === 'materials' && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Select Manufacturer</CardTitle>
-            <CardDescription>
-              Choose which manufacturer these materials belong to, or select "NONE" if no manufacturer is specified
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <Select value={selectedManufacturerId} onValueChange={setSelectedManufacturerId}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select a manufacturer..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">*NONE*</SelectItem>
-                  {manufacturers.map((manufacturer) => (
-                    <SelectItem key={manufacturer.id} value={manufacturer.id}>
-                      {manufacturer.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {manufacturers.length === 0 && (
-                <p className="text-sm text-gray-500">
-                  No manufacturers found. Add manufacturers first, or import manufacturers using the dropdown above.
-                </p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      <div className="grid md:grid-cols-2 gap-6">
-        {/* Template */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              JSON Template for {dataType}
-            </CardTitle>
-            <CardDescription>
-              Use this template format for your {dataType} data
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <pre className="bg-gray-50 p-4 rounded-lg text-xs overflow-auto max-h-96">
-                {JSON.stringify(getTemplate(), null, 2)}
-              </pre>
-              <Button onClick={copyTemplate} variant="outline" className="w-full">
-                <Copy className="h-4 w-4 mr-2" />
-                Copy Template to Input
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Input */}
-        <Card>
-          <CardHeader>
-            <CardTitle>JSON Data Input</CardTitle>
-            <CardDescription>
-              Paste your {dataType} JSON data here following the template format
-              {dataType === 'materials' && (
-                <span className="block mt-2 text-sm font-medium text-orange-600">
-                  ⚠️ Smart duplicate detection enabled - we'll check for similar materials before importing
-                </span>
-              )}
-              {dataType === 'manufacturers' && (
-                <span className="block mt-2 text-sm font-medium text-orange-600">
-                  ⚠️ Smart duplicate detection enabled - we'll check for similar manufacturers before importing
-                </span>
-              )}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <Textarea
-                value={jsonInput}
-                onChange={(e) => setJsonInput(e.target.value)}
-                placeholder={`Paste your ${dataType} JSON data here...`}
-                className="min-h-96 font-mono text-sm"
-              />
-              <Button 
-                onClick={importData} 
-                disabled={importing || !jsonInput.trim() || (dataType === 'materials' && !selectedManufacturerId)}
-                className="w-full bg-coral hover:bg-coral-600"
-              >
-                <Upload className="h-4 w-4 mr-2" />
-                {importing ? 'Processing...' : `Import ${dataType}${dataType === 'materials' || dataType === 'manufacturers' ? ' (with duplicate check)' : ''}`}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Instructions */}
+      {/* Manufacturers Section */}
       <Card>
         <CardHeader>
-          <CardTitle>Instructions for {dataType}</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <Building className="h-5 w-5" />
+            Manufacturers Import
+          </CardTitle>
+          <CardDescription>
+            Add your manufacturers data in JSON format. Each manufacturer should include name and contact details.
+          </CardDescription>
         </CardHeader>
-        <CardContent>
-          {getInstructions()}
+        <CardContent className="space-y-4">
+          {manufacturersData.length > 0 && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-blue-800 font-medium">
+                    {manufacturersData.length} manufacturers ready for import
+                  </p>
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {manufacturersData.slice(0, 5).map((manufacturer, index) => (
+                      <Badge key={index} variant="secondary" className="text-xs">
+                        {manufacturer.name}
+                      </Badge>
+                    ))}
+                    {manufacturersData.length > 5 && (
+                      <Badge variant="secondary" className="text-xs">
+                        +{manufacturersData.length - 5} more
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+                <Button
+                  onClick={checkForManufacturerDuplicates}
+                  disabled={loading}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  {loading ? 'Checking...' : 'Import Manufacturers'}
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
