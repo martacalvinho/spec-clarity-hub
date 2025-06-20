@@ -14,10 +14,14 @@ import AddMaterialForm from '@/components/forms/AddMaterialForm';
 import EditMaterialForm from '@/components/forms/EditMaterialForm';
 import DeleteMaterialForm from '@/components/forms/DeleteMaterialForm';
 import MaterialStatsCards from '@/components/MaterialStatsCards';
+import MaterialPhotoUpload from '@/components/MaterialPhotoUpload';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useToast } from '@/hooks/use-toast';
 
 const Materials = () => {
   const { studioId } = useAuth();
   const { formatArea } = useUnitToggle();
+  const { toast } = useToast();
   const [materials, setMaterials] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
@@ -47,6 +51,7 @@ const Materials = () => {
         .select(`
           *,
           manufacturers(name),
+          users!materials_created_by_fkey(first_name, last_name),
           proj_materials(
             project_id, 
             projects(
@@ -88,6 +93,33 @@ const Materials = () => {
       setManufacturers(manufacturersData.data || []);
     } catch (error) {
       console.error('Error fetching filters:', error);
+    }
+  };
+
+  const handleCopyMaterial = async (material: any) => {
+    try {
+      await navigator.clipboard.writeText(JSON.stringify({
+        name: material.name,
+        category: material.category,
+        subcategory: material.subcategory,
+        model: material.model,
+        manufacturer: material.manufacturers?.name,
+        reference_sku: material.reference_sku,
+        dimensions: material.dimensions,
+        location: material.location,
+        notes: material.notes
+      }, null, 2));
+      
+      toast({
+        title: "Material Copied",
+        description: "Material details copied to clipboard",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to copy material details",
+        variant: "destructive"
+      });
     }
   };
 
@@ -241,8 +273,18 @@ const Materials = () => {
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between">
                       <div className="flex items-start gap-4 flex-1">
-                        <div className="p-3 bg-coral-100 rounded-lg">
-                          <Package className="h-8 w-8 text-coral-600" />
+                        <div className="flex-shrink-0">
+                          {material.photo_url ? (
+                            <img 
+                              src={material.photo_url} 
+                              alt={material.name}
+                              className="w-16 h-16 rounded-lg object-cover"
+                            />
+                          ) : (
+                            <div className="p-3 bg-coral-100 rounded-lg">
+                              <Package className="h-10 w-10 text-coral-600" />
+                            </div>
+                          )}
                         </div>
                         <div className="flex-1">
                           <Link to={`/materials/${material.id}`} className="hover:text-coral">
@@ -305,9 +347,11 @@ const Materials = () => {
                                   <span className="font-medium">Dimensions:</span> {material.dimensions}
                                 </span>
                               )}
-                              <span>
-                                <span className="font-medium">Added:</span> {new Date(material.created_at).toLocaleDateString()}
-                              </span>
+                              {material.users && (
+                                <span>
+                                  <span className="font-medium">Added by:</span> {material.users.first_name} {material.users.last_name}
+                                </span>
+                              )}
                             </div>
                             
                             {projects.length > 0 && (
@@ -348,16 +392,32 @@ const Materials = () => {
                         </div>
                       </div>
                       
-                      <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <Upload className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <Copy className="h-4 w-4" />
-                        </Button>
-                        <EditMaterialForm material={material} onMaterialUpdated={fetchMaterials} />
-                        <DeleteMaterialForm material={material} onMaterialDeleted={fetchMaterials} />
-                      </div>
+                      <TooltipProvider>
+                        <div className="flex items-center gap-1">
+                          <MaterialPhotoUpload 
+                            materialId={material.id}
+                            currentPhotoUrl={material.photo_url}
+                            onPhotoUpdated={fetchMaterials}
+                          />
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-8 w-8"
+                                onClick={() => handleCopyMaterial(material)}
+                              >
+                                <Copy className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Copy material details</p>
+                            </TooltipContent>
+                          </Tooltip>
+                          <EditMaterialForm material={material} onMaterialUpdated={fetchMaterials} />
+                          <DeleteMaterialForm material={material} onMaterialDeleted={fetchMaterials} />
+                        </div>
+                      </TooltipProvider>
                     </div>
                   </CardContent>
                 </Card>

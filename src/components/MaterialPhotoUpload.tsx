@@ -10,7 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 interface MaterialPhotoUploadProps {
   materialId: string;
   currentPhotoUrl?: string;
-  onPhotoUpdated: (photoUrl: string | null) => void;
+  onPhotoUpdated: () => void;
 }
 
 const MaterialPhotoUpload = ({ materialId, currentPhotoUrl, onPhotoUpdated }: MaterialPhotoUploadProps) => {
@@ -62,7 +62,7 @@ const MaterialPhotoUpload = ({ materialId, currentPhotoUrl, onPhotoUpdated }: Ma
         throw updateError;
       }
 
-      onPhotoUpdated(publicUrl);
+      onPhotoUpdated();
       toast({
         title: "Success",
         description: "Material photo uploaded successfully",
@@ -83,26 +83,26 @@ const MaterialPhotoUpload = ({ materialId, currentPhotoUrl, onPhotoUpdated }: Ma
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <div className="relative p-2 h-8 w-8 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors">
+          <div className="relative">
             <Input
               type="file"
               accept="image/*"
               onChange={handleFileUpload}
               disabled={uploading}
-              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              className="absolute inset-0 w-8 h-8 opacity-0 cursor-pointer"
             />
             <Button
               variant="ghost"
-              size="sm"
+              size="icon"
               disabled={uploading}
-              className="pointer-events-none p-0 h-4 w-4"
+              className="h-8 w-8 pointer-events-none"
             >
               <Camera className="h-4 w-4" />
             </Button>
           </div>
         </TooltipTrigger>
         <TooltipContent>
-          <p>{currentPhotoUrl ? 'Change photo' : 'Add photo'}</p>
+          <p>{currentPhotoUrl ? 'Change photo' : 'Upload photo'}</p>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>

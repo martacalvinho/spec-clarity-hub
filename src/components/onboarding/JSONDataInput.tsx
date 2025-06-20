@@ -542,7 +542,16 @@ const JSONDataInput = ({ studioId, projectId, pdfSubmissionId }: JSONDataInputPr
       <DuplicateMaterialDetector
         materialsToImport={materialsData}
         studioId={studioId}
-        onResolutionComplete={handleMaterialResolution}
+        onResolutionComplete={(results) => {
+          // Convert results to the expected format
+          const materialResolutions: MaterialDuplicateResult[] = results.map(result => ({
+            materialToImport: result.materialToImport,
+            existingMaterials: result.existingMaterials || [],
+            action: result.action as 'create' | 'link',
+            selectedExistingId: result.selectedExistingId
+          }));
+          handleMaterialResolution(materialResolutions);
+        }}
         onCancel={() => {
           setShowMaterialDuplicateDetector(false);
           setMaterialsData([]);
@@ -556,7 +565,16 @@ const JSONDataInput = ({ studioId, projectId, pdfSubmissionId }: JSONDataInputPr
       <DuplicateManufacturerDetector
         manufacturersToImport={manufacturersData}
         studioId={studioId}
-        onResolutionComplete={handleManufacturerResolution}
+        onResolutionComplete={(results) => {
+          // Convert results to the expected format
+          const manufacturerResolutions: ManufacturerResolution[] = results.map(result => ({
+            manufacturerToImport: result.manufacturerToImport,
+            existingManufacturers: result.existingManufacturers || [],
+            action: result.action as 'create' | 'link' | 'replace',
+            selectedExistingId: result.selectedExistingId
+          }));
+          handleManufacturerResolution(manufacturerResolutions);
+        }}
         onCancel={() => {
           setShowManufacturerDuplicateDetector(false);
           setManufacturersData([]);
