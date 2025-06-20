@@ -233,7 +233,7 @@ const PendingMaterialCard = ({ material, onApprove, onEdit }: PendingMaterialCar
                       </div>
                       {similar.projects.length > 0 && (
                         <div className="ml-5 mt-1">
-                          <span className="text-orange-700">Used in projects: </span>
+                          <span className="text-orange-700">Material already used in: </span>
                           {similar.projects.map((project, projIndex) => (
                             <span key={project.id} className="text-orange-800 font-medium">
                               {project.name}
