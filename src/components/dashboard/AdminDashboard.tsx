@@ -6,13 +6,15 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Building, Users, FolderOpen, Package, AlertTriangle, Search } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Building, Users, FolderOpen, Package, AlertTriangle, Search, FileText } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import SystemHealthIndicators from './admin/SystemHealthIndicators';
 import UsageAnalytics from './admin/UsageAnalytics';
 import RecentUserActivity from './admin/RecentUserActivity';
 import QuickStudioManagement from './admin/QuickStudioManagement';
 import PlatformAnnouncements from './admin/PlatformAnnouncements';
+import MaterialApprovalQueue from './admin/MaterialApprovalQueue';
 
 const AdminDashboard = () => {
   const { isAdmin } = useAuth();
@@ -22,7 +24,8 @@ const AdminDashboard = () => {
     totalStudios: 0,
     totalProjects: 0,
     totalMaterials: 0,
-    activeAlerts: 0
+    activeAlerts: 0,
+    pendingMaterials: 0
   });
   const [loading, setLoading] = useState(true);
 
@@ -107,17 +110,19 @@ const AdminDashboard = () => {
       }
       
       // Fetch global stats
-      const [projectsCount, materialsCount, alertsCount] = await Promise.all([
+      const [projectsCount, materialsCount, alertsCount, pendingMaterialsCount] = await Promise.all([
         supabase.from('projects').select('id', { count: 'exact', head: true }),
         supabase.from('materials').select('id', { count: 'exact', head: true }),
-        supabase.from('alerts').select('id', { count: 'exact', head: true }).eq('status', 'active')
+        supabase.from('alerts').select('id', { count: 'exact', head: true }).eq('status', 'active'),
+        supabase.from('pending_materials').select('id', { count: 'exact', head: true }).eq('status', 'pending')
       ]);
 
       setGlobalStats({
         totalStudios: studiosData?.length || 0,
         totalProjects: projectsCount.count || 0,
         totalMaterials: materialsCount.count || 0,
-        activeAlerts: alertsCount.count || 0
+        activeAlerts: alertsCount.count || 0,
+        pendingMaterials: pendingMaterialsCount.count || 0
       });
     } catch (error) {
       console.error('Error fetching global data:', error);
@@ -178,7 +183,7 @@ const AdminDashboard = () => {
       <SystemHealthIndicators />
 
       {/* Global Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Studios</CardTitle>
@@ -211,6 +216,16 @@ const AdminDashboard = () => {
         
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Pending Materials</CardTitle>
+            <FileText className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-orange-600">{globalStats.pendingMaterials}</div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Active Alerts</CardTitle>
             <AlertTriangle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -220,19 +235,33 @@ const AdminDashboard = () => {
         </Card>
       </div>
 
-      {/* Usage Analytics */}
-      <UsageAnalytics />
+      {/* Tabbed Content */}
+      <Tabs defaultValue="overview" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="materials">Material Approval Queue</TabsTrigger>
+        </TabsList>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent User Activity */}
-        <RecentUserActivity />
+        <TabsContent value="overview" className="space-y-6">
+          {/* Usage Analytics */}
+          <UsageAnalytics />
 
-        {/* Quick Studio Management */}
-        <QuickStudioManagement />
-      </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Recent User Activity */}
+            <RecentUserActivity />
 
-      {/* Platform Announcements */}
-      <PlatformAnnouncements />
+            {/* Quick Studio Management */}
+            <QuickStudioManagement />
+          </div>
+
+          {/* Platform Announcements */}
+          <PlatformAnnouncements />
+        </TabsContent>
+
+        <TabsContent value="materials">
+          <MaterialApprovalQueue />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

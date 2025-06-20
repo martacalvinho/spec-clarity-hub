@@ -850,6 +850,60 @@ export type Database = {
           },
         ]
       }
+      pdf_material_status: {
+        Row: {
+          all_materials_processed: boolean | null
+          created_at: string | null
+          id: string
+          materials_approved: number | null
+          materials_edited: number | null
+          materials_rejected: number | null
+          studio_id: string
+          submission_id: string
+          total_materials_extracted: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          all_materials_processed?: boolean | null
+          created_at?: string | null
+          id?: string
+          materials_approved?: number | null
+          materials_edited?: number | null
+          materials_rejected?: number | null
+          studio_id: string
+          submission_id: string
+          total_materials_extracted?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          all_materials_processed?: boolean | null
+          created_at?: string | null
+          id?: string
+          materials_approved?: number | null
+          materials_edited?: number | null
+          materials_rejected?: number | null
+          studio_id?: string
+          submission_id?: string
+          total_materials_extracted?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pdf_material_status_studio_id_fkey"
+            columns: ["studio_id"]
+            isOneToOne: false
+            referencedRelation: "studios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pdf_material_status_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: true
+            referencedRelation: "pdf_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pdf_submissions: {
         Row: {
           bucket_id: string
@@ -1013,6 +1067,9 @@ export type Database = {
           notes: string | null
           project_id: string | null
           reference_sku: string | null
+          rejected_at: string | null
+          rejected_by: string | null
+          rejection_reason: string | null
           status: string
           studio_id: string
           subcategory: string | null
@@ -1037,6 +1094,9 @@ export type Database = {
           notes?: string | null
           project_id?: string | null
           reference_sku?: string | null
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
           status?: string
           studio_id: string
           subcategory?: string | null
@@ -1061,6 +1121,9 @@ export type Database = {
           notes?: string | null
           project_id?: string | null
           reference_sku?: string | null
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
           status?: string
           studio_id?: string
           subcategory?: string | null
@@ -1359,6 +1422,10 @@ export type Database = {
       get_user_studio_id: {
         Args: Record<PropertyKey, never>
         Returns: string
+      }
+      reject_pending_material: {
+        Args: { material_id: string; rejection_reason_text?: string }
+        Returns: undefined
       }
     }
     Enums: {

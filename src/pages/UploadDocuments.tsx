@@ -329,6 +329,18 @@ const UploadDocuments = () => {
 
         if (error) throw error;
       } else {
+        // Update the pending material status first
+        const { error: updateError } = await supabase
+          .from('pending_materials')
+          .update({
+            status: 'approved',
+            approved_by: currentUserId,
+            approved_at: new Date().toISOString()
+          })
+          .eq('id', materialId);
+
+        if (updateError) throw updateError;
+
         // Move from pending_materials to materials table
         const { data: newMaterial, error: insertError } = await supabase
           .from('materials')
@@ -352,14 +364,6 @@ const UploadDocuments = () => {
 
         if (insertError) throw insertError;
 
-        // Delete from pending_materials
-        const { error: deleteError } = await supabase
-          .from('pending_materials')
-          .delete()
-          .eq('id', materialId);
-
-        if (deleteError) throw deleteError;
-
         // Link to project if project_id exists
         if (pendingMaterial.project_id && newMaterial) {
           const { error: linkError } = await supabase
@@ -375,6 +379,17 @@ const UploadDocuments = () => {
             console.error('Error linking material to project:', linkError);
             // Don't throw error here as the material was successfully created
           }
+        }
+
+        // Delete from pending_materials after successful approval
+        const { error: deleteError } = await supabase
+          .from('pending_materials')
+          .delete()
+          .eq('id', materialId);
+
+        if (deleteError) {
+          console.error('Error deleting from pending_materials:', deleteError);
+          // Don't throw error here as the material was successfully moved
         }
       }
 
@@ -434,6 +449,32 @@ const UploadDocuments = () => {
       toast({
         title: "Error",
         description: "Failed to approve materials",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const rejectMaterial = async (materialId: string, reason: string = '') => {
+    try {
+      const { error } = await supabase.rpc('reject_pending_material', {
+        material_id: materialId,
+        rejection_reason_text: reason || 'No reason provided'
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Material rejected"
+      });
+
+      // Refresh data
+      fetchPendingApproval();
+    } catch (error) {
+      console.error('Error rejecting material:', error);
+      toast({
+        title: "Error",
+        description: "Failed to reject material",
         variant: "destructive"
       });
     }
@@ -623,6 +664,7 @@ const UploadDocuments = () => {
                       key={material.id}
                       material={material}
                       onApprove={approveMaterial}
+                      onReject={rejectMaterial}
                       onEdit={handleEditMaterial}
                     />
                   ))}
