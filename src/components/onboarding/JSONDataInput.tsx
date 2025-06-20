@@ -479,10 +479,17 @@ const JSONDataInput = ({ studioId, projectId, pdfSubmissionId }: JSONDataInputPr
     }
   };
 
-  const handleMaterialResolution = async (resolutions: MaterialDuplicateResult[]) => {
+  const handleMaterialResolution = async (resolutions: any[]) => {
     setLoading(true);
     try {
-      const result = await processMaterials(materialsData, resolutions);
+      const materialResolutions = resolutions.map(result => ({
+        materialToImport: result.materialToImport,
+        existingMaterials: result.existingMaterials || [],
+        action: result.action as 'create' | 'link',
+        selectedExistingId: result.selectedExistingId
+      }));
+
+      const result = await processMaterials(materialsData, materialResolutions);
       
       if (result.success) {
         const destination = pdfSubmissionId ? "material approval section" : "your library";
@@ -512,10 +519,17 @@ const JSONDataInput = ({ studioId, projectId, pdfSubmissionId }: JSONDataInputPr
     }
   };
 
-  const handleManufacturerResolution = async (resolutions: ManufacturerResolution[]) => {
+  const handleManufacturerResolution = async (resolutions: any[]) => {
     setLoading(true);
     try {
-      const results = await processManufacturers(manufacturersData, resolutions);
+      const manufacturerResolutions = resolutions.map(result => ({
+        manufacturerToImport: result.manufacturerToImport,
+        existingManufacturers: result.existingManufacturers || [],
+        action: result.action as 'create' | 'link' | 'replace',
+        selectedExistingId: result.selectedExistingId
+      }));
+
+      const results = await processManufacturers(manufacturersData, manufacturerResolutions);
       
       toast({
         title: "Manufacturers Processed",

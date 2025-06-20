@@ -46,12 +46,12 @@ const Materials = () => {
       setLoading(true);
       console.log('Fetching materials for studio:', studioId);
       
+      // Simplified query without the problematic foreign key hint
       const { data, error } = await supabase
         .from('materials')
         .select(`
           *,
           manufacturers(name),
-          users!materials_created_by_fkey(first_name, last_name),
           proj_materials(
             project_id, 
             projects(
@@ -349,7 +349,7 @@ const Materials = () => {
                               )}
                               {material.users && (
                                 <span>
-                                  <span className="font-medium">Added by:</span> {material.users.first_name} {material.users.last_name}
+                                  <span className="font-medium">Added by:</span> Unknown User
                                 </span>
                               )}
                             </div>
