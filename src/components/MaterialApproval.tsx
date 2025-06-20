@@ -70,12 +70,16 @@ const MaterialApproval = () => {
   const handleApprove = async (materialIds: string[]) => {
     setApproving(true);
     try {
+      // Get current user first
+      const { data: userData } = await supabase.auth.getUser();
+      const currentUserId = userData.user?.id;
+
       // First, approve the extracted materials
       const { error: approveError } = await supabase
         .from('extracted_materials')
         .update({
           status: 'approved',
-          approved_by: (await supabase.auth.getUser()).data.user?.id,
+          approved_by: currentUserId,
           approved_at: new Date().toISOString()
         })
         .in('id', materialIds);
@@ -95,7 +99,7 @@ const MaterialApproval = () => {
           dimensions: m.dimensions,
           location: m.location,
           tag: m.tag,
-          created_by: (await supabase.auth.getUser()).data.user?.id
+          created_by: currentUserId
         }));
 
       const { error: createError } = await supabase
@@ -170,7 +174,7 @@ const MaterialApproval = () => {
                 <Checkbox
                   id="select-all"
                   checked={selectedMaterials.length === extractedMaterials.length}
-                  onCheckedChange={handleSelectAll}
+                  onCheckedChange={(checked) => handleSelectAll(!!checked)}
                 />
                 <Label htmlFor="select-all" className="font-medium">
                   Select All ({extractedMaterials.length} materials)
@@ -195,7 +199,7 @@ const MaterialApproval = () => {
                     <Checkbox
                       id={material.id}
                       checked={selectedMaterials.includes(material.id)}
-                      onCheckedChange={(checked) => handleSelectMaterial(material.id, checked)}
+                      onCheckedChange={(checked) => handleSelectMaterial(material.id, !!checked)}
                     />
                     <div className="flex-1 space-y-2">
                       <div className="flex items-start justify-between">
