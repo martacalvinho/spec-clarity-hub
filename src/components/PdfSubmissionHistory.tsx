@@ -2,8 +2,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { FileText, Clock, CheckCircle, AlertCircle, Trash2 } from 'lucide-react';
+import { FileText, Clock, CheckCircle, AlertCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -14,7 +13,6 @@ const PdfSubmissionHistory = () => {
   const { toast } = useToast();
   const [submissions, setSubmissions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [deleting, setDeleting] = useState<string | null>(null);
 
   useEffect(() => {
     if (studioId) {
@@ -45,57 +43,6 @@ const PdfSubmissionHistory = () => {
       });
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleDeletePdf = async (submission: any) => {
-    if (!confirm(`Are you sure you want to delete "${submission.file_name}"? This action cannot be undone.`)) {
-      return;
-    }
-
-    setDeleting(submission.id);
-    try {
-      // First delete the file from storage if it exists
-      if (submission.object_path) {
-        const { error: storageError } = await supabase.storage
-          .from('pdfs')
-          .remove([submission.object_path]);
-        
-        if (storageError) {
-          console.warn('Could not delete file from storage:', storageError);
-        }
-      }
-
-      // Delete extracted materials associated with this submission
-      await supabase
-        .from('extracted_materials')
-        .delete()
-        .eq('submission_id', submission.id);
-
-      // Delete the submission record
-      const { error } = await supabase
-        .from('pdf_submissions')
-        .delete()
-        .eq('id', submission.id);
-
-      if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: "PDF submission deleted successfully"
-      });
-
-      // Refresh the list
-      fetchSubmissions();
-    } catch (error) {
-      console.error('Error deleting PDF:', error);
-      toast({
-        title: "Error",
-        description: "Failed to delete PDF submission",
-        variant: "destructive"
-      });
-    } finally {
-      setDeleting(null);
     }
   };
 
@@ -173,18 +120,7 @@ const PdfSubmissionHistory = () => {
                     {getStatusIcon(submission.status)}
                     <h3 className="font-medium">{submission.file_name}</h3>
                   </div>
-                  <div className="flex items-center gap-2">
-                    {getStatusBadge(submission.status)}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDeletePdf(submission)}
-                      disabled={deleting === submission.id}
-                      className="text-red-600 hover:text-red-800 hover:bg-red-50"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  {getStatusBadge(submission.status)}
                 </div>
                 
                 <div className="text-sm text-gray-600 space-y-1">
