@@ -370,7 +370,7 @@ const Materials = () => {
               Material limit reached for this month
             </p>
           )}
-          <UnitToggle />
+          {advancedMode && <UnitToggle />}
           <Button
             onClick={() => setAdvancedMode(!advancedMode)}
             variant={advancedMode ? "default" : "outline"}
@@ -857,9 +857,11 @@ const Materials = () => {
                               )}
                               {advancedMode && (material.price_per_sqft || material.price_per_unit) && (
                                 <Badge variant="outline" className="text-xs text-green-600 border-green-300">
-                                  {material.unit_type === 'sqft' 
-                                    ? formatPrice(material.price_per_sqft, 'sqft')
-                                    : formatPrice(material.price_per_unit, material.unit_type === 'sqm' ? 'sqm' : 'sqft')
+                                  {material.unit_type === 'sqft' || !material.unit_type
+                                    ? formatPrice(material.price_per_sqft || 0, 'sqft')
+                                    : material.unit_type === 'sqm'
+                                    ? formatPrice(material.price_per_unit || 0, 'sqm')
+                                    : formatPrice(material.price_per_unit || 0, 'sqft')
                                   }
                                 </Badge>
                               )}
