@@ -28,10 +28,45 @@ interface PendingMaterialCardProps {
 const PendingMaterialCard = ({ material, onApprove, onEdit }: PendingMaterialCardProps) => {
   const [similarMaterials, setSimilarMaterials] = useState<SimilarMaterial[]>([]);
   const [loading, setLoading] = useState(true);
+  const [projectName, setProjectName] = useState<string>('');
+  const [clientName, setClientName] = useState<string>('');
 
   useEffect(() => {
     findSimilarMaterials();
+    fetchAssociatedInfo();
   }, [material]);
+
+  const fetchAssociatedInfo = async () => {
+    try {
+      // Fetch project name if project_id exists
+      if (material.project_id) {
+        const { data: projectData } = await supabase
+          .from('projects')
+          .select('name')
+          .eq('id', material.project_id)
+          .single();
+        
+        if (projectData) {
+          setProjectName(projectData.name);
+        }
+      }
+
+      // Fetch client name if client_id exists
+      if (material.client_id) {
+        const { data: clientData } = await supabase
+          .from('clients')
+          .select('name')
+          .eq('id', material.client_id)
+          .single();
+        
+        if (clientData) {
+          setClientName(clientData.name);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching associated info:', error);
+    }
+  };
 
   const findSimilarMaterials = async () => {
     try {
@@ -161,16 +196,16 @@ const PendingMaterialCard = ({ material, onApprove, onEdit }: PendingMaterialCar
                   <span>PDF: {material.pdf_submissions.file_name}</span>
                 </div>
               )}
-              {material.project_id && (
+              {projectName && (
                 <div className="flex items-center gap-1">
                   <Building className="h-3 w-3 text-blue-600" />
-                  <span>Project: Associated</span>
+                  <span>Project: {projectName}</span>
                 </div>
               )}
-              {material.client_id && (
+              {clientName && (
                 <div className="flex items-center gap-1">
                   <User className="h-3 w-3 text-blue-600" />
-                  <span>Client: Associated</span>
+                  <span>Client: {clientName}</span>
                 </div>
               )}
             </div>

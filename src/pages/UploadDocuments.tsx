@@ -396,13 +396,18 @@ const UploadDocuments = () => {
   };
 
   const handleEditMaterial = (material: any, duplicates: any[]) => {
-    // For now, just show an alert with duplicate information
-    // In a future implementation, this could open an edit dialog
-    const duplicateInfo = duplicates.length > 0 
-      ? `\n\nThis material has ${duplicates.length} similar material(s) already in your database. Consider linking to an existing material instead of creating a duplicate.`
-      : '';
+    let duplicateInfo = '';
+    let projectInfo = '';
     
-    alert(`Edit functionality coming soon!${duplicateInfo}`);
+    if (duplicates.length > 0) {
+      const projectsUsed = duplicates.flatMap(d => d.projects.map(p => p.name)).filter(Boolean);
+      if (projectsUsed.length > 0) {
+        projectInfo = `\n\nThis material is already used in: ${projectsUsed.join(', ')}`;
+      }
+      duplicateInfo = `\n\nThis material has ${duplicates.length} similar material(s) already in your database. Consider linking to an existing material instead of creating a duplicate.`;
+    }
+    
+    alert(`Edit functionality coming soon!${projectInfo}${duplicateInfo}`);
   };
 
   const approveAllMaterials = async () => {
