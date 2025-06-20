@@ -12,6 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
+import PendingMaterialCard from '@/components/onboarding/PendingMaterialCard';
 
 const UploadDocuments = () => {
   const { userProfile, studioId } = useAuth();
@@ -300,6 +301,10 @@ const UploadDocuments = () => {
 
   const approveMaterial = async (materialId: string) => {
     try {
+      // Get current user ID once
+      const { data: userData } = await supabase.auth.getUser();
+      const currentUserId = userData.user?.id;
+
       // Try to approve from pending_materials first
       const { data: pendingMaterial } = await supabase
         .from('pending_materials')
@@ -324,7 +329,7 @@ const UploadDocuments = () => {
             dimensions: pendingMaterial.dimensions,
             notes: pendingMaterial.notes,
             studio_id: pendingMaterial.studio_id,
-            created_by: pendingMaterial.created_by
+            created_by: currentUserId
           });
 
         if (insertError) throw insertError;
@@ -365,7 +370,7 @@ const UploadDocuments = () => {
           .from('extracted_materials')
           .update({ 
             status: 'approved',
-            approved_by: userProfile?.id,
+            approved_by: currentUserId,
             approved_at: new Date().toISOString()
           })
           .eq('id', materialId);
@@ -388,6 +393,16 @@ const UploadDocuments = () => {
         variant: "destructive"
       });
     }
+  };
+
+  const handleEditMaterial = (material: any, duplicates: any[]) => {
+    // For now, just show an alert with duplicate information
+    // In a future implementation, this could open an edit dialog
+    const duplicateInfo = duplicates.length > 0 
+      ? `\n\nThis material has ${duplicates.length} similar material(s) already in your database. Consider linking to an existing material instead of creating a duplicate.`
+      : '';
+    
+    alert(`Edit functionality coming soon!${duplicateInfo}`);
   };
 
   const approveAllMaterials = async () => {
@@ -583,57 +598,12 @@ const UploadDocuments = () => {
               <CardContent>
                 <div className="space-y-4">
                   {pendingApproval.map((material) => (
-                    <div key={material.id} className="p-4 border rounded-lg">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-lg">{material.name}</h3>
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-2 text-sm">
-                            <div>
-                              <span className="font-medium text-gray-700">Category:</span>
-                              <p className="text-gray-600">{material.category}</p>
-                            </div>
-                            {material.subcategory && (
-                              <div>
-                                <span className="font-medium text-gray-700">Subcategory:</span>
-                                <p className="text-gray-600">{material.subcategory}</p>
-                              </div>
-                            )}
-                            {material.manufacturer_name && (
-                              <div>
-                                <span className="font-medium text-gray-700">Manufacturer:</span>
-                                <p className="text-gray-600">{material.manufacturer_name}</p>
-                              </div>
-                            )}
-                            {material.reference_sku && (
-                              <div>
-                                <span className="font-medium text-gray-700">SKU:</span>
-                                <p className="text-gray-600">{material.reference_sku}</p>
-                              </div>
-                            )}
-                          </div>
-                          {material.notes && (
-                            <div className="mt-2">
-                              <span className="font-medium text-gray-700">Notes:</span>
-                              <p className="text-gray-600 text-sm">{material.notes}</p>
-                            </div>
-                          )}
-                          <div className="mt-2 text-xs text-gray-500">
-                            From PDF: {material.pdf_submissions?.file_name}
-                          </div>
-                        </div>
-                        <div className="flex flex-col gap-2">
-                          {getStatusBadge(material.status)}
-                          <Button 
-                            size="sm" 
-                            onClick={() => approveMaterial(material.id)}
-                            className="bg-green-600 hover:bg-green-700"
-                          >
-                            <CheckCircle className="h-4 w-4 mr-1" />
-                            Approve
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
+                    <PendingMaterialCard
+                      key={material.id}
+                      material={material}
+                      onApprove={approveMaterial}
+                      onEdit={handleEditMaterial}
+                    />
                   ))}
                   {pendingApproval.length === 0 && (
                     <div className="text-center py-8 text-gray-500">
