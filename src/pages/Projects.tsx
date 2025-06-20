@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,7 +16,7 @@ const Projects = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterBy, setFilterBy] = useState('all');
-  const [sortBy, setSortBy] = useState('alphabetical');
+  const [sortBy, setSortBy] = useState('newest_first');
 
   useEffect(() => {
     if (studioId) {
@@ -36,7 +35,7 @@ const Projects = () => {
           proj_materials(id)
         `)
         .eq('studio_id', studioId)
-        .order('name', { ascending: true }); // Changed from created_at to name for alphabetical sorting
+        .order('created_at', { ascending: false }); // Changed from created_at to name for alphabetical sorting
 
       if (error) throw error;
       setProjects(data || []);
@@ -55,6 +54,9 @@ const Projects = () => {
       return matchesSearch && project.status === filterBy;
     })
     .sort((a, b) => {
+      if (sortBy === 'newest_first') {
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      }
       if (sortBy === 'most_materials') {
         const aMaterialCount = a.proj_materials?.length || 0;
         const bMaterialCount = b.proj_materials?.length || 0;
@@ -110,6 +112,7 @@ const Projects = () => {
                   <SelectValue placeholder="Sort by..." />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="newest_first">Newest First</SelectItem>
                   <SelectItem value="alphabetical">Alphabetical</SelectItem>
                   <SelectItem value="most_materials">Most Materials</SelectItem>
                 </SelectContent>
