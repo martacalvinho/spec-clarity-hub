@@ -13,6 +13,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import PendingMaterialCard from '@/components/onboarding/PendingMaterialCard';
+import EditPendingMaterialDialog from '@/components/onboarding/EditPendingMaterialDialog';
 
 const UploadDocuments = () => {
   const { userProfile, studioId } = useAuth();
@@ -28,6 +29,9 @@ const UploadDocuments = () => {
   const [approvedMaterials, setApprovedMaterials] = useState<any[]>([]);
   const [pendingApproval, setPendingApproval] = useState<any[]>([]);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [editingMaterial, setEditingMaterial] = useState<any>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingDuplicates, setEditingDuplicates] = useState<any[]>([]);
 
   useEffect(() => {
     if (studioId) {
@@ -396,18 +400,13 @@ const UploadDocuments = () => {
   };
 
   const handleEditMaterial = (material: any, duplicates: any[]) => {
-    let duplicateInfo = '';
-    let projectInfo = '';
-    
-    if (duplicates.length > 0) {
-      const projectsUsed = duplicates.flatMap(d => d.projects.map(p => p.name)).filter(Boolean);
-      if (projectsUsed.length > 0) {
-        projectInfo = `\n\nThis material is already used in: ${projectsUsed.join(', ')}`;
-      }
-      duplicateInfo = `\n\nThis material has ${duplicates.length} similar material(s) already in your database. Consider linking to an existing material instead of creating a duplicate.`;
-    }
-    
-    alert(`Edit functionality coming soon!${projectInfo}${duplicateInfo}`);
+    setEditingMaterial(material);
+    setEditingDuplicates(duplicates);
+    setEditDialogOpen(true);
+  };
+
+  const handleMaterialUpdated = () => {
+    fetchPendingApproval();
   };
 
   const approveAllMaterials = async () => {
@@ -684,6 +683,14 @@ const UploadDocuments = () => {
             </Card>
           </TabsContent>
         </Tabs>
+
+        <EditPendingMaterialDialog
+          material={editingMaterial}
+          open={editDialogOpen}
+          onOpenChange={setEditDialogOpen}
+          onMaterialUpdated={handleMaterialUpdated}
+          duplicates={editingDuplicates}
+        />
       </div>
     </div>
   );

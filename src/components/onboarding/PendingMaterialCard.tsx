@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -248,6 +249,12 @@ const PendingMaterialCard = ({ material, onApprove, onEdit }: PendingMaterialCar
               <div>
                 <span className="font-medium text-gray-700">Location:</span>
                 <p className="text-gray-600">{material.location}</p>
+              </div>
+            )}
+            {material.model && (
+              <div>
+                <span className="font-medium text-gray-700">Model:</span>
+                <p className="text-gray-600">{material.model}</p>
               </div>
             )}
           </div>
