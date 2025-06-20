@@ -12,9 +12,10 @@ import { useToast } from '@/hooks/use-toast';
 interface MaterialPricingInputProps {
   material: any;
   onPricingUpdated: () => void;
+  showAdvanced?: boolean;
 }
 
-const MaterialPricingInput = ({ material, onPricingUpdated }: MaterialPricingInputProps) => {
+const MaterialPricingInput = ({ material, onPricingUpdated, showAdvanced = false }: MaterialPricingInputProps) => {
   const { unit, convertArea, formatPrice } = useUnitToggle();
   const { toast } = useToast();
   const [isUpdating, setIsUpdating] = useState(false);
@@ -74,6 +75,10 @@ const MaterialPricingInput = ({ material, onPricingUpdated }: MaterialPricingInp
     ? `${totalArea} ft²`
     : `${totalArea} m²`;
 
+  // Get the display unit label based on the current unit toggle
+  const unitLabel = unit === 'sqm' ? 'M²' : 'Sq Ft';
+  const areaUnitLabel = unit === 'sqm' ? 'm²' : 'sq ft';
+
   return (
     <Card className="bg-blue-50 border-blue-200">
       <CardHeader className="pb-3">
@@ -81,24 +86,26 @@ const MaterialPricingInput = ({ material, onPricingUpdated }: MaterialPricingInp
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-          <div>
-            <Label htmlFor="unit-type" className="text-xs font-medium text-gray-700">Unit Type</Label>
-            <Select value={unitType} onValueChange={setUnitType}>
-              <SelectTrigger className="h-8">
-                <SelectValue placeholder="Select unit" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="sqft">Square Feet</SelectItem>
-                <SelectItem value="sqm">Square Meters</SelectItem>
-                <SelectItem value="linear_ft">Linear Feet</SelectItem>
-                <SelectItem value="piece">Per Piece</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          {showAdvanced && (
+            <div>
+              <Label htmlFor="unit-type" className="text-xs font-medium text-gray-700">Unit Type</Label>
+              <Select value={unitType} onValueChange={setUnitType}>
+                <SelectTrigger className="h-8">
+                  <SelectValue placeholder="Select unit" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sqft">Square Feet</SelectItem>
+                  <SelectItem value="sqm">Square Meters</SelectItem>
+                  <SelectItem value="linear_ft">Linear Feet</SelectItem>
+                  <SelectItem value="piece">Per Piece</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
-          <div>
+          <div className={showAdvanced ? "" : "md:col-start-1"}>
             <Label htmlFor="price-per-unit" className="text-xs font-medium text-gray-700">
-              Price per {unit === 'sqm' ? 'M²' : 'Sq Ft'}
+              Price per {unitLabel}
             </Label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">$</span>
@@ -122,7 +129,7 @@ const MaterialPricingInput = ({ material, onPricingUpdated }: MaterialPricingInp
 
           <div>
             <Label htmlFor="total-area" className="text-xs font-medium text-gray-700">
-              Total Area ({unit === 'sqm' ? 'm²' : 'sq ft'})
+              Total Area ({areaUnitLabel})
             </Label>
             <Input
               id="total-area"
