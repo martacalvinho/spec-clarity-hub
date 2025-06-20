@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -200,13 +201,13 @@ const PdfDuplicateMaterialDetector = ({
   };
 
   const handleCreateAllNewMaterials = () => {
-    // Create results for all remaining materials with 'create' action
+    // Create results for all remaining materials starting from current index
     const allResults: DuplicateDetectionResult[] = [];
     
-    // Add existing results
+    // Add existing results (materials already processed)
     allResults.push(...results);
     
-    // Add 'create' results for all remaining materials
+    // Add 'create' results for all remaining materials (including current one)
     for (let i = currentIndex; i < materialsToImport.length; i++) {
       allResults.push({
         materialToImport: materialsToImport[i],
@@ -216,6 +217,7 @@ const PdfDuplicateMaterialDetector = ({
     }
     
     console.log('Creating all new materials, total results:', allResults);
+    console.log('Materials being created:', allResults.length - results.length);
     onResolutionComplete(allResults);
   };
 
