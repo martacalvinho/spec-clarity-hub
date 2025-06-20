@@ -1,7 +1,9 @@
+
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { CheckCircle, Package, Building } from 'lucide-react';
@@ -78,13 +80,83 @@ interface JSONDataInputProps {
 
 const JSONDataInput = ({ studioId, projectId, pdfSubmissionId }: JSONDataInputProps) => {
   const { toast } = useToast();
+  const [materialsJsonInput, setMaterialsJsonInput] = useState('');
+  const [manufacturersJsonInput, setManufacturersJsonInput] = useState('');
   const [materialsData, setMaterialsData] = useState<MaterialToImport[]>([]);
   const [manufacturersData, setManufacturersData] = useState<ManufacturerToImport[]>([]);
   const [showMaterialDuplicateDetector, setShowMaterialDuplicateDetector] = useState(false);
   const [showManufacturerDuplicateDetector, setShowManufacturerDuplicateDetector] = useState(false);
-  const [materialDuplicatesChecked, setMaterialDuplicatesChecked] = useState(false);
-  const [manufacturerDuplicatesChecked, setManufacturerDuplicatesChecked] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const parseMaterialsJson = () => {
+    try {
+      const parsed = JSON.parse(materialsJsonInput);
+      const materials = Array.isArray(parsed) ? parsed : [parsed];
+      
+      // Validate required fields
+      const validMaterials = materials.filter(material => 
+        material.name && material.category
+      );
+      
+      if (validMaterials.length === 0) {
+        toast({
+          title: "Invalid Data",
+          description: "No valid materials found. Each material must have at least 'name' and 'category'.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      setMaterialsData(validMaterials);
+      setMaterialsJsonInput('');
+      
+      toast({
+        title: "Success",
+        description: `Parsed ${validMaterials.length} materials from JSON`,
+      });
+    } catch (error) {
+      toast({
+        title: "Invalid JSON",
+        description: "Please check your JSON format and try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const parseManufacturersJson = () => {
+    try {
+      const parsed = JSON.parse(manufacturersJsonInput);
+      const manufacturers = Array.isArray(parsed) ? parsed : [parsed];
+      
+      // Validate required fields
+      const validManufacturers = manufacturers.filter(manufacturer => 
+        manufacturer.name
+      );
+      
+      if (validManufacturers.length === 0) {
+        toast({
+          title: "Invalid Data",
+          description: "No valid manufacturers found. Each manufacturer must have at least 'name'.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      setManufacturersData(validManufacturers);
+      setManufacturersJsonInput('');
+      
+      toast({
+        title: "Success",
+        description: `Parsed ${validManufacturers.length} manufacturers from JSON`,
+      });
+    } catch (error) {
+      toast({
+        title: "Invalid JSON",
+        description: "Please check your JSON format and try again.",
+        variant: "destructive"
+      });
+    }
+  };
 
   const processMaterials = async (materialsToProcess: MaterialToImport[], materialResolutions?: MaterialResolution[]) => {
     console.log('Processing materials:', materialsToProcess.length);
@@ -271,8 +343,6 @@ const JSONDataInput = ({ studioId, projectId, pdfSubmissionId }: JSONDataInputPr
           description: `All ${materialsData.length} materials appear to be new. They will all be added to your library.`,
         });
         
-        setMaterialDuplicatesChecked(true);
-        
         // Auto-process materials since no duplicates
         const result = await processMaterials(materialsData);
         if (result.success) {
@@ -298,7 +368,6 @@ const JSONDataInput = ({ studioId, projectId, pdfSubmissionId }: JSONDataInputPr
         description: "Failed to check for duplicates. Proceeding with import.",
         variant: "destructive"
       });
-      setMaterialDuplicatesChecked(true);
     } finally {
       setLoading(false);
     }
@@ -334,8 +403,6 @@ const JSONDataInput = ({ studioId, projectId, pdfSubmissionId }: JSONDataInputPr
           description: `All ${manufacturersData.length} manufacturers appear to be new. They will all be added.`,
         });
         
-        setManufacturerDuplicatesChecked(true);
-        
         // Auto-process manufacturers since no duplicates
         const results = await processManufacturers(manufacturersData);
         toast({
@@ -353,7 +420,6 @@ const JSONDataInput = ({ studioId, projectId, pdfSubmissionId }: JSONDataInputPr
         description: "Failed to check for duplicates. Proceeding with import.",
         variant: "destructive"
       });
-      setManufacturerDuplicatesChecked(true);
     } finally {
       setLoading(false);
     }
@@ -370,7 +436,6 @@ const JSONDataInput = ({ studioId, projectId, pdfSubmissionId }: JSONDataInputPr
       });
 
       setShowManufacturerDuplicateDetector(false);
-      setManufacturerDuplicatesChecked(true);
       setManufacturersData([]);
     } catch (error) {
       console.error('Error processing manufacturer resolutions:', error);
@@ -403,7 +468,6 @@ const JSONDataInput = ({ studioId, projectId, pdfSubmissionId }: JSONDataInputPr
       }
 
       setShowMaterialDuplicateDetector(false);
-      setMaterialDuplicatesChecked(true);
       setMaterialsData([]);
     } catch (error) {
       console.error('Error processing material resolutions:', error);
@@ -471,7 +535,7 @@ const JSONDataInput = ({ studioId, projectId, pdfSubmissionId }: JSONDataInputPr
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {materialsData.length > 0 && (
+          {materialsData.length > 0 ? (
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -500,6 +564,22 @@ const JSONDataInput = ({ studioId, projectId, pdfSubmissionId }: JSONDataInputPr
                 </Button>
               </div>
             </div>
+          ) : (
+            <div className="space-y-4">
+              <Textarea
+                placeholder='Example: [{"name": "Oak Flooring", "category": "Flooring", "subcategory": "Hardwood", "notes": "Premium quality"}, {"name": "Ceramic Tiles", "category": "Flooring", "subcategory": "Ceramic"}]'
+                value={materialsJsonInput}
+                onChange={(e) => setMaterialsJsonInput(e.target.value)}
+                rows={6}
+              />
+              <Button
+                onClick={parseMaterialsJson}
+                disabled={!materialsJsonInput.trim()}
+                className="w-full"
+              >
+                Parse Materials JSON
+              </Button>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -516,7 +596,7 @@ const JSONDataInput = ({ studioId, projectId, pdfSubmissionId }: JSONDataInputPr
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {manufacturersData.length > 0 && (
+          {manufacturersData.length > 0 ? (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -544,6 +624,22 @@ const JSONDataInput = ({ studioId, projectId, pdfSubmissionId }: JSONDataInputPr
                   {loading ? 'Checking...' : 'Import Manufacturers'}
                 </Button>
               </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <Textarea
+                placeholder='Example: [{"name": "ABC Company", "contact_name": "John Doe", "email": "john@abc.com", "phone": "+1234567890", "website": "https://abc.com"}, {"name": "XYZ Corp", "contact_name": "Jane Smith", "email": "jane@xyz.com"}]'
+                value={manufacturersJsonInput}
+                onChange={(e) => setManufacturersJsonInput(e.target.value)}
+                rows={6}
+              />
+              <Button
+                onClick={parseManufacturersJson}
+                disabled={!manufacturersJsonInput.trim()}
+                className="w-full"
+              >
+                Parse Manufacturers JSON
+              </Button>
             </div>
           )}
         </CardContent>

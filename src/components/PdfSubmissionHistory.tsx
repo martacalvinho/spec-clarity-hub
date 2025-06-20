@@ -94,13 +94,17 @@ const PdfSubmissionHistory = () => {
       if (error) throw error;
 
       console.log('Submission deleted successfully');
+      
+      // Remove the submission from local state immediately
+      setSubmissions(prevSubmissions => 
+        prevSubmissions.filter(sub => sub.id !== submission.id)
+      );
+      
       toast({
         title: "Success",
         description: "PDF submission deleted successfully"
       });
 
-      // Refresh the list
-      fetchSubmissions();
     } catch (error) {
       console.error('Error deleting PDF:', error);
       toast({
@@ -108,6 +112,9 @@ const PdfSubmissionHistory = () => {
         description: `Failed to delete PDF submission: ${error.message}`,
         variant: "destructive"
       });
+      
+      // Refresh the list in case of error to show current state
+      fetchSubmissions();
     } finally {
       setDeleting(null);
     }
