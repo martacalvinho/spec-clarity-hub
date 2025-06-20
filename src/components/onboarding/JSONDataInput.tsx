@@ -119,7 +119,6 @@ const JSONDataInput = ({ studioId, projectId, pdfSubmissionId }: JSONDataInputPr
       const parsed = JSON.parse(materialsJsonInput);
       const materials = Array.isArray(parsed) ? parsed : [parsed];
       
-      // Validate required fields
       const validMaterials = materials.filter(material => 
         material.name && material.category
       );
@@ -133,7 +132,6 @@ const JSONDataInput = ({ studioId, projectId, pdfSubmissionId }: JSONDataInputPr
         return;
       }
       
-      // Apply selected manufacturer to all materials if one is selected
       const materialsWithManufacturer = validMaterials.map(material => ({
         ...material,
         manufacturer_id: selectedManufacturerId || material.manufacturer_id
@@ -160,7 +158,6 @@ const JSONDataInput = ({ studioId, projectId, pdfSubmissionId }: JSONDataInputPr
       const parsed = JSON.parse(manufacturersJsonInput);
       const manufacturers = Array.isArray(parsed) ? parsed : [parsed];
       
-      // Validate required fields
       const validManufacturers = manufacturers.filter(manufacturer => 
         manufacturer.name
       );
@@ -210,7 +207,6 @@ const JSONDataInput = ({ studioId, projectId, pdfSubmissionId }: JSONDataInputPr
       const errors: string[] = [];
       let created = 0;
 
-      // If this is for PDF submission, create extracted materials instead
       if (pdfSubmissionId) {
         for (const material of materialsToCreate) {
           try {
@@ -243,10 +239,8 @@ const JSONDataInput = ({ studioId, projectId, pdfSubmissionId }: JSONDataInputPr
           }
         }
       } else {
-        // Process materials one by one to handle potential duplicates gracefully
         for (const material of materialsToCreate) {
           try {
-            // Check if material already exists to prevent duplicate key violation
             const { data: existingMaterial } = await supabase
               .from('materials')
               .select('id, name')
@@ -302,7 +296,6 @@ const JSONDataInput = ({ studioId, projectId, pdfSubmissionId }: JSONDataInputPr
     
     try {
       if (!manufacturerResolutions) {
-        // No duplicates found, create all manufacturers
         const manufacturerPromises = manufacturersToProcess.map(async (manufacturer) => {
           const { data, error } = await supabase
             .from('manufacturers')
@@ -331,7 +324,6 @@ const JSONDataInput = ({ studioId, projectId, pdfSubmissionId }: JSONDataInputPr
 
       for (const resolution of manufacturerResolutions) {
         if (resolution.action === 'create') {
-          // Create new manufacturer
           const { data, error } = await supabase
             .from('manufacturers')
             .insert({
@@ -349,7 +341,6 @@ const JSONDataInput = ({ studioId, projectId, pdfSubmissionId }: JSONDataInputPr
           if (error) throw error;
           results.push({ name: resolution.manufacturerToImport.name, id: data.id });
         } else if (resolution.action === 'replace' && resolution.selectedExistingId) {
-          // Update existing manufacturer with new details
           const { error } = await supabase
             .from('manufacturers')
             .update({
@@ -366,7 +357,6 @@ const JSONDataInput = ({ studioId, projectId, pdfSubmissionId }: JSONDataInputPr
           if (error) throw error;
           results.push({ name: resolution.manufacturerToImport.name, id: resolution.selectedExistingId });
         } else if (resolution.action === 'link' && resolution.selectedExistingId) {
-          // Use existing manufacturer
           results.push({ name: resolution.manufacturerToImport.name, id: resolution.selectedExistingId });
         }
       }
@@ -403,13 +393,11 @@ const JSONDataInput = ({ studioId, projectId, pdfSubmissionId }: JSONDataInputPr
       const materialsWithDuplicates = duplicateChecks.filter(check => check.duplicates.length > 0);
       
       if (materialsWithDuplicates.length === 0) {
-        // No duplicates found, show success message and proceed
         toast({
           title: "No Duplicates Found",
           description: `All ${materialsData.length} materials appear to be new. They will all be added to your library.`,
         });
         
-        // Auto-process materials since no duplicates
         const result = await processMaterials(materialsData);
         if (result.success) {
           const destination = pdfSubmissionId ? "material approval section" : "your library";
@@ -464,20 +452,17 @@ const JSONDataInput = ({ studioId, projectId, pdfSubmissionId }: JSONDataInputPr
       const manufacturersWithDuplicates = duplicateChecks.filter(check => check.duplicates.length > 0);
       
       if (manufacturersWithDuplicates.length === 0) {
-        // No duplicates found, proceed with creation
         toast({
           title: "No Duplicates Found",
           description: `All ${manufacturersData.length} manufacturers appear to be new. They will all be added.`,
         });
         
-        // Auto-process manufacturers since no duplicates
         const results = await processManufacturers(manufacturersData);
         toast({
           title: "Manufacturers Added",
           description: `Successfully added ${results.length} manufacturers.`,
         });
         setManufacturersData([]);
-        // Refresh manufacturers list
         fetchManufacturers();
       } else {
         setShowManufacturerDuplicateDetector(true);
@@ -539,7 +524,6 @@ const JSONDataInput = ({ studioId, projectId, pdfSubmissionId }: JSONDataInputPr
 
       setShowManufacturerDuplicateDetector(false);
       setManufacturersData([]);
-      // Refresh manufacturers list
       fetchManufacturers();
     } catch (error) {
       console.error('Error processing manufacturer resolutions:', error);
@@ -594,7 +578,6 @@ const JSONDataInput = ({ studioId, projectId, pdfSubmissionId }: JSONDataInputPr
         </div>
       )}
 
-      {/* Materials Section */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -670,7 +653,6 @@ const JSONDataInput = ({ studioId, projectId, pdfSubmissionId }: JSONDataInputPr
         </CardContent>
       </Card>
 
-      {/* Manufacturers Section */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">

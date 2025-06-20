@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,7 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { UnitToggle } from '@/components/ui/unit-toggle';
 import { useUnitToggle } from '@/hooks/useUnitToggle';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, Package } from 'lucide-react';
+import { Search, Package, Upload, Copy, Edit, Trash2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import AddMaterialForm from '@/components/forms/AddMaterialForm';
 import EditMaterialForm from '@/components/forms/EditMaterialForm';
@@ -101,11 +101,9 @@ const Materials = () => {
       const matchesCategory = categoryFilter === 'all' || material.category === categoryFilter;
       const matchesManufacturer = manufacturerFilter === 'all' || material.manufacturer_id === manufacturerFilter;
       
-      // Check project filter
       const matchesProject = projectFilter === 'all' || 
         material.proj_materials?.some((pm: any) => pm.project_id === projectFilter);
       
-      // Check client filter
       const matchesClient = clientFilter === 'all' || 
         material.proj_materials?.some((pm: any) => pm.projects?.client_id === clientFilter);
       
@@ -125,7 +123,6 @@ const Materials = () => {
         const bPrice = b.price_per_sqft || 0;
         return aPrice - bPrice;
       }
-      // Default alphabetical sorting
       return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
     });
 
@@ -240,109 +237,130 @@ const Materials = () => {
               const projects = material.proj_materials || [];
               
               return (
-                <div key={material.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
-                  <div className="flex items-center gap-4 flex-1">
-                    <div className="p-2 bg-coral-100 rounded-lg">
-                      <Package className="h-6 w-6 text-coral-600" />
-                    </div>
-                    <div className="flex-1">
-                      <Link to={`/materials/${material.id}`} className="hover:text-coral">
-                        <h3 className="font-semibold text-lg hover:underline">{material.name}</h3>
-                      </Link>
-                      <div className="flex items-center gap-4 mt-1">
-                        <Link 
-                          to={`/materials/category/${encodeURIComponent(material.category)}`}
-                          className="hover:text-coral hover:underline"
-                        >
-                          <Badge variant="outline">{material.category}</Badge>
-                        </Link>
-                        {material.subcategory && (
-                          <span className="text-sm text-gray-500">• {material.subcategory}</span>
-                        )}
-                        {material.model && (
-                          <span className="text-sm text-gray-500">• Model: {material.model}</span>
-                        )}
-                        {material.manufacturers?.name && (
-                          <Link 
-                            to={`/manufacturers/${material.manufacturer_id}`}
-                            className="text-sm text-gray-500 hover:text-coral hover:underline"
-                          >
-                            {material.manufacturers.name}
+                <Card key={material.id} className="border rounded-lg hover:shadow-md transition-shadow">
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start gap-4 flex-1">
+                        <div className="p-3 bg-coral-100 rounded-lg">
+                          <Package className="h-8 w-8 text-coral-600" />
+                        </div>
+                        <div className="flex-1">
+                          <Link to={`/materials/${material.id}`} className="hover:text-coral">
+                            <h3 className="font-semibold text-xl hover:underline mb-2">{material.name}</h3>
                           </Link>
-                        )}
-                        {material.price_per_sqft && (
-                          <span className="text-sm text-green-600 font-medium">
-                            ${material.price_per_sqft}/{formatArea(1).split(' ')[1]}
-                          </span>
-                        )}
-                      </div>
-                      
-                      {/* Additional details */}
-                      <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
-                        {material.reference_sku && (
-                          <>
-                            <span>SKU: {material.reference_sku}</span>
-                            <span>•</span>
-                          </>
-                        )}
-                        {material.location && (
-                          <>
-                            <button
-                              onClick={() => setSearchTerm(material.location)}
-                              className="hover:text-coral hover:underline cursor-pointer"
-                            >
-                              Location: {material.location}
-                            </button>
-                            <span>•</span>
-                          </>
-                        )}
-                        <span>Added: {new Date(material.created_at).toLocaleDateString()}</span>
-                      </div>
-                      
-                      {/* Projects and Clients */}
-                      {projects.length > 0 && (
-                        <div className="mt-2">
-                          <div className="flex flex-wrap gap-2">
-                            <div>
-                              <span className="text-sm text-gray-600 font-medium">Projects: </span>
-                              {projects.map((projMaterial: any, index: number) => (
-                                <span key={projMaterial.project_id} className="text-sm">
+                          
+                          <div className="space-y-1 text-sm text-gray-600">
+                            <div className="flex items-center gap-6">
+                              <span>
+                                <span className="font-medium">Category:</span>{' '}
+                                <Link 
+                                  to={`/materials/category/${encodeURIComponent(material.category)}`}
+                                  className="text-blue-600 hover:text-blue-800 hover:underline"
+                                >
+                                  {material.category}
+                                </Link>
+                              </span>
+                              {material.subcategory && (
+                                <span>
+                                  <span className="font-medium">Subcategory:</span> {material.subcategory}
+                                </span>
+                              )}
+                              {material.model && (
+                                <span>
+                                  <span className="font-medium">Model:</span> {material.model}
+                                </span>
+                              )}
+                              {material.manufacturers?.name && (
+                                <span>
+                                  <span className="font-medium">Manufacturer:</span>{' '}
                                   <Link 
-                                    to={`/projects/${projMaterial.projects.id}`}
+                                    to={`/manufacturers/${material.manufacturer_id}`}
                                     className="text-blue-600 hover:text-blue-800 hover:underline"
                                   >
-                                    {projMaterial.projects.name}
+                                    {material.manufacturers.name}
                                   </Link>
-                                  {projMaterial.projects.clients?.name && (
-                                    <span className="text-gray-500">
-                                      {' '}(
-                                      <Link 
-                                        to={`/clients/${projMaterial.projects.client_id}`}
-                                        className="text-green-600 hover:text-green-800 hover:underline"
-                                      >
-                                        {projMaterial.projects.clients.name}
-                                      </Link>
-                                      )
-                                    </span>
-                                  )}
-                                  {index < projects.length - 1 && <span className="text-gray-400">, </span>}
                                 </span>
-                              ))}
+                              )}
                             </div>
+                            
+                            <div className="flex items-center gap-6">
+                              {material.location && (
+                                <span>
+                                  <span className="font-medium">Location:</span>{' '}
+                                  <button
+                                    onClick={() => setSearchTerm(material.location)}
+                                    className="text-gray-600 hover:text-coral hover:underline cursor-pointer"
+                                  >
+                                    {material.location}
+                                  </button>
+                                </span>
+                              )}
+                              {material.reference_sku && (
+                                <span>
+                                  <span className="font-medium">SKU:</span> {material.reference_sku}
+                                </span>
+                              )}
+                              {material.dimensions && (
+                                <span>
+                                  <span className="font-medium">Dimensions:</span> {material.dimensions}
+                                </span>
+                              )}
+                              <span>
+                                <span className="font-medium">Added:</span> {new Date(material.created_at).toLocaleDateString()}
+                              </span>
+                            </div>
+                            
+                            {projects.length > 0 && (
+                              <div>
+                                <span className="font-medium">Projects:</span>{' '}
+                                {projects.map((projMaterial: any, index: number) => (
+                                  <span key={projMaterial.project_id}>
+                                    <Link 
+                                      to={`/projects/${projMaterial.projects.id}`}
+                                      className="text-green-600 hover:text-green-800 hover:underline"
+                                    >
+                                      {projMaterial.projects.name}
+                                    </Link>
+                                    {projMaterial.projects.clients?.name && (
+                                      <span className="text-gray-500">
+                                        {' '}(Client: 
+                                        <Link 
+                                          to={`/clients/${projMaterial.projects.client_id}`}
+                                          className="text-green-600 hover:text-green-800 hover:underline"
+                                        >
+                                          {projMaterial.projects.clients.name}
+                                        </Link>
+                                        )
+                                      </span>
+                                    )}
+                                    {index < projects.length - 1 && <span className="text-gray-400">, </span>}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                            
+                            {material.notes && (
+                              <div>
+                                <span className="font-medium">Notes:</span> {material.notes}
+                              </div>
+                            )}
                           </div>
                         </div>
-                      )}
+                      </div>
                       
-                      {material.notes && (
-                        <p className="text-sm text-gray-600 mt-1">{material.notes}</p>
-                      )}
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <Upload className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                        <EditMaterialForm material={material} onMaterialUpdated={fetchMaterials} />
+                        <DeleteMaterialForm material={material} onMaterialDeleted={fetchMaterials} />
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <EditMaterialForm material={material} onMaterialUpdated={fetchMaterials} />
-                    <DeleteMaterialForm material={material} onMaterialDeleted={fetchMaterials} />
-                  </div>
-                </div>
+                  </CardContent>
+                </Card>
               );
             })}
             {filteredAndSortedMaterials.length === 0 && (
