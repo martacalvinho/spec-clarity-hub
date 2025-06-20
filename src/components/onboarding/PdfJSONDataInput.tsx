@@ -227,43 +227,46 @@ const PdfJSONDataInput = ({ studioId, submissionId, projectId, clientId, onImpor
           
           // Link existing material to project if projectId exists
           if (projectId) {
-            // Check if material is already linked to THIS SPECIFIC project
-            const { data: existingLink, error: checkError } = await supabase
+            // First, let's check what exists in the database currently
+            const { data: currentLinks, error: checkError } = await supabase
               .from('proj_materials')
-              .select('id')
+              .select('id, project_id, material_id')
               .eq('project_id', projectId)
               .eq('material_id', result.selectedExistingId)
-              .eq('studio_id', studioId)
-              .maybeSingle();
+              .eq('studio_id', studioId);
+
+            console.log('Current links query result:', { currentLinks, checkError });
 
             if (checkError) {
               console.error('Error checking existing link:', checkError);
               throw checkError;
             }
 
-            if (existingLink) {
-              console.log(`Material ${result.selectedExistingId} already linked to project ${projectId}, skipping...`);
+            if (currentLinks && currentLinks.length > 0) {
+              console.log(`Material ${result.selectedExistingId} already linked to project ${projectId}:`, currentLinks);
+              console.log('Skipping link creation...');
               skippedCount++;
               continue;
             }
 
-            // Link existing material to the current project (same as "add to project" functionality)
-            console.log(`Linking material ${result.selectedExistingId} to project ${projectId}`);
-            const { error: projMaterialError } = await supabase
+            // No existing link found, create the link
+            console.log(`Creating new link: material ${result.selectedExistingId} to project ${projectId}`);
+            const { data: linkData, error: projMaterialError } = await supabase
               .from('proj_materials')
               .insert([{
                 project_id: projectId,
                 material_id: result.selectedExistingId,
                 studio_id: studioId,
                 notes: result.materialToImport.tag ? `Tag: ${result.materialToImport.tag}` : null
-              }]);
+              }])
+              .select();
 
             if (projMaterialError) {
               console.error('Error linking material to project:', projMaterialError);
               throw projMaterialError;
             }
             
-            console.log(`Successfully linked material ${result.selectedExistingId} to project ${projectId}`);
+            console.log(`Successfully linked material ${result.selectedExistingId} to project ${projectId}:`, linkData);
             linkedCount++;
           } else {
             // No project ID, just count as linked for messaging
