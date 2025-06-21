@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -24,13 +24,27 @@ const EditPendingManufacturerDialog = ({
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    name: manufacturer?.name || '',
-    contact_name: manufacturer?.contact_name || '',
-    email: manufacturer?.email || '',
-    phone: manufacturer?.phone || '',
-    website: manufacturer?.website || '',
-    notes: manufacturer?.notes || ''
+    name: '',
+    contact_name: '',
+    email: '',
+    phone: '',
+    website: '',
+    notes: ''
   });
+
+  // Update form data when manufacturer changes or dialog opens
+  useEffect(() => {
+    if (manufacturer && open) {
+      setFormData({
+        name: manufacturer.name || '',
+        contact_name: manufacturer.contact_name || '',
+        email: manufacturer.email || '',
+        phone: manufacturer.phone || '',
+        website: manufacturer.website || '',
+        notes: manufacturer.notes || ''
+      });
+    }
+  }, [manufacturer, open]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
