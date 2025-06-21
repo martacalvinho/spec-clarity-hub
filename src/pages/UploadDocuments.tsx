@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import PendingMaterialCard from '@/components/onboarding/PendingMaterialCard';
 import EditPendingMaterialDialog from '@/components/onboarding/EditPendingMaterialDialog';
+import EditPendingManufacturerDialog from '@/components/onboarding/EditPendingManufacturerDialog';
 
 const UploadDocuments = () => {
   const { userProfile, studioId } = useAuth();
@@ -33,6 +34,8 @@ const UploadDocuments = () => {
   const [editingMaterial, setEditingMaterial] = useState<any>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingDuplicates, setEditingDuplicates] = useState<any[]>([]);
+  const [editingManufacturer, setEditingManufacturer] = useState<any>(null);
+  const [editManufacturerDialogOpen, setEditManufacturerDialogOpen] = useState(false);
 
   useEffect(() => {
     if (studioId) {
@@ -158,15 +161,6 @@ const UploadDocuments = () => {
       console.log('=== FETCHING PENDING MANUFACTURERS DEBUG ===');
       console.log('Studio ID:', studioId);
 
-      // First, let's see if there are any pending manufacturers at all
-      const { data: allPendingManufacturers, error: allError } = await supabase
-        .from('pending_manufacturers')
-        .select('*');
-
-      console.log('All pending manufacturers in database:', allPendingManufacturers);
-      console.log('All pending manufacturers error:', allError);
-
-      // Now fetch for this studio specifically
       const { data, error } = await supabase
         .from('pending_manufacturers')
         .select(`
@@ -177,12 +171,11 @@ const UploadDocuments = () => {
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
 
-      console.log('Studio-specific pending manufacturers:', data);
-      console.log('Studio-specific error:', error);
+      console.log('Pending manufacturers data:', data);
+      console.log('Error:', error);
 
       if (error) {
         console.error('Error in fetchPendingManufacturers:', error);
-        // Try a simpler query without joins
         const { data: simpleData, error: simpleError } = await supabase
           .from('pending_manufacturers')
           .select('*')
@@ -191,8 +184,6 @@ const UploadDocuments = () => {
           .order('created_at', { ascending: false });
 
         console.log('Simple query result:', simpleData);
-        console.log('Simple query error:', simpleError);
-
         if (simpleError) throw simpleError;
         setPendingManufacturers(simpleData || []);
       } else {
@@ -360,10 +351,6 @@ const UploadDocuments = () => {
 
   const approveMaterial = async (materialId: string) => {
     try {
-      console.log('=== APPROVING MATERIAL ===');
-      console.log('Material ID:', materialId);
-
-      // Get current user ID once
       const { data: userData } = await supabase.auth.getUser();
       const currentUserId = userData.user?.id;
 
@@ -371,21 +358,14 @@ const UploadDocuments = () => {
         throw new Error('No authenticated user found');
       }
 
-      console.log('Current user ID:', currentUserId);
-
-      // Get the pending material first
       const { data: pendingMaterial, error: fetchError } = await supabase
         .from('pending_materials')
         .select('*')
         .eq('id', materialId)
         .single();
 
-      console.log('Fetched pending material:', pendingMaterial);
-      console.log('Fetch error:', fetchError);
-
       if (fetchError) {
         if (fetchError.code === 'PGRST116') {
-          // Material not found in pending_materials, try extracted_materials
           const { error } = await supabase
             .from('extracted_materials')
             .update({ 
@@ -414,15 +394,9 @@ const UploadDocuments = () => {
         throw new Error('Material not found');
       }
 
-      console.log('Processing pending material:', pendingMaterial);
-
-      // First, find or create the manufacturer if we have manufacturer_name
       let manufacturerId = pendingMaterial.manufacturer_id;
       
       if (!manufacturerId && pendingMaterial.manufacturer_name) {
-        console.log('Creating manufacturer:', pendingMaterial.manufacturer_name);
-        
-        // Check if manufacturer already exists
         const { data: existingManufacturer } = await supabase
           .from('manufacturers')
           .select('id')
@@ -433,7 +407,6 @@ const UploadDocuments = () => {
         if (existingManufacturer) {
           manufacturerId = existingManufacturer.id;
         } else {
-          // Create new manufacturer
           const { data: newManufacturer, error: manufacturerError } = await supabase
             .from('manufacturers')
             .insert({
@@ -445,16 +418,12 @@ const UploadDocuments = () => {
 
           if (manufacturerError) {
             console.error('Error creating manufacturer:', manufacturerError);
-            // Continue without manufacturer_id if creation fails
           } else {
             manufacturerId = newManufacturer.id;
           }
         }
       }
 
-      console.log('Final manufacturer ID:', manufacturerId);
-
-      // Update the pending material status first
       const { error: updateError } = await supabase
         .from('pending_materials')
         .update({
@@ -465,14 +434,8 @@ const UploadDocuments = () => {
         })
         .eq('id', materialId);
 
-      if (updateError) {
-        console.error('Error updating pending material:', updateError);
-        throw updateError;
-      }
+      if (updateError) throw updateError;
 
-      console.log('Updated pending material status to approved');
-
-      // Now move from pending_materials to materials table
       const materialData = {
         name: pendingMaterial.name,
         category: pendingMaterial.category,
@@ -488,25 +451,15 @@ const UploadDocuments = () => {
         created_by: currentUserId
       };
 
-      console.log('Creating material with data:', materialData);
-
       const { data: newMaterial, error: insertError } = await supabase
         .from('materials')
         .insert(materialData)
         .select()
         .single();
 
-      if (insertError) {
-        console.error('Error creating material:', insertError);
-        throw insertError;
-      }
+      if (insertError) throw insertError;
 
-      console.log('Created new material:', newMaterial);
-
-      // Link to project if project_id exists
       if (pendingMaterial.project_id && newMaterial) {
-        console.log('Linking material to project:', pendingMaterial.project_id);
-        
         const { error: linkError } = await supabase
           .from('proj_materials')
           .insert({
@@ -518,9 +471,6 @@ const UploadDocuments = () => {
 
         if (linkError) {
           console.error('Error linking material to project:', linkError);
-          // Don't throw error here as the material was successfully created
-        } else {
-          console.log('Successfully linked material to project');
         }
       }
 
@@ -529,9 +479,6 @@ const UploadDocuments = () => {
         description: "Material approved and moved to materials library"
       });
 
-      console.log('=== MATERIAL APPROVAL COMPLETE ===');
-
-      // Refresh all data
       fetchApprovedMaterials();
       fetchPendingApproval();
     } catch (error) {
@@ -574,7 +521,6 @@ const UploadDocuments = () => {
         });
       }
 
-      // Refresh all data
       fetchApprovedMaterials();
       fetchPendingApproval();
     } catch (error) {
@@ -601,7 +547,6 @@ const UploadDocuments = () => {
         description: "Material rejected"
       });
 
-      // Refresh data
       fetchPendingApproval();
     } catch (error) {
       console.error('Error rejecting material:', error);
@@ -615,10 +560,6 @@ const UploadDocuments = () => {
 
   const approveManufacturer = async (manufacturerId: string) => {
     try {
-      console.log('=== APPROVING MANUFACTURER ===');
-      console.log('Manufacturer ID:', manufacturerId);
-
-      // Get current user ID
       const { data: userData } = await supabase.auth.getUser();
       const currentUserId = userData.user?.id;
 
@@ -626,7 +567,6 @@ const UploadDocuments = () => {
         throw new Error('No authenticated user found');
       }
 
-      // Get the pending manufacturer
       const { data: pendingManufacturer, error: fetchError } = await supabase
         .from('pending_manufacturers')
         .select('*')
@@ -636,7 +576,6 @@ const UploadDocuments = () => {
       if (fetchError) throw fetchError;
       if (!pendingManufacturer) throw new Error('Manufacturer not found');
 
-      // Update the pending manufacturer status
       const { error: updateError } = await supabase
         .from('pending_manufacturers')
         .update({
@@ -648,7 +587,6 @@ const UploadDocuments = () => {
 
       if (updateError) throw updateError;
 
-      // Create the manufacturer in the main table
       const manufacturerData = {
         name: pendingManufacturer.name,
         contact_name: pendingManufacturer.contact_name,
@@ -670,13 +608,53 @@ const UploadDocuments = () => {
         description: "Manufacturer approved and added to manufacturers library"
       });
 
-      // Refresh data
       fetchPendingManufacturers();
     } catch (error) {
       console.error('Error approving manufacturer:', error);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to approve manufacturer",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const approveAllManufacturers = async () => {
+    try {
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const manufacturer of pendingManufacturers) {
+        try {
+          await approveManufacturer(manufacturer.id);
+          successCount++;
+        } catch (error) {
+          console.error(`Error approving manufacturer ${manufacturer.id}:`, error);
+          errorCount++;
+        }
+      }
+
+      if (successCount > 0) {
+        toast({
+          title: "Success",
+          description: `${successCount} manufacturers approved and added to manufacturers library${errorCount > 0 ? `, ${errorCount} failed` : ''}`
+        });
+      }
+
+      if (errorCount > 0 && successCount === 0) {
+        toast({
+          title: "Error",
+          description: "Failed to approve manufacturers",
+          variant: "destructive"
+        });
+      }
+
+      fetchPendingManufacturers();
+    } catch (error) {
+      console.error('Error approving all manufacturers:', error);
+      toast({
+        title: "Error",
+        description: "Failed to approve manufacturers",
         variant: "destructive"
       });
     }
@@ -725,8 +703,17 @@ const UploadDocuments = () => {
     setEditDialogOpen(true);
   };
 
+  const handleEditManufacturer = (manufacturer: any) => {
+    setEditingManufacturer(manufacturer);
+    setEditManufacturerDialogOpen(true);
+  };
+
   const handleMaterialUpdated = () => {
     fetchPendingApproval();
+  };
+
+  const handleManufacturerUpdated = () => {
+    fetchPendingManufacturers();
   };
 
   const totalPendingCount = pendingApproval.length + pendingManufacturers.length;
@@ -923,8 +910,17 @@ const UploadDocuments = () => {
               {/* Manufacturers Section */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Manufacturers Pending Approval</CardTitle>
-                  <CardDescription>Review and approve manufacturers extracted from your PDFs</CardDescription>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle>Manufacturers Pending Approval</CardTitle>
+                      <CardDescription>Review and approve manufacturers extracted from your PDFs</CardDescription>
+                    </div>
+                    {pendingManufacturers.length > 0 && (
+                      <Button onClick={approveAllManufacturers} className="bg-green-600 hover:bg-green-700">
+                        Approve All Manufacturers ({pendingManufacturers.length})
+                      </Button>
+                    )}
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
@@ -987,6 +983,13 @@ const UploadDocuments = () => {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
+                          <Button
+                            onClick={() => handleEditManufacturer(manufacturer)}
+                            variant="outline"
+                            size="sm"
+                          >
+                            Edit
+                          </Button>
                           <Button
                             onClick={() => approveManufacturer(manufacturer.id)}
                             size="sm"
@@ -1087,6 +1090,13 @@ const UploadDocuments = () => {
           onOpenChange={setEditDialogOpen}
           onMaterialUpdated={handleMaterialUpdated}
           duplicates={editingDuplicates}
+        />
+
+        <EditPendingManufacturerDialog
+          manufacturer={editingManufacturer}
+          open={editManufacturerDialogOpen}
+          onOpenChange={setEditManufacturerDialogOpen}
+          onManufacturerUpdated={handleManufacturerUpdated}
         />
       </div>
     </div>
