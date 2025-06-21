@@ -382,8 +382,6 @@ const MaterialApprovalQueue = () => {
         <TabsContent value="manufacturers">
           <Card>
             <CardHeader>
-              <Car
-
               <CardTitle>Pending Manufacturers</CardTitle>
               <CardDescription>Review and approve manufacturers from PDF submissions</CardDescription>
             </CardHeader>
