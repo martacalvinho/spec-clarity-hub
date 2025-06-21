@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -23,34 +22,70 @@ const MaterialApprovalQueue = () => {
     try {
       setLoading(true);
       
+      console.log('=== ADMIN QUEUE DEBUG ===');
+      
       // Fetch pending materials
       const { data: materialsData, error: materialsError } = await supabase
         .from('pending_materials')
         .select(`
           *,
-          pdf_submissions(file_name, created_at),
-          studios(name)
+          pdf_submissions!pending_materials_submission_id_fkey(file_name, created_at)
         `)
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
 
-      if (materialsError) throw materialsError;
+      if (materialsError) {
+        console.error('Materials error:', materialsError);
+        // Try simpler query
+        const { data: simpleMaterials } = await supabase
+          .from('pending_materials')
+          .select('*')
+          .eq('status', 'pending')
+          .order('created_at', { ascending: false });
+        setPendingMaterials(simpleMaterials || []);
+      } else {
+        setPendingMaterials(materialsData || []);
+      }
 
-      // Fetch pending manufacturers
+      // First check if there are any pending manufacturers at all
+      const { data: allManufacturers, error: allManError } = await supabase
+        .from('pending_manufacturers')
+        .select('*');
+
+      console.log('All pending manufacturers:', allManufacturers);
+      console.log('All manufacturers error:', allManError);
+
+      // Fetch pending manufacturers with join
       const { data: manufacturersData, error: manufacturersError } = await supabase
         .from('pending_manufacturers')
         .select(`
           *,
-          pdf_submissions(file_name, created_at),
-          studios(name)
+          pdf_submissions!pending_manufacturers_submission_id_fkey(file_name, created_at)
         `)
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
 
-      if (manufacturersError) throw manufacturersError;
+      console.log('Manufacturers with join:', manufacturersData);
+      console.log('Manufacturers join error:', manufacturersError);
 
-      setPendingMaterials(materialsData || []);
-      setPendingManufacturers(manufacturersData || []);
+      if (manufacturersError) {
+        console.error('Manufacturers join error:', manufacturersError);
+        // Try simpler query without join
+        const { data: simpleManufacturers, error: simpleError } = await supabase
+          .from('pending_manufacturers')
+          .select('*')
+          .eq('status', 'pending')
+          .order('created_at', { ascending: false });
+        
+        console.log('Simple manufacturers query:', simpleManufacturers);
+        console.log('Simple manufacturers error:', simpleError);
+        
+        setPendingManufacturers(simpleManufacturers || []);
+      } else {
+        setPendingManufacturers(manufacturersData || []);
+      }
+
+      console.log('=== END ADMIN QUEUE DEBUG ===');
     } catch (error) {
       console.error('Error fetching pending items:', error);
       toast({
@@ -287,6 +322,12 @@ const MaterialApprovalQueue = () => {
               <div className="text-sm text-green-700">Manufacturers</div>
             </div>
           </div>
+          <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+            <p className="text-sm text-blue-800">
+              <strong>Debug:</strong> Found {pendingManufacturers.length} pending manufacturers
+            </p>
+            <p className="text-xs text-blue-600">Check browser console for detailed information</p>
+          </div>
         </CardContent>
       </Card>
 
@@ -397,10 +438,6 @@ const MaterialApprovalQueue = () => {
                         <div className="flex-1">
                           <h3 className="font-semibold text-lg">{manufacturer.name}</h3>
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-2 text-sm">
-                            <div>
-                              <span className="font-medium text-gray-700">Studio:</span>
-                              <p className="text-gray-600">{manufacturer.studios?.name}</p>
-                            </div>
                             {manufacturer.contact_name && (
                               <div>
                                 <span className="font-medium text-gray-700">Contact:</span>
@@ -419,13 +456,13 @@ const MaterialApprovalQueue = () => {
                                 <p className="text-gray-600">{manufacturer.phone}</p>
                               </div>
                             )}
+                            {manufacturer.website && (
+                              <div>
+                                <span className="font-medium text-gray-700">Website:</span>
+                                <p className="text-gray-600">{manufacturer.website}</p>
+                              </div>
+                            )}
                           </div>
-                          {manufacturer.website && (
-                            <div className="mt-2">
-                              <span className="font-medium text-gray-700">Website:</span>
-                              <p className="text-gray-600 text-sm">{manufacturer.website}</p>
-                            </div>
-                          )}
                           {manufacturer.notes && (
                             <div className="mt-2">
                               <span className="font-medium text-gray-700">Notes:</span>
@@ -433,7 +470,11 @@ const MaterialApprovalQueue = () => {
                             </div>
                           )}
                           <div className="mt-2 text-xs text-gray-500">
-                            From PDF: {manufacturer.pdf_submissions?.file_name} • 
+                            {manufacturer.pdf_submissions?.file_name ? (
+                              <>From PDF: {manufacturer.pdf_submissions.file_name} • </>
+                            ) : (
+                              'No PDF info • '
+                            )}
                             Created on {format(new Date(manufacturer.created_at), 'PPP')}
                           </div>
                         </div>

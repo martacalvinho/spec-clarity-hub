@@ -155,20 +155,54 @@ const UploadDocuments = () => {
 
   const fetchPendingManufacturers = async () => {
     try {
+      console.log('=== FETCHING PENDING MANUFACTURERS DEBUG ===');
+      console.log('Studio ID:', studioId);
+
+      // First, let's see if there are any pending manufacturers at all
+      const { data: allPendingManufacturers, error: allError } = await supabase
+        .from('pending_manufacturers')
+        .select('*');
+
+      console.log('All pending manufacturers in database:', allPendingManufacturers);
+      console.log('All pending manufacturers error:', allError);
+
+      // Now fetch for this studio specifically
       const { data, error } = await supabase
         .from('pending_manufacturers')
         .select(`
           *,
-          pdf_submissions(file_name, created_at)
+          pdf_submissions!pending_manufacturers_submission_id_fkey(file_name, created_at)
         `)
         .eq('studio_id', studioId)
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setPendingManufacturers(data || []);
+      console.log('Studio-specific pending manufacturers:', data);
+      console.log('Studio-specific error:', error);
+
+      if (error) {
+        console.error('Error in fetchPendingManufacturers:', error);
+        // Try a simpler query without joins
+        const { data: simpleData, error: simpleError } = await supabase
+          .from('pending_manufacturers')
+          .select('*')
+          .eq('studio_id', studioId)
+          .eq('status', 'pending')
+          .order('created_at', { ascending: false });
+
+        console.log('Simple query result:', simpleData);
+        console.log('Simple query error:', simpleError);
+
+        if (simpleError) throw simpleError;
+        setPendingManufacturers(simpleData || []);
+      } else {
+        setPendingManufacturers(data || []);
+      }
+
+      console.log('=== END PENDING MANUFACTURERS DEBUG ===');
     } catch (error) {
       console.error('Error fetching pending manufacturers:', error);
+      setPendingManufacturers([]);
     }
   };
 
@@ -894,6 +928,14 @@ const UploadDocuments = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
+                    <div className="bg-blue-50 p-4 rounded-lg">
+                      <p className="text-sm text-blue-800">
+                        <strong>Debug Info:</strong> Found {pendingManufacturers.length} pending manufacturers
+                      </p>
+                      <p className="text-xs text-blue-600 mt-1">
+                        Check browser console for detailed debug information
+                      </p>
+                    </div>
                     {pendingManufacturers.map((manufacturer) => (
                       <div key={manufacturer.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
                         <div className="flex items-center gap-4">
@@ -902,7 +944,7 @@ const UploadDocuments = () => {
                           </div>
                           <div className="flex-1">
                             <h3 className="font-semibold text-lg">{manufacturer.name}</h3>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-2 text-sm">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
                               {manufacturer.contact_name && (
                                 <div>
                                   <span className="font-medium text-gray-700">Contact:</span>
@@ -921,13 +963,13 @@ const UploadDocuments = () => {
                                   <p className="text-gray-600">{manufacturer.phone}</p>
                                 </div>
                               )}
-                              {manufacturer.website && (
-                                <div>
-                                  <span className="font-medium text-gray-700">Website:</span>
-                                  <p className="text-gray-600">{manufacturer.website}</p>
-                                </div>
-                              )}
                             </div>
+                            {manufacturer.website && (
+                              <div className="mt-2">
+                                <span className="font-medium text-gray-700">Website:</span>
+                                <p className="text-gray-600 text-sm">{manufacturer.website}</p>
+                              </div>
+                            )}
                             {manufacturer.notes && (
                               <div className="mt-2">
                                 <span className="font-medium text-gray-700">Notes:</span>
@@ -935,7 +977,11 @@ const UploadDocuments = () => {
                               </div>
                             )}
                             <div className="mt-2 text-xs text-gray-500">
-                              From PDF: {manufacturer.pdf_submissions?.file_name} • 
+                              {manufacturer.pdf_submissions?.file_name ? (
+                                <>From PDF: {manufacturer.pdf_submissions.file_name} • </>
+                              ) : (
+                                'No PDF info • '
+                              )}
                               Created on {format(new Date(manufacturer.created_at), 'PPP')}
                             </div>
                           </div>
