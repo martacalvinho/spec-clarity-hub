@@ -1,260 +1,61 @@
 
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Building, Package, CheckCircle, XCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
-import { FileText, CheckCircle, XCircle, Edit, Clock } from 'lucide-react';
-
-interface PDFStatus {
-  id: string;
-  submission_id: string;
-  total_materials_extracted: number;
-  materials_approved: number;
-  materials_rejected: number;
-  materials_edited: number;
-  all_materials_processed: boolean;
-  created_at: string;
-  pdf_submissions: {
-    file_name: string;
-    status: string;
-    created_at: string;
-    studios: {
-      name: string;
-    };
-  };
-}
-
-interface PendingMaterial {
-  id: string;
-  name: string;
-  category: string;
-  status: string;
-  created_at: string;
-  approved_at: string | null;
-  rejected_at: string | null;
-  rejection_reason: string | null;
-  studio_id: string;
-  submission_id: string | null;
-  pdf_submissions?: {
-    file_name: string;
-  } | null;
-  studios?: {
-    name: string;
-  } | null;
-}
 
 const MaterialApprovalQueue = () => {
   const { toast } = useToast();
-  const [pdfStatuses, setPdfStatuses] = useState<PDFStatus[]>([]);
-  const [pendingMaterials, setPendingMaterials] = useState<PendingMaterial[]>([]);
-  const [approvedMaterials, setApprovedMaterials] = useState<PendingMaterial[]>([]);
-  const [rejectedMaterials, setRejectedMaterials] = useState<PendingMaterial[]>([]);
+  const [pendingMaterials, setPendingMaterials] = useState<any[]>([]);
+  const [pendingManufacturers, setPendingManufacturers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchData();
+    fetchPendingItems();
   }, []);
 
-  const fetchData = async () => {
+  const fetchPendingItems = async () => {
     try {
       setLoading(true);
       
-      console.log('=== FETCHING MATERIAL APPROVAL DATA ===');
-      
-      // Fetch PDF statuses
-      const { data: pdfStatusData, error: pdfError } = await supabase
-        .from('pdf_material_status')
-        .select(`
-          *,
-          pdf_submissions (
-            file_name,
-            status,
-            created_at,
-            studios (name)
-          )
-        `)
-        .order('created_at', { ascending: false });
-
-      if (pdfError) {
-        console.error('PDF Status Error:', pdfError);
-        throw pdfError;
-      }
-      
-      console.log('PDF Status Data:', pdfStatusData);
-      setPdfStatuses(pdfStatusData || []);
-
-      // Fetch pending materials with a separate query for studios
-      console.log('Fetching pending materials...');
-      const { data: pendingData, error: pendingError } = await supabase
+      // Fetch pending materials
+      const { data: materialsData, error: materialsError } = await supabase
         .from('pending_materials')
         .select(`
-          id,
-          name,
-          category,
-          status,
-          created_at,
-          approved_at,
-          rejected_at,
-          rejection_reason,
-          studio_id,
-          submission_id
+          *,
+          pdf_submissions(file_name, created_at),
+          studios(name)
         `)
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
 
-      console.log('Pending materials raw query result:', { pendingData, pendingError });
+      if (materialsError) throw materialsError;
 
-      if (pendingError) {
-        console.error('Pending Error:', pendingError);
-        throw pendingError;
-      }
-
-      // Fetch studio names separately
-      const studioIds = [...new Set((pendingData || []).map(item => item.studio_id))];
-      const { data: studiosData } = await supabase
-        .from('studios')
-        .select('id, name')
-        .in('id', studioIds);
-
-      // Fetch PDF submission info separately
-      const submissionIds = [...new Set((pendingData || []).filter(item => item.submission_id).map(item => item.submission_id))];
-      const { data: submissionsData } = await supabase
-        .from('pdf_submissions')
-        .select('id, file_name')
-        .in('id', submissionIds);
-
-      // Combine the data
-      const validPendingData = (pendingData || []).map((item: any) => {
-        const studio = studiosData?.find(s => s.id === item.studio_id);
-        const submission = submissionsData?.find(s => s.id === item.submission_id);
-        
-        return {
-          id: item.id,
-          name: item.name,
-          category: item.category,
-          status: item.status,
-          created_at: item.created_at,
-          approved_at: item.approved_at,
-          rejected_at: item.rejected_at,
-          rejection_reason: item.rejection_reason,
-          studio_id: item.studio_id,
-          submission_id: item.submission_id,
-          pdf_submissions: submission ? { file_name: submission.file_name } : null,
-          studios: studio ? { name: studio.name } : null
-        };
-      });
-
-      console.log('Valid pending materials:', validPendingData);
-      setPendingMaterials(validPendingData);
-
-      // Fetch approved materials
-      const { data: approvedData, error: approvedError } = await supabase
-        .from('pending_materials')
+      // Fetch pending manufacturers
+      const { data: manufacturersData, error: manufacturersError } = await supabase
+        .from('pending_manufacturers')
         .select(`
-          id,
-          name,
-          category,
-          status,
-          created_at,
-          approved_at,
-          rejected_at,
-          rejection_reason,
-          studio_id,
-          submission_id
+          *,
+          pdf_submissions(file_name, created_at),
+          studios(name)
         `)
-        .eq('status', 'approved')
-        .order('approved_at', { ascending: false })
-        .limit(50);
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
 
-      if (approvedError) {
-        console.error('Approved Error:', approvedError);
-        throw approvedError;
-      }
+      if (manufacturersError) throw manufacturersError;
 
-      // Combine approved data with studio info
-      const validApprovedData = (approvedData || []).map((item: any) => {
-        const studio = studiosData?.find(s => s.id === item.studio_id);
-        const submission = submissionsData?.find(s => s.id === item.submission_id);
-        
-        return {
-          id: item.id,
-          name: item.name,
-          category: item.category,
-          status: item.status,
-          created_at: item.created_at,
-          approved_at: item.approved_at,
-          rejected_at: item.rejected_at,
-          rejection_reason: item.rejection_reason,
-          studio_id: item.studio_id,
-          submission_id: item.submission_id,
-          pdf_submissions: submission ? { file_name: submission.file_name } : null,
-          studios: studio ? { name: studio.name } : null
-        };
-      });
-
-      setApprovedMaterials(validApprovedData);
-
-      // Fetch rejected materials
-      const { data: rejectedData, error: rejectedError } = await supabase
-        .from('pending_materials')
-        .select(`
-          id,
-          name,
-          category,
-          status,
-          created_at,
-          approved_at,
-          rejected_at,
-          rejection_reason,
-          studio_id,
-          submission_id
-        `)
-        .eq('status', 'rejected')
-        .order('rejected_at', { ascending: false })
-        .limit(50);
-
-      if (rejectedError) {
-        console.error('Rejected Error:', rejectedError);
-        throw rejectedError;
-      }
-
-      // Combine rejected data with studio info
-      const validRejectedData = (rejectedData || []).map((item: any) => {
-        const studio = studiosData?.find(s => s.id === item.studio_id);
-        const submission = submissionsData?.find(s => s.id === item.submission_id);
-        
-        return {
-          id: item.id,
-          name: item.name,
-          category: item.category,
-          status: item.status,
-          created_at: item.created_at,
-          approved_at: item.approved_at,
-          rejected_at: item.rejected_at,
-          rejection_reason: item.rejection_reason,
-          studio_id: item.studio_id,
-          submission_id: item.submission_id,
-          pdf_submissions: submission ? { file_name: submission.file_name } : null,
-          studios: studio ? { name: studio.name } : null
-        };
-      });
-
-      setRejectedMaterials(validRejectedData);
-
-      console.log('=== FINAL COUNTS ===');
-      console.log('Pending:', validPendingData.length);
-      console.log('Approved:', validApprovedData.length);
-      console.log('Rejected:', validRejectedData.length);
-
+      setPendingMaterials(materialsData || []);
+      setPendingManufacturers(manufacturersData || []);
     } catch (error) {
-      console.error('Error fetching data:', error);
+      console.error('Error fetching pending items:', error);
       toast({
         title: "Error",
-        description: "Failed to fetch material approval data",
+        description: "Failed to fetch pending items",
         variant: "destructive"
       });
     } finally {
@@ -262,152 +63,315 @@ const MaterialApprovalQueue = () => {
     }
   };
 
-  const markPDFComplete = async (submissionId: string) => {
+  const approveMaterial = async (materialId: string) => {
     try {
-      const { error } = await supabase
-        .from('pdf_submissions')
-        .update({ status: 'completed' })
-        .eq('id', submissionId);
+      const { data: userData } = await supabase.auth.getUser();
+      const currentUserId = userData.user?.id;
 
-      if (error) throw error;
+      if (!currentUserId) {
+        throw new Error('No authenticated user found');
+      }
+
+      // Get the pending material
+      const { data: pendingMaterial, error: fetchError } = await supabase
+        .from('pending_materials')
+        .select('*')
+        .eq('id', materialId)
+        .single();
+
+      if (fetchError) throw fetchError;
+      if (!pendingMaterial) throw new Error('Material not found');
+
+      // Update status to approved
+      const { error: updateError } = await supabase
+        .from('pending_materials')
+        .update({
+          status: 'approved',
+          approved_by: currentUserId,
+          approved_at: new Date().toISOString()
+        })
+        .eq('id', materialId);
+
+      if (updateError) throw updateError;
+
+      // Create the material in the main table
+      const materialData = {
+        name: pendingMaterial.name,
+        category: pendingMaterial.category,
+        subcategory: pendingMaterial.subcategory,
+        manufacturer_id: pendingMaterial.manufacturer_id,
+        model: pendingMaterial.model,
+        tag: pendingMaterial.tag,
+        location: pendingMaterial.location,
+        reference_sku: pendingMaterial.reference_sku,
+        dimensions: pendingMaterial.dimensions,
+        notes: pendingMaterial.notes,
+        studio_id: pendingMaterial.studio_id,
+        created_by: currentUserId
+      };
+
+      const { data: newMaterial, error: insertError } = await supabase
+        .from('materials')
+        .insert([materialData])
+        .select()
+        .single();
+
+      if (insertError) throw insertError;
+
+      // Link to project if project_id exists
+      if (pendingMaterial.project_id && newMaterial) {
+        const { error: linkError } = await supabase
+          .from('proj_materials')
+          .insert({
+            project_id: pendingMaterial.project_id,
+            material_id: newMaterial.id,
+            studio_id: pendingMaterial.studio_id
+          });
+
+        if (linkError) {
+          console.error('Error linking material to project:', linkError);
+        }
+      }
 
       toast({
         title: "Success",
-        description: "PDF marked as complete"
+        description: "Material approved and added to materials library"
       });
 
-      fetchData();
+      fetchPendingItems();
     } catch (error) {
-      console.error('Error marking PDF complete:', error);
+      console.error('Error approving material:', error);
       toast({
         title: "Error",
-        description: "Failed to mark PDF as complete",
+        description: error instanceof Error ? error.message : "Failed to approve material",
         variant: "destructive"
       });
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    const statusConfig = {
-      pending: { color: 'bg-yellow-100 text-yellow-800', icon: Clock, label: 'Pending' },
-      approved: { color: 'bg-green-100 text-green-800', icon: CheckCircle, label: 'Approved' },
-      rejected: { color: 'bg-red-100 text-red-800', icon: XCircle, label: 'Rejected' },
-      completed: { color: 'bg-blue-100 text-blue-800', icon: CheckCircle, label: 'Complete' }
-    };
+  const approveManufacturer = async (manufacturerId: string) => {
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const currentUserId = userData.user?.id;
 
-    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;
-    const Icon = config.icon;
+      if (!currentUserId) {
+        throw new Error('No authenticated user found');
+      }
 
-    return (
-      <Badge className={`${config.color} flex items-center gap-1`}>
-        <Icon className="h-3 w-3" />
-        {config.label}
-      </Badge>
-    );
+      // Get the pending manufacturer
+      const { data: pendingManufacturer, error: fetchError } = await supabase
+        .from('pending_manufacturers')
+        .select('*')
+        .eq('id', manufacturerId)
+        .single();
+
+      if (fetchError) throw fetchError;
+      if (!pendingManufacturer) throw new Error('Manufacturer not found');
+
+      // Update status to approved
+      const { error: updateError } = await supabase
+        .from('pending_manufacturers')
+        .update({
+          status: 'approved',
+          approved_by: currentUserId,
+          approved_at: new Date().toISOString()
+        })
+        .eq('id', manufacturerId);
+
+      if (updateError) throw updateError;
+
+      // Create the manufacturer in the main table
+      const manufacturerData = {
+        name: pendingManufacturer.name,
+        contact_name: pendingManufacturer.contact_name,
+        email: pendingManufacturer.email,
+        phone: pendingManufacturer.phone,
+        website: pendingManufacturer.website,
+        notes: pendingManufacturer.notes,
+        studio_id: pendingManufacturer.studio_id
+      };
+
+      const { error: insertError } = await supabase
+        .from('manufacturers')
+        .insert([manufacturerData]);
+
+      if (insertError) throw insertError;
+
+      toast({
+        title: "Success",
+        description: "Manufacturer approved and added to manufacturers library"
+      });
+
+      fetchPendingItems();
+    } catch (error) {
+      console.error('Error approving manufacturer:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to approve manufacturer",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const rejectItem = async (itemId: string, itemType: 'material' | 'manufacturer') => {
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const currentUserId = userData.user?.id;
+
+      if (!currentUserId) {
+        throw new Error('No authenticated user found');
+      }
+
+      const tableName = itemType === 'material' ? 'pending_materials' : 'pending_manufacturers';
+      
+      const { error } = await supabase
+        .from(tableName)
+        .update({
+          status: 'rejected',
+          rejected_by: currentUserId,
+          rejected_at: new Date().toISOString()
+        })
+        .eq('id', itemId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: `${itemType.charAt(0).toUpperCase() + itemType.slice(1)} rejected`
+      });
+
+      fetchPendingItems();
+    } catch (error) {
+      console.error(`Error rejecting ${itemType}:`, error);
+      toast({
+        title: "Error",
+        description: `Failed to reject ${itemType}`,
+        variant: "destructive"
+      });
+    }
   };
 
   if (loading) {
-    return <div className="p-6">Loading material approval queue...</div>;
+    return (
+      <Card>
+        <CardContent className="p-6">
+          <div className="text-center">Loading approval queue...</div>
+        </CardContent>
+      </Card>
+    );
   }
+
+  const totalPendingCount = pendingMaterials.length + pendingManufacturers.length;
 
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>PDF Processing Status</CardTitle>
-          <CardDescription>Overview of PDF submissions and their material processing status</CardDescription>
+          <CardTitle>Approval Queue Overview</CardTitle>
+          <CardDescription>
+            Items awaiting approval from PDF submissions across all studios
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {pdfStatuses.map((status) => (
-              <div key={status.id} className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="flex items-center gap-4">
-                  <div className="p-2 bg-blue-100 rounded-lg">
-                    <FileText className="h-6 w-6 text-blue-600" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold">{status.pdf_submissions.file_name}</h3>
-                    <p className="text-sm text-gray-600">
-                      Studio: {status.pdf_submissions.studios.name}
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      Uploaded: {format(new Date(status.pdf_submissions.created_at), 'PPP')}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className="text-right">
-                    <div className="text-sm text-gray-600">
-                      {status.materials_approved} approved, {status.materials_rejected} rejected
-                    </div>
-                    <div className="text-sm text-gray-600">
-                      {status.materials_edited} edited of {status.total_materials_extracted} total
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    {getStatusBadge(status.pdf_submissions.status)}
-                    {status.all_materials_processed && status.pdf_submissions.status !== 'completed' && (
-                      <Button
-                        size="sm"
-                        onClick={() => markPDFComplete(status.submission_id)}
-                        className="bg-green-600 hover:bg-green-700"
-                      >
-                        Mark Complete
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-            {pdfStatuses.length === 0 && (
-              <div className="text-center py-8 text-gray-500">
-                No PDF submissions found.
-              </div>
-            )}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="text-center p-4 bg-yellow-50 rounded-lg">
+              <div className="text-2xl font-bold text-yellow-600">{totalPendingCount}</div>
+              <div className="text-sm text-yellow-700">Total Pending</div>
+            </div>
+            <div className="text-center p-4 bg-blue-50 rounded-lg">
+              <div className="text-2xl font-bold text-blue-600">{pendingMaterials.length}</div>
+              <div className="text-sm text-blue-700">Materials</div>
+            </div>
+            <div className="text-center p-4 bg-green-50 rounded-lg">
+              <div className="text-2xl font-bold text-green-600">{pendingManufacturers.length}</div>
+              <div className="text-sm text-green-700">Manufacturers</div>
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="pending" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="pending">Pending ({pendingMaterials.length})</TabsTrigger>
-          <TabsTrigger value="approved">Approved ({approvedMaterials.length})</TabsTrigger>
-          <TabsTrigger value="rejected">Rejected ({rejectedMaterials.length})</TabsTrigger>
+      <Tabs defaultValue="materials" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="materials">Materials ({pendingMaterials.length})</TabsTrigger>
+          <TabsTrigger value="manufacturers">Manufacturers ({pendingManufacturers.length})</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="pending">
+        <TabsContent value="materials">
           <Card>
             <CardHeader>
-              <CardTitle>Materials Pending Review</CardTitle>
-              <CardDescription>Materials waiting for admin approval</CardDescription>
+              <CardTitle>Pending Materials</CardTitle>
+              <CardDescription>Review and approve materials from PDF submissions</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 {pendingMaterials.map((material) => (
-                  <div key={material.id} className="p-4 border rounded-lg">
+                  <div key={material.id} className="border rounded-lg p-4 hover:bg-gray-50">
                     <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <h3 className="font-semibold">{material.name}</h3>
-                        <p className="text-sm text-gray-600">Category: {material.category}</p>
-                        <p className="text-sm text-gray-600">
-                          From: {material.pdf_submissions?.file_name || 'Direct submission'}
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          Studio: {material.studios?.name || 'Unknown Studio'}
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          Submitted: {format(new Date(material.created_at), 'PPP')}
-                        </p>
+                      <div className="flex items-start gap-4">
+                        <div className="p-2 bg-blue-100 rounded-lg">
+                          <Package className="h-6 w-6 text-blue-600" />
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-lg">{material.name}</h3>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-2 text-sm">
+                            <div>
+                              <span className="font-medium text-gray-700">Studio:</span>
+                              <p className="text-gray-600">{material.studios?.name}</p>
+                            </div>
+                            <div>
+                              <span className="font-medium text-gray-700">Category:</span>
+                              <p className="text-gray-600">{material.category}</p>
+                            </div>
+                            {material.manufacturer_name && (
+                              <div>
+                                <span className="font-medium text-gray-700">Manufacturer:</span>
+                                <p className="text-gray-600">{material.manufacturer_name}</p>
+                              </div>
+                            )}
+                            {material.reference_sku && (
+                              <div>
+                                <span className="font-medium text-gray-700">SKU:</span>
+                                <p className="text-gray-600">{material.reference_sku}</p>
+                              </div>
+                            )}
+                          </div>
+                          {material.notes && (
+                            <div className="mt-2">
+                              <span className="font-medium text-gray-700">Notes:</span>
+                              <p className="text-gray-600 text-sm">{material.notes}</p>
+                            </div>
+                          )}
+                          <div className="mt-2 text-xs text-gray-500">
+                            From PDF: {material.pdf_submissions?.file_name} • 
+                            Created on {format(new Date(material.created_at), 'PPP')}
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex flex-col gap-2">
-                        {getStatusBadge(material.status)}
+                      <div className="flex items-center gap-2">
+                        <Button
+                          onClick={() => approveMaterial(material.id)}
+                          size="sm"
+                          className="bg-green-600 hover:bg-green-700"
+                        >
+                          <CheckCircle className="h-4 w-4 mr-1" />
+                          Approve
+                        </Button>
+                        <Button
+                          onClick={() => rejectItem(material.id, 'material')}
+                          variant="outline"
+                          size="sm"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <XCircle className="h-4 w-4 mr-1" />
+                          Reject
+                        </Button>
                       </div>
                     </div>
                   </div>
                 ))}
                 {pendingMaterials.length === 0 && (
                   <div className="text-center py-8 text-gray-500">
-                    No materials pending review.
+                    No materials pending approval at this time.
                   </div>
                 )}
               </div>
@@ -415,84 +379,92 @@ const MaterialApprovalQueue = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="approved">
+        <TabsContent value="manufacturers">
           <Card>
             <CardHeader>
-              <CardTitle>Recently Approved Materials</CardTitle>
-              <CardDescription>Materials that have been approved and moved to the materials library</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {approvedMaterials.map((material) => (
-                  <div key={material.id} className="p-4 border rounded-lg bg-green-50">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <h3 className="font-semibold">{material.name}</h3>
-                        <p className="text-sm text-gray-600">Category: {material.category}</p>
-                        <p className="text-sm text-gray-600">
-                          From: {material.pdf_submissions?.file_name || 'Direct submission'}
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          Studio: {material.studios?.name || 'Unknown Studio'}
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          Approved: {material.approved_at ? format(new Date(material.approved_at), 'PPP') : 'N/A'}
-                        </p>
-                      </div>
-                      <div className="flex flex-col gap-2">
-                        {getStatusBadge(material.status)}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                {approvedMaterials.length === 0 && (
-                  <div className="text-center py-8 text-gray-500">
-                    No approved materials found.
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+              <Car
 
-        <TabsContent value="rejected">
-          <Card>
-            <CardHeader>
-              <CardTitle>Rejected Materials</CardTitle>
-              <CardDescription>Materials that have been rejected</CardDescription>
+              <CardTitle>Pending Manufacturers</CardTitle>
+              <CardDescription>Review and approve manufacturers from PDF submissions</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {rejectedMaterials.map((material) => (
-                  <div key={material.id} className="p-4 border rounded-lg bg-red-50">
+                {pendingManufacturers.map((manufacturer) => (
+                  <div key={manufacturer.id} className="border rounded-lg p-4 hover:bg-gray-50">
                     <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <h3 className="font-semibold">{material.name}</h3>
-                        <p className="text-sm text-gray-600">Category: {material.category}</p>
-                        <p className="text-sm text-gray-600">
-                          From: {material.pdf_submissions?.file_name || 'Direct submission'}
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          Studio: {material.studios?.name || 'Unknown Studio'}
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          Rejected: {material.rejected_at ? format(new Date(material.rejected_at), 'PPP') : 'N/A'}
-                        </p>
-                        {material.rejection_reason && (
-                          <p className="text-sm text-red-600 mt-1">
-                            Reason: {material.rejection_reason}
-                          </p>
-                        )}
+                      <div className="flex items-start gap-4">
+                        <div className="p-2 bg-green-100 rounded-lg">
+                          <Building className="h-6 w-6 text-green-600" />
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-lg">{manufacturer.name}</h3>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-2 text-sm">
+                            <div>
+                              <span className="font-medium text-gray-700">Studio:</span>
+                              <p className="text-gray-600">{manufacturer.studios?.name}</p>
+                            </div>
+                            {manufacturer.contact_name && (
+                              <div>
+                                <span className="font-medium text-gray-700">Contact:</span>
+                                <p className="text-gray-600">{manufacturer.contact_name}</p>
+                              </div>
+                            )}
+                            {manufacturer.email && (
+                              <div>
+                                <span className="font-medium text-gray-700">Email:</span>
+                                <p className="text-gray-600">{manufacturer.email}</p>
+                              </div>
+                            )}
+                            {manufacturer.phone && (
+                              <div>
+                                <span className="font-medium text-gray-700">Phone:</span>
+                                <p className="text-gray-600">{manufacturer.phone}</p>
+                              </div>
+                            )}
+                          </div>
+                          {manufacturer.website && (
+                            <div className="mt-2">
+                              <span className="font-medium text-gray-700">Website:</span>
+                              <p className="text-gray-600 text-sm">{manufacturer.website}</p>
+                            </div>
+                          )}
+                          {manufacturer.notes && (
+                            <div className="mt-2">
+                              <span className="font-medium text-gray-700">Notes:</span>
+                              <p className="text-gray-600 text-sm">{manufacturer.notes}</p>
+                            </div>
+                          )}
+                          <div className="mt-2 text-xs text-gray-500">
+                            From PDF: {manufacturer.pdf_submissions?.file_name} • 
+                            Created on {format(new Date(manufacturer.created_at), 'PPP')}
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex flex-col gap-2">
-                        {getStatusBadge(material.status)}
+                      <div className="flex items-center gap-2">
+                        <Button
+                          onClick={() => approveManufacturer(manufacturer.id)}
+                          size="sm"
+                          className="bg-green-600 hover:bg-green-700"
+                        >
+                          <CheckCircle className="h-4 w-4 mr-1" />
+                          Approve
+                        </Button>
+                        <Button
+                          onClick={() => rejectItem(manufacturer.id, 'manufacturer')}
+                          variant="outline"
+                          size="sm"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <XCircle className="h-4 w-4 mr-1" />
+                          Reject
+                        </Button>
                       </div>
                     </div>
                   </div>
                 ))}
-                {rejectedMaterials.length === 0 && (
+                {pendingManufacturers.length === 0 && (
                   <div className="text-center py-8 text-gray-500">
-                    No rejected materials found.
+                    No manufacturers pending approval at this time.
                   </div>
                 )}
               </div>

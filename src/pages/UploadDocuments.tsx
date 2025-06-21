@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { FileUpload } from '@/components/ui/file-upload';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Upload, FileText, Clock, CheckCircle, AlertCircle, Trash2 } from 'lucide-react';
+import { Upload, FileText, Clock, CheckCircle, AlertCircle, Trash2, Building } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -28,6 +28,7 @@ const UploadDocuments = () => {
   const [submissionHistory, setSubmissionHistory] = useState<any[]>([]);
   const [approvedMaterials, setApprovedMaterials] = useState<any[]>([]);
   const [pendingApproval, setPendingApproval] = useState<any[]>([]);
+  const [pendingManufacturers, setPendingManufacturers] = useState<any[]>([]);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [editingMaterial, setEditingMaterial] = useState<any>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -40,6 +41,7 @@ const UploadDocuments = () => {
       fetchSubmissionHistory();
       fetchApprovedMaterials();
       fetchPendingApproval();
+      fetchPendingManufacturers();
     }
   }, [studioId]);
 
@@ -148,6 +150,25 @@ const UploadDocuments = () => {
       setPendingApproval(allPendingMaterials);
     } catch (error) {
       console.error('Error fetching pending approval materials:', error);
+    }
+  };
+
+  const fetchPendingManufacturers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('pending_manufacturers')
+        .select(`
+          *,
+          pdf_submissions(file_name, created_at)
+        `)
+        .eq('studio_id', studioId)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setPendingManufacturers(data || []);
+    } catch (error) {
+      console.error('Error fetching pending manufacturers:', error);
     }
   };
 
@@ -558,6 +579,112 @@ const UploadDocuments = () => {
     }
   };
 
+  const approveManufacturer = async (manufacturerId: string) => {
+    try {
+      console.log('=== APPROVING MANUFACTURER ===');
+      console.log('Manufacturer ID:', manufacturerId);
+
+      // Get current user ID
+      const { data: userData } = await supabase.auth.getUser();
+      const currentUserId = userData.user?.id;
+
+      if (!currentUserId) {
+        throw new Error('No authenticated user found');
+      }
+
+      // Get the pending manufacturer
+      const { data: pendingManufacturer, error: fetchError } = await supabase
+        .from('pending_manufacturers')
+        .select('*')
+        .eq('id', manufacturerId)
+        .single();
+
+      if (fetchError) throw fetchError;
+      if (!pendingManufacturer) throw new Error('Manufacturer not found');
+
+      // Update the pending manufacturer status
+      const { error: updateError } = await supabase
+        .from('pending_manufacturers')
+        .update({
+          status: 'approved',
+          approved_by: currentUserId,
+          approved_at: new Date().toISOString()
+        })
+        .eq('id', manufacturerId);
+
+      if (updateError) throw updateError;
+
+      // Create the manufacturer in the main table
+      const manufacturerData = {
+        name: pendingManufacturer.name,
+        contact_name: pendingManufacturer.contact_name,
+        email: pendingManufacturer.email,
+        phone: pendingManufacturer.phone,
+        website: pendingManufacturer.website,
+        notes: pendingManufacturer.notes,
+        studio_id: pendingManufacturer.studio_id
+      };
+
+      const { error: insertError } = await supabase
+        .from('manufacturers')
+        .insert([manufacturerData]);
+
+      if (insertError) throw insertError;
+
+      toast({
+        title: "Success",
+        description: "Manufacturer approved and added to manufacturers library"
+      });
+
+      // Refresh data
+      fetchPendingManufacturers();
+    } catch (error) {
+      console.error('Error approving manufacturer:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to approve manufacturer",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const rejectManufacturer = async (manufacturerId: string, reason: string = '') => {
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const currentUserId = userData.user?.id;
+
+      if (!currentUserId) {
+        throw new Error('No authenticated user found');
+      }
+
+      const { error } = await supabase
+        .from('pending_manufacturers')
+        .update({
+          status: 'rejected',
+          rejected_by: currentUserId,
+          rejected_at: new Date().toISOString(),
+          notes: reason || 'No reason provided'
+        })
+        .eq('id', manufacturerId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Manufacturer rejected"
+      });
+
+      fetchPendingManufacturers();
+    } catch (error) {
+      console.error('Error rejecting manufacturer:', error);
+      toast({
+        title: "Error",
+        description: "Failed to reject manufacturer",
+        variant: "destructive"
+      });
+    }
+  };
+
   const handleEditMaterial = (material: any, duplicates: any[]) => {
     setEditingMaterial(material);
     setEditingDuplicates(duplicates);
@@ -567,6 +694,8 @@ const UploadDocuments = () => {
   const handleMaterialUpdated = () => {
     fetchPendingApproval();
   };
+
+  const totalPendingCount = pendingApproval.length + pendingManufacturers.length;
 
   return (
     <div className="p-6">
@@ -582,7 +711,7 @@ const UploadDocuments = () => {
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="upload">Upload PDF</TabsTrigger>
             <TabsTrigger value="history">Submission History</TabsTrigger>
-            <TabsTrigger value="approval">Pending Approval ({pendingApproval.length})</TabsTrigger>
+            <TabsTrigger value="approval">Pending Approval ({totalPendingCount})</TabsTrigger>
             <TabsTrigger value="approved">Approved Materials ({approvedMaterials.length})</TabsTrigger>
           </TabsList>
 
@@ -721,39 +850,124 @@ const UploadDocuments = () => {
           </TabsContent>
 
           <TabsContent value="approval">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>Materials Pending Approval</CardTitle>
-                    <CardDescription>Review and approve materials extracted from your PDFs</CardDescription>
-                  </div>
-                  {pendingApproval.length > 0 && (
-                    <Button onClick={approveAllMaterials} className="bg-green-600 hover:bg-green-700">
-                      Approve All ({pendingApproval.length})
-                    </Button>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {pendingApproval.map((material) => (
-                    <PendingMaterialCard
-                      key={material.id}
-                      material={material}
-                      onApprove={approveMaterial}
-                      onReject={rejectMaterial}
-                      onEdit={handleEditMaterial}
-                    />
-                  ))}
-                  {pendingApproval.length === 0 && (
-                    <div className="text-center py-8 text-gray-500">
-                      No materials pending approval at this time.
+            <div className="space-y-6">
+              {/* Materials Section */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle>Materials Pending Approval</CardTitle>
+                      <CardDescription>Review and approve materials extracted from your PDFs</CardDescription>
                     </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+                    {pendingApproval.length > 0 && (
+                      <Button onClick={approveAllMaterials} className="bg-green-600 hover:bg-green-700">
+                        Approve All Materials ({pendingApproval.length})
+                      </Button>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {pendingApproval.map((material) => (
+                      <PendingMaterialCard
+                        key={material.id}
+                        material={material}
+                        onApprove={approveMaterial}
+                        onReject={rejectMaterial}
+                        onEdit={handleEditMaterial}
+                      />
+                    ))}
+                    {pendingApproval.length === 0 && (
+                      <div className="text-center py-4 text-gray-500">
+                        No materials pending approval at this time.
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Manufacturers Section */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Manufacturers Pending Approval</CardTitle>
+                  <CardDescription>Review and approve manufacturers extracted from your PDFs</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {pendingManufacturers.map((manufacturer) => (
+                      <div key={manufacturer.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
+                        <div className="flex items-center gap-4">
+                          <div className="p-2 bg-blue-100 rounded-lg">
+                            <Building className="h-6 w-6 text-blue-600" />
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="font-semibold text-lg">{manufacturer.name}</h3>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-2 text-sm">
+                              {manufacturer.contact_name && (
+                                <div>
+                                  <span className="font-medium text-gray-700">Contact:</span>
+                                  <p className="text-gray-600">{manufacturer.contact_name}</p>
+                                </div>
+                              )}
+                              {manufacturer.email && (
+                                <div>
+                                  <span className="font-medium text-gray-700">Email:</span>
+                                  <p className="text-gray-600">{manufacturer.email}</p>
+                                </div>
+                              )}
+                              {manufacturer.phone && (
+                                <div>
+                                  <span className="font-medium text-gray-700">Phone:</span>
+                                  <p className="text-gray-600">{manufacturer.phone}</p>
+                                </div>
+                              )}
+                              {manufacturer.website && (
+                                <div>
+                                  <span className="font-medium text-gray-700">Website:</span>
+                                  <p className="text-gray-600">{manufacturer.website}</p>
+                                </div>
+                              )}
+                            </div>
+                            {manufacturer.notes && (
+                              <div className="mt-2">
+                                <span className="font-medium text-gray-700">Notes:</span>
+                                <p className="text-gray-600 text-sm">{manufacturer.notes}</p>
+                              </div>
+                            )}
+                            <div className="mt-2 text-xs text-gray-500">
+                              From PDF: {manufacturer.pdf_submissions?.file_name} • 
+                              Created on {format(new Date(manufacturer.created_at), 'PPP')}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            onClick={() => approveManufacturer(manufacturer.id)}
+                            size="sm"
+                            className="bg-green-600 hover:bg-green-700"
+                          >
+                            Approve
+                          </Button>
+                          <Button
+                            onClick={() => rejectManufacturer(manufacturer.id, 'Rejected by user')}
+                            variant="outline"
+                            size="sm"
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            Reject
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                    {pendingManufacturers.length === 0 && (
+                      <div className="text-center py-4 text-gray-500">
+                        No manufacturers pending approval at this time.
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           <TabsContent value="approved">
