@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -33,6 +32,7 @@ const PendingMaterialCard = ({ material, onApprove, onReject, onEdit }: PendingM
   const [loading, setLoading] = useState(true);
   const [projectName, setProjectName] = useState<string>('');
   const [clientName, setClientName] = useState<string>('');
+  const [linkedManufacturerName, setLinkedManufacturerName] = useState<string>('');
 
   useEffect(() => {
     findSimilarMaterials();
@@ -64,6 +64,19 @@ const PendingMaterialCard = ({ material, onApprove, onReject, onEdit }: PendingM
         
         if (clientData) {
           setClientName(clientData.name);
+        }
+      }
+
+      // Fetch linked manufacturer name if manufacturer_id exists
+      if (material.manufacturer_id) {
+        const { data: manufacturerData } = await supabase
+          .from('manufacturers')
+          .select('name')
+          .eq('id', material.manufacturer_id)
+          .single();
+        
+        if (manufacturerData) {
+          setLinkedManufacturerName(manufacturerData.name);
         }
       }
     } catch (error) {
@@ -202,6 +215,9 @@ const PendingMaterialCard = ({ material, onApprove, onReject, onEdit }: PendingM
     onReject(material.id, reason || undefined);
   };
 
+  // Determine which manufacturer name to display
+  const displayManufacturerName = linkedManufacturerName || material.manufacturer_name;
+
   return (
     <Card className="border-orange-200">
       <CardContent className="p-6">
@@ -233,10 +249,13 @@ const PendingMaterialCard = ({ material, onApprove, onReject, onEdit }: PendingM
                 <p className="text-gray-600">{material.subcategory}</p>
               </div>
             )}
-            {material.manufacturer_name && (
+            {displayManufacturerName && (
               <div>
                 <span className="font-medium text-gray-700">Manufacturer:</span>
-                <p className="text-gray-600">{material.manufacturer_name}</p>
+                <p className="text-gray-600">{displayManufacturerName}</p>
+                {linkedManufacturerName && (
+                  <span className="text-xs text-blue-600">(Linked)</span>
+                )}
               </div>
             )}
             {material.reference_sku && (
