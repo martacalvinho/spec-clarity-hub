@@ -15,7 +15,6 @@ import { format } from 'date-fns';
 import PendingMaterialCard from '@/components/onboarding/PendingMaterialCard';
 import EditPendingMaterialDialog from '@/components/onboarding/EditPendingMaterialDialog';
 import EditPendingManufacturerDialog from '@/components/onboarding/EditPendingManufacturerDialog';
-import MaterialFilters from '@/components/onboarding/MaterialFilters';
 
 const UploadDocuments = () => {
   const { userProfile, studioId } = useAuth();
@@ -37,11 +36,6 @@ const UploadDocuments = () => {
   const [editingDuplicates, setEditingDuplicates] = useState<any[]>([]);
   const [editingManufacturer, setEditingManufacturer] = useState<any>(null);
   const [editManufacturerDialogOpen, setEditManufacturerDialogOpen] = useState(false);
-
-  // Add filter states
-  const [filterProject, setFilterProject] = useState('');
-  const [filterClient, setFilterClient] = useState('');
-  const [filterPdf, setFilterPdf] = useState('');
 
   useEffect(() => {
     if (studioId) {
@@ -502,7 +496,7 @@ const UploadDocuments = () => {
       let successCount = 0;
       let errorCount = 0;
 
-      for (const material of filteredPendingMaterials) {
+      for (const material of pendingApproval) {
         try {
           await approveMaterial(material.id);
           successCount++;
@@ -727,69 +721,7 @@ const UploadDocuments = () => {
     fetchPendingManufacturers();
   };
 
-  // Add function to get unique filter options from pending materials
-  const getFilterOptions = () => {
-    const projects = new Map<string, { id: string; name: string }>();
-    const clients = new Map<string, { id: string; name: string }>();
-    const pdfs = new Map<string, { id: string; name: string }>();
-
-    // We need to get project and client names for each material
-    // We'll build maps from projects and clients state arrays for lookup
-    const projectMap = new Map(projects.map(p => [p.id, p.name]));
-    const clientMap = new Map(clients.map(c => [c.id, c.name]));
-
-    pendingApproval.forEach((material) => {
-      // Collect projects
-      if (material.project_id) {
-        const projectName = projectMap.get(material.project_id);
-        if (projectName) {
-          projects.set(material.project_id, { id: material.project_id, name: projectName });
-        }
-      }
-
-      // Collect clients  
-      if (material.client_id) {
-        const clientName = clientMap.get(material.client_id);
-        if (clientName) {
-          clients.set(material.client_id, { id: material.client_id, name: clientName });
-        }
-      }
-
-      // Collect PDFs
-      if (material.pdf_submissions?.file_name) {
-        const pdfId = material.submission_id || material.id;
-        pdfs.set(pdfId, { id: pdfId, name: material.pdf_submissions.file_name });
-      }
-    });
-
-    return {
-      projects: Array.from(projects.values()),
-      clients: Array.from(clients.values()),
-      pdfs: Array.from(pdfs.values())
-    };
-  };
-
-  // Filter pending materials based on selected filters
-  const filteredPendingMaterials = pendingApproval.filter((material) => {
-    if (filterProject && material.project_id !== filterProject) return false;
-    if (filterClient && material.client_id !== filterClient) return false;
-    if (filterPdf) {
-      const materialPdfId = material.submission_id || material.id;
-      if (materialPdfId !== filterPdf) return false;
-    }
-    return true;
-  });
-
-  const clearFilters = () => {
-    setFilterProject('');
-    setFilterClient('');
-    setFilterPdf('');
-  };
-
-  const hasActiveFilters = filterProject !== '' || filterClient !== '' || filterPdf !== '';
-
   const totalPendingCount = pendingApproval.length + pendingManufacturers.length;
-  const filterOptions = getFilterOptions();
 
   return (
     <div className="p-6">
@@ -955,36 +887,14 @@ const UploadDocuments = () => {
                     </div>
                     {pendingApproval.length > 0 && (
                       <Button onClick={approveAllMaterials} className="bg-green-600 hover:bg-green-700">
-                        Approve All Materials ({filteredPendingMaterials.length})
+                        Approve All Materials ({pendingApproval.length})
                       </Button>
                     )}
                   </div>
                 </CardHeader>
                 <CardContent>
-                  {pendingApproval.length > 0 && (
-                    <MaterialFilters
-                      projects={filterOptions.projects}
-                      clients={filterOptions.clients}
-                      pdfs={filterOptions.pdfs}
-                      selectedProject={filterProject}
-                      selectedClient={filterClient}
-                      selectedPdf={filterPdf}
-                      onProjectChange={setFilterProject}
-                      onClientChange={setFilterClient}
-                      onPdfChange={setFilterPdf}
-                      onClearFilters={clearFilters}
-                      hasActiveFilters={hasActiveFilters}
-                    />
-                  )}
-                  
                   <div className="space-y-4">
-                    {hasActiveFilters && (
-                      <div className="text-sm text-gray-600 mb-4">
-                        Showing {filteredPendingMaterials.length} of {pendingApproval.length} materials
-                      </div>
-                    )}
-                    
-                    {filteredPendingMaterials.map((material) => (
+                    {pendingApproval.map((material) => (
                       <PendingMaterialCard
                         key={material.id}
                         material={material}
@@ -993,11 +903,6 @@ const UploadDocuments = () => {
                         onEdit={handleEditMaterial}
                       />
                     ))}
-                    {filteredPendingMaterials.length === 0 && pendingApproval.length > 0 && (
-                      <div className="text-center py-4 text-gray-500">
-                        No materials match the current filters.
-                      </div>
-                    )}
                     {pendingApproval.length === 0 && (
                       <div className="text-center py-4 text-gray-500">
                         No materials pending approval at this time.
