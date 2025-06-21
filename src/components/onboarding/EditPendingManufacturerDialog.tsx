@@ -34,7 +34,11 @@ const EditPendingManufacturerDialog = ({
 
   // Update form data when manufacturer changes or dialog opens
   useEffect(() => {
+    console.log('EditPendingManufacturerDialog useEffect - manufacturer:', manufacturer);
+    console.log('EditPendingManufacturerDialog useEffect - open:', open);
+    
     if (manufacturer && open) {
+      console.log('Setting form data with manufacturer:', manufacturer);
       setFormData({
         name: manufacturer.name || '',
         contact_name: manufacturer.contact_name || '',
@@ -45,6 +49,21 @@ const EditPendingManufacturerDialog = ({
       });
     }
   }, [manufacturer, open]);
+
+  // Also update when manufacturer changes even if dialog is already open
+  useEffect(() => {
+    if (manufacturer) {
+      console.log('Manufacturer changed, updating form data:', manufacturer);
+      setFormData({
+        name: manufacturer.name || '',
+        contact_name: manufacturer.contact_name || '',
+        email: manufacturer.email || '',
+        phone: manufacturer.phone || '',
+        website: manufacturer.website || '',
+        notes: manufacturer.notes || ''
+      });
+    }
+  }, [manufacturer]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
