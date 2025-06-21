@@ -729,42 +729,43 @@ const UploadDocuments = () => {
 
   // Add function to get unique filter options from pending materials
   const getFilterOptions = () => {
-    const projectsMap = new Map<string, { id: string; name: string }>();
-    const clientsMap = new Map<string, { id: string; name: string }>();
-    const pdfsMap = new Map<string, { id: string; name: string }>();
+    const projects = new Map<string, { id: string; name: string }>();
+    const clients = new Map<string, { id: string; name: string }>();
+    const pdfs = new Map<string, { id: string; name: string }>();
 
-    // Build maps from projects and clients state arrays for lookup
-    const projectLookup = new Map(projects.map(p => [p.id, p.name]));
-    const clientLookup = new Map(clients.map(c => [c.id, c.name]));
+    // We need to get project and client names for each material
+    // We'll build maps from projects and clients state arrays for lookup
+    const projectMap = new Map(projects.map(p => [p.id, p.name]));
+    const clientMap = new Map(clients.map(c => [c.id, c.name]));
 
     pendingApproval.forEach((material) => {
       // Collect projects
       if (material.project_id) {
-        const projectName = projectLookup.get(material.project_id);
+        const projectName = projectMap.get(material.project_id);
         if (projectName) {
-          projectsMap.set(material.project_id, { id: material.project_id, name: projectName });
+          projects.set(material.project_id, { id: material.project_id, name: projectName });
         }
       }
 
       // Collect clients  
       if (material.client_id) {
-        const clientName = clientLookup.get(material.client_id);
+        const clientName = clientMap.get(material.client_id);
         if (clientName) {
-          clientsMap.set(material.client_id, { id: material.client_id, name: clientName });
+          clients.set(material.client_id, { id: material.client_id, name: clientName });
         }
       }
 
       // Collect PDFs
       if (material.pdf_submissions?.file_name) {
         const pdfId = material.submission_id || material.id;
-        pdfsMap.set(pdfId, { id: pdfId, name: material.pdf_submissions.file_name });
+        pdfs.set(pdfId, { id: pdfId, name: material.pdf_submissions.file_name });
       }
     });
 
     return {
-      projects: Array.from(projectsMap.values()),
-      clients: Array.from(clientsMap.values()),
-      pdfs: Array.from(pdfsMap.values())
+      projects: Array.from(projects.values()),
+      clients: Array.from(clients.values()),
+      pdfs: Array.from(pdfs.values())
     };
   };
 
