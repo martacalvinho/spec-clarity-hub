@@ -15,6 +15,7 @@ import { format } from 'date-fns';
 import PendingMaterialCard from '@/components/onboarding/PendingMaterialCard';
 import EditPendingMaterialDialog from '@/components/onboarding/EditPendingMaterialDialog';
 import EditPendingManufacturerDialog from '@/components/onboarding/EditPendingManufacturerDialog';
+import PdfFilter from '@/components/onboarding/PdfFilter';
 
 const UploadDocuments = () => {
   const { userProfile, studioId } = useAuth();
@@ -36,6 +37,7 @@ const UploadDocuments = () => {
   const [editingDuplicates, setEditingDuplicates] = useState<any[]>([]);
   const [editingManufacturer, setEditingManufacturer] = useState<any>(null);
   const [editManufacturerDialogOpen, setEditManufacturerDialogOpen] = useState(false);
+  const [pdfFilter, setPdfFilter] = useState('all');
 
   useEffect(() => {
     if (studioId) {
@@ -123,7 +125,7 @@ const UploadDocuments = () => {
         .from('pending_materials')
         .select(`
           *,
-          pdf_submissions(file_name, created_at)
+          pdf_submissions(id, file_name, created_at)
         `)
         .eq('studio_id', studioId)
         .eq('status', 'pending')
@@ -136,7 +138,7 @@ const UploadDocuments = () => {
         .from('extracted_materials')
         .select(`
           *,
-          pdf_submissions(file_name, created_at)
+          pdf_submissions(id, file_name, created_at)
         `)
         .eq('studio_id', studioId)
         .in('status', ['pending', 'ready_for_review'])
@@ -721,6 +723,29 @@ const UploadDocuments = () => {
     fetchPendingManufacturers();
   };
 
+  // Filter pending materials by PDF
+  const filteredPendingMaterials = pendingApproval.filter(material => {
+    if (pdfFilter === 'all') return true;
+    return material.pdf_submissions?.id === pdfFilter;
+  });
+
+  // Get unique PDF options for the filter
+  const pdfFilterOptions = pendingApproval.reduce((acc, material) => {
+    if (material.pdf_submissions) {
+      const existingPdf = acc.find(pdf => pdf.id === material.pdf_submissions.id);
+      if (existingPdf) {
+        existingPdf.count++;
+      } else {
+        acc.push({
+          id: material.pdf_submissions.id,
+          name: material.pdf_submissions.file_name,
+          count: 1
+        });
+      }
+    }
+    return acc;
+  }, [] as Array<{ id: string; name: string; count: number }>);
+
   const totalPendingCount = pendingApproval.length + pendingManufacturers.length;
 
   return (
@@ -885,16 +910,23 @@ const UploadDocuments = () => {
                       <CardTitle>Materials Pending Approval</CardTitle>
                       <CardDescription>Review and approve materials extracted from your PDFs</CardDescription>
                     </div>
-                    {pendingApproval.length > 0 && (
-                      <Button onClick={approveAllMaterials} className="bg-green-600 hover:bg-green-700">
-                        Approve All Materials ({pendingApproval.length})
-                      </Button>
-                    )}
+                    <div className="flex items-center gap-4">
+                      <PdfFilter
+                        value={pdfFilter}
+                        onValueChange={setPdfFilter}
+                        options={pdfFilterOptions}
+                      />
+                      {filteredPendingMaterials.length > 0 && (
+                        <Button onClick={approveAllMaterials} className="bg-green-600 hover:bg-green-700">
+                          Approve All Materials ({filteredPendingMaterials.length})
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {pendingApproval.map((material) => (
+                    {filteredPendingMaterials.map((material) => (
                       <PendingMaterialCard
                         key={material.id}
                         material={material}
@@ -903,6 +935,11 @@ const UploadDocuments = () => {
                         onEdit={handleEditMaterial}
                       />
                     ))}
+                    {filteredPendingMaterials.length === 0 && pendingApproval.length > 0 && (
+                      <div className="text-center py-4 text-gray-500">
+                        No materials found for the selected PDF filter.
+                      </div>
+                    )}
                     {pendingApproval.length === 0 && (
                       <div className="text-center py-4 text-gray-500">
                         No materials pending approval at this time.
