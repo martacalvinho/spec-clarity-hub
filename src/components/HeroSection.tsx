@@ -52,7 +52,7 @@ const HeroSection = () => {
               <Button 
                 variant="outline" 
                 size="lg" 
-                onClick={() => window.open('https://www.capcut.com/presentation/7518500846674640949?https://vimeo.com/1095303591/a27ddf1130?ts=0&share=copy', '_blank')}
+                onClick={() => window.open('https://vimeo.com/manage/videos/1095303591/a27ddf1130', '_blank')}
                 className="border-2 border-gray-200 text-gray-700 px-8 py-4 text-lg font-medium hover:bg-gray-50 hover:border-gray-300 hover:shadow-md transition-all duration-200 group w-full sm:w-auto"
               >
                 <Play className="mr-2 h-5 w-5 group-hover:scale-110 transition-transform duration-200" />
