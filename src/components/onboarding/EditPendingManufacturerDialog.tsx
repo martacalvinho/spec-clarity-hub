@@ -34,34 +34,54 @@ const EditPendingManufacturerDialog = ({
 
   // Update form data when manufacturer changes or dialog opens
   useEffect(() => {
-    console.log('EditPendingManufacturerDialog useEffect - manufacturer:', manufacturer);
-    console.log('EditPendingManufacturerDialog useEffect - open:', open);
+    console.log('=== EDIT DIALOG USEEFFECT ===');
+    console.log('Manufacturer prop:', manufacturer);
+    console.log('Dialog open:', open);
+    console.log('Manufacturer keys:', manufacturer ? Object.keys(manufacturer) : 'null');
     
     if (manufacturer && open) {
-      console.log('Setting form data with manufacturer:', manufacturer);
-      setFormData({
+      console.log('Setting form data with manufacturer data:');
+      console.log('- name:', manufacturer.name);
+      console.log('- contact_name:', manufacturer.contact_name);
+      console.log('- email:', manufacturer.email);
+      console.log('- phone:', manufacturer.phone);
+      console.log('- website:', manufacturer.website);
+      console.log('- notes:', manufacturer.notes);
+      
+      const newFormData = {
         name: manufacturer.name || '',
         contact_name: manufacturer.contact_name || '',
         email: manufacturer.email || '',
         phone: manufacturer.phone || '',
         website: manufacturer.website || '',
         notes: manufacturer.notes || ''
-      });
+      };
+      
+      console.log('New form data being set:', newFormData);
+      setFormData(newFormData);
     }
+    
+    console.log('=== END EDIT DIALOG USEEFFECT ===');
   }, [manufacturer, open]);
 
   // Also update when manufacturer changes even if dialog is already open
   useEffect(() => {
     if (manufacturer) {
+      console.log('=== MANUFACTURER CHANGED EFFECT ===');
       console.log('Manufacturer changed, updating form data:', manufacturer);
-      setFormData({
+      
+      const newFormData = {
         name: manufacturer.name || '',
         contact_name: manufacturer.contact_name || '',
         email: manufacturer.email || '',
         phone: manufacturer.phone || '',
         website: manufacturer.website || '',
         notes: manufacturer.notes || ''
-      });
+      };
+      
+      console.log('Updated form data:', newFormData);
+      setFormData(newFormData);
+      console.log('=== END MANUFACTURER CHANGED EFFECT ===');
     }
   }, [manufacturer]);
 
@@ -98,8 +118,16 @@ const EditPendingManufacturerDialog = ({
   };
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    console.log(`Input changed - ${field}:`, value);
+    setFormData(prev => {
+      const newData = { ...prev, [field]: value };
+      console.log('Updated form data:', newData);
+      return newData;
+    });
   };
+
+  // Debug: Log current form data state
+  console.log('Current form data state:', formData);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -111,6 +139,10 @@ const EditPendingManufacturerDialog = ({
           </DialogDescription>
         </DialogHeader>
         
+        <div className="mb-4 p-3 bg-gray-100 rounded text-sm">
+          <strong>Debug Info:</strong> Form data: {JSON.stringify(formData, null, 2)}
+        </div>
+        
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <Label htmlFor="name">Name *</Label>
@@ -119,6 +151,7 @@ const EditPendingManufacturerDialog = ({
               value={formData.name}
               onChange={(e) => handleInputChange('name', e.target.value)}
               required
+              placeholder="Enter manufacturer name"
             />
           </div>
 
@@ -129,6 +162,7 @@ const EditPendingManufacturerDialog = ({
                 id="contact_name"
                 value={formData.contact_name}
                 onChange={(e) => handleInputChange('contact_name', e.target.value)}
+                placeholder="Enter contact name"
               />
             </div>
             <div>
@@ -138,6 +172,7 @@ const EditPendingManufacturerDialog = ({
                 type="email"
                 value={formData.email}
                 onChange={(e) => handleInputChange('email', e.target.value)}
+                placeholder="contact@manufacturer.com"
               />
             </div>
           </div>
@@ -149,6 +184,7 @@ const EditPendingManufacturerDialog = ({
                 id="phone"
                 value={formData.phone}
                 onChange={(e) => handleInputChange('phone', e.target.value)}
+                placeholder="Enter phone number"
               />
             </div>
             <div>
@@ -157,6 +193,7 @@ const EditPendingManufacturerDialog = ({
                 id="website"
                 value={formData.website}
                 onChange={(e) => handleInputChange('website', e.target.value)}
+                placeholder="https://www.manufacturer.com"
               />
             </div>
           </div>
@@ -168,6 +205,7 @@ const EditPendingManufacturerDialog = ({
               value={formData.notes}
               onChange={(e) => handleInputChange('notes', e.target.value)}
               rows={3}
+              placeholder="Enter any additional notes"
             />
           </div>
 

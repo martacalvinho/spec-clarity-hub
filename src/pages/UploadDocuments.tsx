@@ -704,6 +704,11 @@ const UploadDocuments = () => {
   };
 
   const handleEditManufacturer = (manufacturer: any) => {
+    console.log('=== EDIT MANUFACTURER CLICKED ===');
+    console.log('Manufacturer data being passed:', manufacturer);
+    console.log('Manufacturer keys:', Object.keys(manufacturer || {}));
+    console.log('=== END EDIT MANUFACTURER DEBUG ===');
+    
     setEditingManufacturer(manufacturer);
     setEditManufacturerDialogOpen(true);
   };
@@ -932,82 +937,88 @@ const UploadDocuments = () => {
                         Check browser console for detailed debug information
                       </p>
                     </div>
-                    {pendingManufacturers.map((manufacturer) => (
-                      <div key={manufacturer.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
-                        <div className="flex items-center gap-4">
-                          <div className="p-2 bg-blue-100 rounded-lg">
-                            <Building className="h-6 w-6 text-blue-600" />
+                    {pendingManufacturers.map((manufacturer) => {
+                      console.log('Rendering manufacturer:', manufacturer.id, manufacturer);
+                      return (
+                        <div key={manufacturer.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
+                          <div className="flex items-center gap-4">
+                            <div className="p-2 bg-blue-100 rounded-lg">
+                              <Building className="h-6 w-6 text-blue-600" />
+                            </div>
+                            <div className="flex-1">
+                              <h3 className="font-semibold text-lg">{manufacturer.name}</h3>
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
+                                {manufacturer.contact_name && (
+                                  <div>
+                                    <span className="font-medium text-gray-700">Contact:</span>
+                                    <p className="text-gray-600">{manufacturer.contact_name}</p>
+                                  </div>
+                                )}
+                                {manufacturer.email && (
+                                  <div>
+                                    <span className="font-medium text-gray-700">Email:</span>
+                                    <p className="text-gray-600">{manufacturer.email}</p>
+                                  </div>
+                                )}
+                                {manufacturer.phone && (
+                                  <div>
+                                    <span className="font-medium text-gray-700">Phone:</span>
+                                    <p className="text-gray-600">{manufacturer.phone}</p>
+                                  </div>
+                                )}
+                              </div>
+                              {manufacturer.website && (
+                                <div className="mt-2">
+                                  <span className="font-medium text-gray-700">Website:</span>
+                                  <p className="text-gray-600 text-sm">{manufacturer.website}</p>
+                                </div>
+                              )}
+                              {manufacturer.notes && (
+                                <div className="mt-2">
+                                  <span className="font-medium text-gray-700">Notes:</span>
+                                  <p className="text-gray-600 text-sm">{manufacturer.notes}</p>
+                                </div>
+                              )}
+                              <div className="mt-2 text-xs text-gray-500">
+                                {manufacturer.pdf_submissions?.file_name ? (
+                                  <>From PDF: {manufacturer.pdf_submissions.file_name} • </>
+                                ) : (
+                                  'No PDF info • '
+                                )}
+                                Created on {format(new Date(manufacturer.created_at), 'PPP')}
+                              </div>
+                            </div>
                           </div>
-                          <div className="flex-1">
-                            <h3 className="font-semibold text-lg">{manufacturer.name}</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
-                              {manufacturer.contact_name && (
-                                <div>
-                                  <span className="font-medium text-gray-700">Contact:</span>
-                                  <p className="text-gray-600">{manufacturer.contact_name}</p>
-                                </div>
-                              )}
-                              {manufacturer.email && (
-                                <div>
-                                  <span className="font-medium text-gray-700">Email:</span>
-                                  <p className="text-gray-600">{manufacturer.email}</p>
-                                </div>
-                              )}
-                              {manufacturer.phone && (
-                                <div>
-                                  <span className="font-medium text-gray-700">Phone:</span>
-                                  <p className="text-gray-600">{manufacturer.phone}</p>
-                                </div>
-                              )}
-                            </div>
-                            {manufacturer.website && (
-                              <div className="mt-2">
-                                <span className="font-medium text-gray-700">Website:</span>
-                                <p className="text-gray-600 text-sm">{manufacturer.website}</p>
-                              </div>
-                            )}
-                            {manufacturer.notes && (
-                              <div className="mt-2">
-                                <span className="font-medium text-gray-700">Notes:</span>
-                                <p className="text-gray-600 text-sm">{manufacturer.notes}</p>
-                              </div>
-                            )}
-                            <div className="mt-2 text-xs text-gray-500">
-                              {manufacturer.pdf_submissions?.file_name ? (
-                                <>From PDF: {manufacturer.pdf_submissions.file_name} • </>
-                              ) : (
-                                'No PDF info • '
-                              )}
-                              Created on {format(new Date(manufacturer.created_at), 'PPP')}
-                            </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              onClick={() => {
+                                console.log('Edit button clicked for manufacturer:', manufacturer);
+                                handleEditManufacturer(manufacturer);
+                              }}
+                              variant="outline"
+                              size="sm"
+                            >
+                              Edit
+                            </Button>
+                            <Button
+                              onClick={() => approveManufacturer(manufacturer.id)}
+                              size="sm"
+                              className="bg-green-600 hover:bg-green-700"
+                            >
+                              Approve
+                            </Button>
+                            <Button
+                              onClick={() => rejectManufacturer(manufacturer.id, 'Rejected by user')}
+                              variant="outline"
+                              size="sm"
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              Reject
+                            </Button>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            onClick={() => handleEditManufacturer(manufacturer)}
-                            variant="outline"
-                            size="sm"
-                          >
-                            Edit
-                          </Button>
-                          <Button
-                            onClick={() => approveManufacturer(manufacturer.id)}
-                            size="sm"
-                            className="bg-green-600 hover:bg-green-700"
-                          >
-                            Approve
-                          </Button>
-                          <Button
-                            onClick={() => rejectManufacturer(manufacturer.id, 'Rejected by user')}
-                            variant="outline"
-                            size="sm"
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                          >
-                            Reject
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                     {pendingManufacturers.length === 0 && (
                       <div className="text-center py-4 text-gray-500">
                         No manufacturers pending approval at this time.
