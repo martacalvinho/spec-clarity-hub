@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Play, ChevronDown, Check } from "lucide-react";
 // import HeroDashboardPreview from "./HeroDashboardPreview";
@@ -15,8 +16,10 @@ const HeroSection = () => {
           <div className="animate-fade-in">
             <div className="mb-8">
               <h1 className="text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-gray-900 leading-[0.95] mb-6">
+                Your Studio's
+                <br />
                 <span className="text-coral bg-gradient-to-r from-coral to-coral-600 bg-clip-text text-transparent">
-                  Your Studio's Material Memory,
+                  Material Memory,
                 </span>
                 <br />
                 <span className="text-2xl md:text-3xl lg:text-4xl xl:text-5xl text-gray-700 font-semibold">
