@@ -23,13 +23,13 @@ const HeroSection = () => {
                 </span>
                 <br />
                 <span className="text-2xl md:text-3xl lg:text-4xl xl:text-5xl text-gray-700 font-semibold">
-                  Built by AI.
+                  Powered by AI.
                 </span>
               </h1>
             </div>
             <div className="space-y-6 mb-10">
               <p className="text-xl md:text-2xl text-gray-700 font-semibold leading-tight">
-                Treqy uses AI to read your spec sheets and automatically build a searchable database of every material your studio has ever used. No manual data entry. Ever.
+                Treqy reads your spec sheets and automatically builds a searchable database of every material your studio has ever used.
               </p>
               
               {/* Enhanced bullet points emphasizing AI automation */}
