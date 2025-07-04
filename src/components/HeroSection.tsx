@@ -19,24 +19,41 @@ const HeroSection = () => {
                 Your Studio's
                 <br />
                 <span className="text-coral bg-gradient-to-r from-coral to-coral-600 bg-clip-text text-transparent">
-                  Material Memory
+                  Material Memory,
+                </span>
+                <br />
+                <span className="text-2xl md:text-3xl lg:text-4xl xl:text-5xl text-gray-700 font-semibold">
+                  Built by AI.
                 </span>
               </h1>
             </div>
             <div className="space-y-6 mb-10">
               <p className="text-xl md:text-2xl text-gray-700 font-semibold leading-tight">
-                Instantly find any product you've ever specified - by project, client or manufacturer.
+                Treqy uses AI to read your spec sheets and automatically build a searchable database of every material your studio has ever used. No manual data entry. Ever.
               </p>
               
-              {/* Clean bullet points */}
-              <div className="space-y-3">
+              {/* Enhanced bullet points emphasizing AI automation */}
+              <div className="space-y-4">
                 <div className="flex items-center gap-3">
                   <Check className="h-5 w-5 text-coral flex-shrink-0" />
-                  <span className="text-lg text-gray-600">Build a live, and searchable library</span>
+                  <div>
+                    <span className="text-lg text-gray-900 font-semibold">AI-Powered Extraction:</span>
+                    <span className="text-lg text-gray-600 ml-2">Just upload your PDFs. Our system does the rest.</span>
+                  </div>
                 </div>
                 <div className="flex items-center gap-3">
                   <Check className="h-5 w-5 text-coral flex-shrink-0" />
-                  <span className="text-lg text-gray-600">Just drag-and-drop your spec PDFs, we take care of the rest</span>
+                  <div>
+                    <span className="text-lg text-gray-900 font-semibold">Instant Search:</span>
+                    <span className="text-lg text-gray-600 ml-2">Find any material, project, or manufacturer in seconds.</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Check className="h-5 w-5 text-coral flex-shrink-0" />
+                  <div>
+                    <span className="text-lg text-gray-900 font-semibold">Permanent Knowledge:</span>
+                    <span className="text-lg text-gray-600 ml-2">Protect your studio's most valuable asset—its history.</span>
+                  </div>
                 </div>
               </div>
             </div>

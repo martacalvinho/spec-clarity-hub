@@ -25,15 +25,15 @@ const HowItWorksSection = () => {
     },
     {
       icon: Search,
-      title: "We Extract & Tag",
-      description: "AI pulls Tag · Category · Manufacturer · Notes.",
+      title: "AI Does the Heavy Lifting",
+      description: "Our AI reads every line of your spec sheets—extracting materials, manufacturers, model numbers, and notes automatically. You just watch it happen.",
       number: "2",
       badge: "AI-Powered",
       mockup: (
         <div className="bg-white rounded-lg border border-gray-200 p-3 md:p-4 shadow-sm hover:shadow-lg transition-all duration-300 ease-out">
           <div className="space-y-2">
             <div className="flex justify-between text-xs text-gray-500">
-              <span>Processing...</span>
+              <span>AI Reading...</span>
               <span className="font-medium text-coral">78%</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
