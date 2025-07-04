@@ -52,7 +52,7 @@ const HeroSection = () => {
                   <Check className="h-5 w-5 text-coral flex-shrink-0" />
                   <div>
                     <span className="text-lg text-gray-900 font-semibold">Permanent Knowledge:</span>
-                    <span className="text-lg text-gray-600 ml-2">Protect your studio's most valuable asset—its history.</span>
+                    <span className="text-lg text-gray-600 ml-2">Protect your studio's most valuable asset - its history.</span>
                   </div>
                 </div>
               </div>
