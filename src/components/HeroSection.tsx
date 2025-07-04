@@ -15,7 +15,7 @@ const HeroSection = () => {
         <div className="grid lg:grid-cols-2 gap-16 items-center">
           <div className="animate-fade-in">
             <div className="mb-8">
-              <h1 className="text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-gray-900 leading-[0.95] mb-8">
+              <h1 className="text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-gray-900 leading-[0.95] mb-6">
                 Your Studio's
                 <br />
                 <span className="text-coral bg-gradient-to-r from-coral to-coral-600 bg-clip-text text-transparent">
@@ -26,37 +26,36 @@ const HeroSection = () => {
                   Powered by AI.
                 </span>
               </h1>
-            </div>
-            <div className="space-y-6 mb-10">
-              <p className="text-xl md:text-2xl text-gray-700 font-semibold leading-tight">
-                Treqy reads your spec sheets and automatically builds a searchable database of every material your studio has ever used.
-              </p>
               
-              {/* Enhanced bullet points emphasizing AI automation */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <Check className="h-5 w-5 text-coral flex-shrink-0" />
-                  <div>
-                    <span className="text-lg text-gray-900 font-semibold">AI-Powered Extraction:</span>
-                    <span className="text-lg text-gray-600 ml-2">Just upload your PDFs. Our system does the rest.</span>
-                  </div>
+              <h2 className="text-xl md:text-2xl text-gray-700 font-semibold leading-tight mb-8">
+                Treqy automatically turns your spec sheets into a searchable database. No manual data entry required.
+              </h2>
+            </div>
+            
+            <div className="space-y-4 mb-10">
+              <div className="flex items-center gap-3">
+                <Check className="h-5 w-5 text-coral flex-shrink-0" />
+                <div>
+                  <span className="text-lg text-gray-900 font-semibold">AI-Powered Extraction:</span>
+                  <span className="text-lg text-gray-600 ml-2">Just upload your PDFs. Our system does the rest.</span>
                 </div>
-                <div className="flex items-center gap-3">
-                  <Check className="h-5 w-5 text-coral flex-shrink-0" />
-                  <div>
-                    <span className="text-lg text-gray-900 font-semibold">Instant Search:</span>
-                    <span className="text-lg text-gray-600 ml-2">Find any material, project, or manufacturer in seconds.</span>
-                  </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <Check className="h-5 w-5 text-coral flex-shrink-0" />
+                <div>
+                  <span className="text-lg text-gray-900 font-semibold">Instant Search:</span>
+                  <span className="text-lg text-gray-600 ml-2">Find any material, project, or manufacturer in seconds.</span>
                 </div>
-                <div className="flex items-center gap-3">
-                  <Check className="h-5 w-5 text-coral flex-shrink-0" />
-                  <div>
-                    <span className="text-lg text-gray-900 font-semibold">Permanent Knowledge:</span>
-                    <span className="text-lg text-gray-600 ml-2">Protect your studio's most valuable asset - its history.</span>
-                  </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <Check className="h-5 w-5 text-coral flex-shrink-0" />
+                <div>
+                  <span className="text-lg text-gray-900 font-semibold">Permanent Knowledge:</span>
+                  <span className="text-lg text-gray-600 ml-2">Protect your studio's most valuable asset—its history.</span>
                 </div>
               </div>
             </div>
+            
             <div className="flex flex-col gap-4">
               <Button 
                 onClick={() => navigate('/get-started')}
